@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "build": "tsc -p tsconfig.json && vite build && node scripts/release-manifest.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "react": "18.3.1",
