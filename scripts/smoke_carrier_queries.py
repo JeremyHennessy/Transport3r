@@ -11,7 +11,7 @@ INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names. The carrier
 directory query is also checked because its fleet filter/sort uses FMCSA's published
 single-letter FLEETSIZE code rather than treating the text POWER_UNITS field as numeric.
 
-All 27 configured source families are covered: current census/safety, inspection
+Every configured source in data/fmcsa_sources.json is covered: current census/safety, inspection
 children, MOTUS full/history, MOTUS daily differences, monthly SMS inputs/outputs,
 and New Entrant OOS. This guards the broader Data Sources and lazy Carrier 360 UI.
 """
@@ -27,11 +27,13 @@ from typing import Any
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "public" / "data" / "source-schemas.json"
+CATALOG_PATH = ROOT / "data" / "fmcsa_sources.json"
 BASE = "https://data.transportation.gov/resource"
 USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 
 USDOT_ALIASES = {"DOT_NUMBER", "USDOT_NUMBER", "USDOT_NUM", "USDOT_NO", "DOT_NO", "US_DOT_NUMBER"}
 INSPECTION_ID_ALIASES = {"INSPECTION_ID", "INSP_ID"}
+DOCKET_ALIASES = {"PREFIX_DOCKET_NUMBER", "DOCKET_NUMBER", "DOCKET_NO"}
 FLEET_FIELDS = {
     "insp_unit_vehicle_id_number",
     "insp_unit_make",
@@ -53,6 +55,7 @@ DIRECT_DOT_SOURCES = {
     "wb4f-neki": "MOTUS RevokeSuspend",
     "nakq-58th": "MOTUS Carrier Daily Difference",
     "dm5j-zc6c": "MOTUS AuthHist Daily Difference",
+    "mhr5-hjyc": "MOTUS BOC3 Daily Difference",
     "x96h-evps": "MOTUS Insurance Daily Difference",
     "xe5s-wca7": "MOTUS Insurance History Daily Difference",
     "e67p-xyd5": "MOTUS RevokeSuspend Daily Difference",
@@ -64,8 +67,17 @@ DIRECT_DOT_SOURCES = {
     "h3zn-uid9": "SMS C Pass",
     "4y6x-dmck": "SMS AB PassProperty",
     "h9zy-gjn8": "SMS C PassProperty",
+    "6eyk-hxee": "Legacy Carrier",
+    "qh9u-swkp": "Legacy Active/Pending Insurance",
+    "9mw4-x3tu": "Legacy Authority History",
+    "2emp-mxtb": "Legacy BOC3",
+    "6sqe-dvqs": "Legacy Insurance History",
+    "96tg-4mhf": "Legacy Rejected",
+    "sa6p-acbp": "Legacy Revocation",
     "p2mt-9ige": "New Entrant OOS",
 }
+
+DOCKET_SOURCES = {"ypjt-5ydn": "Legacy Insurance"}
 
 INSPECTION_CHILD_SOURCES = {
     "wt8s-2hbx": "Inspection Units",
@@ -132,12 +144,13 @@ def main() -> int:
     registry = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     schemas = {source["id"]: source for source in registry["sources"]}
 
-    expected_sources = set(DIRECT_DOT_SOURCES) | set(INSPECTION_CHILD_SOURCES)
+    catalog_ids = {row["id"] for row in json.loads(CATALOG_PATH.read_text(encoding="utf-8"))}
+    expected_sources = set(DIRECT_DOT_SOURCES) | set(DOCKET_SOURCES) | set(INSPECTION_CHILD_SOURCES)
+    if expected_sources != catalog_ids:
+        raise RuntimeError(f"Runtime/catalog source drift: missing={sorted(catalog_ids-expected_sources)}, extra={sorted(expected_sources-catalog_ids)}")
     missing_schemas = sorted(expected_sources - set(schemas))
     if missing_schemas:
         raise RuntimeError(f"Missing schema registry entries: {', '.join(missing_schemas)}")
-    if len(expected_sources) != 27:
-        raise RuntimeError(f"Smoke source registry expected 27 configured datasets, found {len(expected_sources)}")
 
     fleet_schema_fields = {str(column.get("field_name") or "") for column in schemas["wt8s-2hbx"].get("columns", [])}
     missing_fleet_fields = sorted(FLEET_FIELDS - fleet_schema_fields)
@@ -169,6 +182,34 @@ def main() -> int:
             raise RuntimeError(f"{source_id} {name} has no registered USDOT column but Carrier 360 queries it by USDOT")
         rows = query(source_id, f"{dot_column['field_name']}={literal(dot_column, dot_number)}", limit=2)
         results.append({"source": source_id, "name": name, "join": dot_column["field_name"], "rows": len(rows)})
+
+    legacy_carrier_schema = schemas["6eyk-hxee"]
+    legacy_carrier_docket = find_column(legacy_carrier_schema, DOCKET_ALIASES)
+    if not legacy_carrier_docket:
+        raise RuntimeError("Legacy Carrier archive lost DOCKET_NUMBER lineage field")
+    for source_id, name in DOCKET_SOURCES.items():
+        schema = schemas[source_id]
+        docket_column = find_column(schema, DOCKET_ALIASES)
+        if not docket_column:
+            raise RuntimeError(f"{source_id} {name} has no registered DOCKET_NUMBER field")
+        seed_rows = query(source_id, f"{docket_column['field_name']} is not null", limit=10)
+        linked = None
+        for seed_row in seed_rows:
+            docket = str(seed_row.get(docket_column['field_name']) or '').strip()
+            if not docket:
+                continue
+            parent_rows = query(
+                "6eyk-hxee",
+                f"{legacy_carrier_docket['field_name']}={literal(legacy_carrier_docket, docket)}",
+                limit=2,
+            )
+            if parent_rows:
+                child_rows = query(source_id, f"{docket_column['field_name']}={literal(docket_column, docket)}", limit=2)
+                linked = {"source": source_id, "name": name, "join": docket_column["field_name"], "docket": docket, "rows": len(child_rows), "parent_rows": len(parent_rows)}
+                break
+        if linked is None:
+            raise RuntimeError(f"{source_id} {name} sampled dockets did not resolve to Legacy Carrier")
+        results.append(linked)
 
     for source_id, name in INSPECTION_CHILD_SOURCES.items():
         schema = schemas[source_id]

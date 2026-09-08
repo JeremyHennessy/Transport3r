@@ -135,10 +135,17 @@ const DATA_FAMILIES = [
     action: 'Eligibility & continuity',
   },
   {
+    title: 'Legacy authority archive',
+    eyebrow: 'Frozen pre-MOTUS baseline',
+    description: 'Eight official legacy authority files retained for historical continuity. They never override modern MOTUS current state.',
+    sources: ['6eyk-hxee', 'ypjt-5ydn', 'qh9u-swkp', '9mw4-x3tu', '2emp-mxtb', '6sqe-dvqs', '96tg-4mhf', 'sa6p-acbp'],
+    action: 'Historical lineage only',
+  },
+  {
     title: 'Change detection',
     eyebrow: '24-hour MOTUS deltas',
     description: 'Separate material changes from static history: new authority events, insurance changes and suspension/revocation activity.',
-    sources: ['nakq-58th', 'dm5j-zc6c', 'x96h-evps', 'xe5s-wca7', 'e67p-xyd5'],
+    sources: ['nakq-58th', 'dm5j-zc6c', 'mhr5-hjyc', 'x96h-evps', 'xe5s-wca7', 'e67p-xyd5'],
     action: 'Portfolio monitoring',
   },
   {

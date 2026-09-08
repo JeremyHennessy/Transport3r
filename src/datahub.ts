@@ -36,6 +36,7 @@ export type DataSlice = {
 const DATAHUB = 'https://data.transportation.gov/resource';
 const USDOT_ALIASES = ['DOT_NUMBER', 'USDOT_NUMBER', 'USDOT_NUM', 'USDOT_NO', 'DOT_NO', 'US_DOT_NUMBER'];
 const INSPECTION_ID_ALIASES = ['INSPECTION_ID', 'INSP_ID'];
+const DOCKET_ALIASES = ['PREFIX_DOCKET_NUMBER', 'DOCKET_NUMBER', 'DOCKET_NO'];
 const REQUEST_TIMEOUT_MS = 9000;
 
 let schemaPromise: Promise<SchemaRegistry> | null = null;
@@ -218,6 +219,38 @@ export async function queryByInspectionIds(
     rows,
     total: rows.length,
     truncated: unique.length < inspectionIds.length || responses.some((batch) => batch.length >= limitPerChunk),
+  };
+}
+
+export async function queryByDocketNumbers(
+  registry: SchemaRegistry,
+  sourceId: string,
+  docketNumbers: string[],
+  options: { limitPerChunk?: number; maxDocketNumbers?: number; idsPerChunk?: number } = {},
+): Promise<DataSlice> {
+  const schema = sourceSchema(registry, sourceId);
+  const docketColumn = findColumn(schema, DOCKET_ALIASES);
+  if (!docketColumn?.field_name) throw new Error(`${sourceId} has no registered docket-number field`);
+
+  const unique = [...new Set(docketNumbers.filter(Boolean))].slice(0, options.maxDocketNumbers ?? 100);
+  if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
+
+  const limitPerChunk = options.limitPerChunk ?? 2000;
+  const batches = chunks(unique, options.idsPerChunk ?? 50);
+  const responses = await Promise.all(
+    batches.map(async (batch) => {
+      const values = batch.map((id) => literal(docketColumn, id)).join(',');
+      const where = `${docketColumn.field_name} in (${values})`;
+      const params = new URLSearchParams({ '$where': where, '$limit': String(limitPerChunk) });
+      return fetchRows(sourceId, params);
+    }),
+  );
+  const rows = responses.flat();
+  return {
+    sourceId,
+    rows,
+    total: rows.length,
+    truncated: unique.length < docketNumbers.length || responses.some((batch) => batch.length >= limitPerChunk),
   };
 }
 

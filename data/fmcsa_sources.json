@@ -1,35 +1,362 @@
 [
-  {"id":"az4n-8mr2","name":"Company Census File","family":"Census","cadence":"daily","scope":"active, pending and inactive USDOT entities","role":"carrier identity, operation, equipment, drivers and reported mileage","tier":"core","history":"current snapshot"},
-  {"id":"aayw-vxb3","name":"Crash File","family":"Safety","cadence":"daily","scope":"public reportable commercial motor vehicle crashes","role":"crash involvement, severity and vehicle observations","tier":"core","history":"current published file"},
-  {"id":"fx4q-ay7w","name":"Vehicle Inspection File","family":"Inspection","cadence":"daily","scope":"three years of published inspections","role":"inspection events, levels, locations, status and aggregate violation counts","tier":"core","history":"three years"},
-  {"id":"wt8s-2hbx","name":"Inspections Per Unit","family":"Inspection","cadence":"daily","scope":"vehicles observed in published inspections","role":"VIN, plate, make, unit and CVSA observations","tier":"core","history":"three years"},
-  {"id":"876r-jsdb","name":"Vehicle Inspections and Violations","family":"Inspection","cadence":"daily","scope":"violations attached to published inspections","role":"violation codes, category, unit, OOS and defect verification","tier":"core","history":"three years"},
-  {"id":"5qik-smay","name":"Special Studies","family":"Inspection","cadence":"daily","scope":"Level IV / special study inspection observations","role":"study fields and results","tier":"extended","history":"three years"},
-  {"id":"qbt8-7vic","name":"Inspections and Citations","family":"Inspection","cadence":"daily","scope":"citations attached to published inspections","role":"citation code and result","tier":"extended","history":"three years"},
-
-  {"id":"inys-ebih","name":"Motus Carrier - All With History","family":"MOTUS","cadence":"daily baseline","scope":"modern operating-authority carrier repository","role":"USDOT/docket authority profile and current status","tier":"core","history":"all with history"},
-  {"id":"yu5v-wbh6","name":"Motus AuthHist - All With History","family":"MOTUS","cadence":"daily baseline","scope":"operating authority status history","role":"authority lifecycle and status-change timeline","tier":"core","history":"all with history"},
-  {"id":"c5y8-a4uz","name":"Motus Insur - All With History","family":"MOTUS","cadence":"daily baseline","scope":"active and pending insurance policies","role":"coverage type, policy, limits, insurer and transaction dates","tier":"core","history":"all with history"},
-  {"id":"3uet-3z4i","name":"Motus InsHist - All With History","family":"MOTUS","cadence":"daily baseline","scope":"previous or changed insurance filings","role":"insurance cancellation/replacement/change history","tier":"core","history":"all with history"},
-  {"id":"6snj-ed7q","name":"Motus BOC3 - All With History","family":"MOTUS","cadence":"daily baseline","scope":"blanket-company process agents","role":"BOC-3 agent and administrative service address","tier":"extended","history":"all with history"},
-  {"id":"wb4f-neki","name":"Motus RevokeSuspend - All With History","family":"MOTUS","cadence":"daily baseline","scope":"authority suspension and revocation history","role":"orders, reasons, serve/effective dates","tier":"core","history":"all with history"},
-
-  {"id":"nakq-58th","name":"Motus Carrier - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"records updated in the latest published 24-hour difference feed","role":"carrier/authority delta rows; blank non-key fields can signal drop/deletion","tier":"core","history":"24-hour delta"},
-  {"id":"dm5j-zc6c","name":"Motus AuthHist - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"authority-history rows updated in the latest published 24-hour difference feed","role":"authority lifecycle delta rows","tier":"core","history":"24-hour delta"},
-  {"id":"mhr5-hjyc","name":"Motus BOC3 - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"BOC-3 rows updated in the latest published 24-hour difference feed","role":"process-agent delta rows","tier":"extended","history":"24-hour delta"},
-  {"id":"x96h-evps","name":"Motus Insur - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"insurance rows updated in the latest published 24-hour difference feed","role":"active/pending policy delta rows; blank non-key fields can signal cancellation or coverage drop","tier":"core","history":"24-hour delta"},
-  {"id":"xe5s-wca7","name":"Motus InsHist - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"insurance-history rows updated in the latest published 24-hour difference feed","role":"insurance-history delta rows","tier":"core","history":"24-hour delta"},
-  {"id":"e67p-xyd5","name":"Motus RevokeSuspend - Daily Difference","family":"MOTUS Delta","cadence":"daily","scope":"revoke/suspend rows updated in the latest published 24-hour difference feed","role":"suspension/revocation delta rows requiring record-level review","tier":"core","history":"24-hour delta"},
-
-  {"id":"kjg3-diqy","name":"SMS Input - Motor Carrier Census Information","family":"SMS Input","cadence":"monthly","scope":"active interstate and intrastate HM carriers used in SMS","role":"exact monthly census snapshot used by SMS","tier":"core","history":"current SMS month"},
-  {"id":"rbkj-cgst","name":"SMS Input - Inspection Data","family":"SMS Input","cadence":"monthly","scope":"inspections used in current SMS calculations","role":"exact monthly inspection input and BASIC relationships","tier":"core","history":"current SMS month"},
-  {"id":"4wxs-vbns","name":"SMS Input - Crash Data","family":"SMS Input","cadence":"monthly","scope":"crashes used in current SMS calculations","role":"exact monthly crash input including FMCSA severity/time weights","tier":"core","history":"current SMS month"},
-  {"id":"8mt8-2mdr","name":"SMS Input - Violation Data","family":"SMS Input","cadence":"monthly","scope":"violations used in current SMS calculations","role":"exact monthly violation input and methodology fields","tier":"core","history":"current SMS month"},
-
-  {"id":"m3ry-qcip","name":"SMS AB Pass","family":"SMS Output","cadence":"monthly","scope":"interstate/intrastate HM passenger-only carrier results","role":"official SMS output validation","tier":"validation","history":"current SMS month"},
-  {"id":"h3zn-uid9","name":"SMS C Pass","family":"SMS Output","cadence":"monthly","scope":"intrastate non-HM passenger-only carrier results","role":"official SMS output validation","tier":"validation","history":"current SMS month"},
-  {"id":"4y6x-dmck","name":"SMS AB PassProperty","family":"SMS Output","cadence":"monthly","scope":"interstate/intrastate HM property and/or passenger carrier results","role":"official property-carrier SMS output validation","tier":"validation","history":"current SMS month"},
-  {"id":"h9zy-gjn8","name":"SMS C PassProperty","family":"SMS Output","cadence":"monthly","scope":"intrastate non-HM property and/or passenger carrier results","role":"official property-carrier SMS output validation","tier":"validation","history":"current SMS month"},
-
-  {"id":"p2mt-9ige","name":"New Entrant Out of Service Orders","family":"Enforcement","cadence":"daily","scope":"entities that received New Entrant operational OOS orders","role":"material underwriting alert; order rows must be interpreted with status/rescind date","tier":"core","history":"all published orders"}
+  {
+    "id": "az4n-8mr2",
+    "name": "Company Census File",
+    "family": "Census",
+    "cadence": "daily",
+    "scope": "active, pending and inactive USDOT entities",
+    "role": "carrier identity, operation, equipment, drivers and reported mileage",
+    "tier": "core",
+    "history": "current snapshot"
+  },
+  {
+    "id": "aayw-vxb3",
+    "name": "Crash File",
+    "family": "Safety",
+    "cadence": "daily",
+    "scope": "public reportable commercial motor vehicle crashes",
+    "role": "crash involvement, severity and vehicle observations",
+    "tier": "core",
+    "history": "current published file"
+  },
+  {
+    "id": "fx4q-ay7w",
+    "name": "Vehicle Inspection File",
+    "family": "Inspection",
+    "cadence": "daily",
+    "scope": "three years of published inspections",
+    "role": "inspection events, levels, locations, status and aggregate violation counts",
+    "tier": "core",
+    "history": "three years"
+  },
+  {
+    "id": "wt8s-2hbx",
+    "name": "Inspections Per Unit",
+    "family": "Inspection",
+    "cadence": "daily",
+    "scope": "vehicles observed in published inspections",
+    "role": "VIN, plate, make, unit and CVSA observations",
+    "tier": "core",
+    "history": "three years"
+  },
+  {
+    "id": "876r-jsdb",
+    "name": "Vehicle Inspections and Violations",
+    "family": "Inspection",
+    "cadence": "daily",
+    "scope": "violations attached to published inspections",
+    "role": "violation codes, category, unit, OOS and defect verification",
+    "tier": "core",
+    "history": "three years"
+  },
+  {
+    "id": "5qik-smay",
+    "name": "Special Studies",
+    "family": "Inspection",
+    "cadence": "daily",
+    "scope": "Level IV / special study inspection observations",
+    "role": "study fields and results",
+    "tier": "extended",
+    "history": "three years"
+  },
+  {
+    "id": "qbt8-7vic",
+    "name": "Inspections and Citations",
+    "family": "Inspection",
+    "cadence": "daily",
+    "scope": "citations attached to published inspections",
+    "role": "citation code and result",
+    "tier": "extended",
+    "history": "three years"
+  },
+  {
+    "id": "inys-ebih",
+    "name": "Motus Carrier - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "modern operating-authority carrier repository",
+    "role": "USDOT/docket authority profile and current status",
+    "tier": "core",
+    "history": "all with history"
+  },
+  {
+    "id": "yu5v-wbh6",
+    "name": "Motus AuthHist - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "operating authority status history",
+    "role": "authority lifecycle and status-change timeline",
+    "tier": "core",
+    "history": "all with history"
+  },
+  {
+    "id": "c5y8-a4uz",
+    "name": "Motus Insur - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "active and pending insurance policies",
+    "role": "coverage type, policy, limits, insurer and transaction dates",
+    "tier": "core",
+    "history": "all with history"
+  },
+  {
+    "id": "3uet-3z4i",
+    "name": "Motus InsHist - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "previous or changed insurance filings",
+    "role": "insurance cancellation/replacement/change history",
+    "tier": "core",
+    "history": "all with history"
+  },
+  {
+    "id": "6snj-ed7q",
+    "name": "Motus BOC3 - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "blanket-company process agents",
+    "role": "BOC-3 agent and administrative service address",
+    "tier": "extended",
+    "history": "all with history"
+  },
+  {
+    "id": "wb4f-neki",
+    "name": "Motus RevokeSuspend - All With History",
+    "family": "MOTUS",
+    "cadence": "daily baseline",
+    "scope": "authority suspension and revocation history",
+    "role": "orders, reasons, serve/effective dates",
+    "tier": "core",
+    "history": "all with history"
+  },
+  {
+    "id": "nakq-58th",
+    "name": "Motus Carrier - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "records updated in the latest published 24-hour difference feed",
+    "role": "carrier/authority delta rows; blank non-key fields can signal drop/deletion",
+    "tier": "core",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "dm5j-zc6c",
+    "name": "Motus AuthHist - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "authority-history rows updated in the latest published 24-hour difference feed",
+    "role": "authority lifecycle delta rows",
+    "tier": "core",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "mhr5-hjyc",
+    "name": "Motus BOC3 - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "BOC-3 rows updated in the latest published 24-hour difference feed",
+    "role": "process-agent delta rows",
+    "tier": "extended",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "x96h-evps",
+    "name": "Motus Insur - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "insurance rows updated in the latest published 24-hour difference feed",
+    "role": "active/pending policy delta rows; blank non-key fields can signal cancellation or coverage drop",
+    "tier": "core",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "xe5s-wca7",
+    "name": "Motus InsHist - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "insurance-history rows updated in the latest published 24-hour difference feed",
+    "role": "insurance-history delta rows",
+    "tier": "core",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "e67p-xyd5",
+    "name": "Motus RevokeSuspend - Daily Difference",
+    "family": "MOTUS Delta",
+    "cadence": "daily",
+    "scope": "revoke/suspend rows updated in the latest published 24-hour difference feed",
+    "role": "suspension/revocation delta rows requiring record-level review",
+    "tier": "core",
+    "history": "24-hour delta"
+  },
+  {
+    "id": "kjg3-diqy",
+    "name": "SMS Input - Motor Carrier Census Information",
+    "family": "SMS Input",
+    "cadence": "monthly",
+    "scope": "active interstate and intrastate HM carriers used in SMS",
+    "role": "exact monthly census snapshot used by SMS",
+    "tier": "core",
+    "history": "current SMS month"
+  },
+  {
+    "id": "rbkj-cgst",
+    "name": "SMS Input - Inspection Data",
+    "family": "SMS Input",
+    "cadence": "monthly",
+    "scope": "inspections used in current SMS calculations",
+    "role": "exact monthly inspection input and BASIC relationships",
+    "tier": "core",
+    "history": "current SMS month"
+  },
+  {
+    "id": "4wxs-vbns",
+    "name": "SMS Input - Crash Data",
+    "family": "SMS Input",
+    "cadence": "monthly",
+    "scope": "crashes used in current SMS calculations",
+    "role": "exact monthly crash input including FMCSA severity/time weights",
+    "tier": "core",
+    "history": "current SMS month"
+  },
+  {
+    "id": "8mt8-2mdr",
+    "name": "SMS Input - Violation Data",
+    "family": "SMS Input",
+    "cadence": "monthly",
+    "scope": "violations used in current SMS calculations",
+    "role": "exact monthly violation input and methodology fields",
+    "tier": "core",
+    "history": "current SMS month"
+  },
+  {
+    "id": "m3ry-qcip",
+    "name": "SMS AB Pass",
+    "family": "SMS Output",
+    "cadence": "monthly",
+    "scope": "interstate/intrastate HM passenger-only carrier results",
+    "role": "official SMS output validation",
+    "tier": "validation",
+    "history": "current SMS month"
+  },
+  {
+    "id": "h3zn-uid9",
+    "name": "SMS C Pass",
+    "family": "SMS Output",
+    "cadence": "monthly",
+    "scope": "intrastate non-HM passenger-only carrier results",
+    "role": "official SMS output validation",
+    "tier": "validation",
+    "history": "current SMS month"
+  },
+  {
+    "id": "4y6x-dmck",
+    "name": "SMS AB PassProperty",
+    "family": "SMS Output",
+    "cadence": "monthly",
+    "scope": "interstate/intrastate HM property and/or passenger carrier results",
+    "role": "official property-carrier SMS output validation",
+    "tier": "validation",
+    "history": "current SMS month"
+  },
+  {
+    "id": "h9zy-gjn8",
+    "name": "SMS C PassProperty",
+    "family": "SMS Output",
+    "cadence": "monthly",
+    "scope": "intrastate non-HM property and/or passenger carrier results",
+    "role": "official property-carrier SMS output validation",
+    "tier": "validation",
+    "history": "current SMS month"
+  },
+  {
+    "id": "p2mt-9ige",
+    "name": "New Entrant Out of Service Orders",
+    "family": "Enforcement",
+    "cadence": "daily",
+    "scope": "entities that received New Entrant operational OOS orders",
+    "role": "material underwriting alert; order rows must be interpreted with status/rescind date",
+    "tier": "core",
+    "history": "all published orders"
+  },
+  {
+    "id": "6eyk-hxee",
+    "name": "Carrier - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS carrier/authority baseline; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "ypjt-5ydn",
+    "name": "Insur - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS active/pending insurance baseline; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "qh9u-swkp",
+    "name": "ActPendInsur - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS insurance implementation dates; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "9mw4-x3tu",
+    "name": "AuthHist - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS authority lifecycle history; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "2emp-mxtb",
+    "name": "BOC3 - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS process-agent assignments; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "6sqe-dvqs",
+    "name": "InsHist - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS insurance filing history; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "96tg-4mhf",
+    "name": "Rejected - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS rejected insurance forms; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  },
+  {
+    "id": "sa6p-acbp",
+    "name": "Revocation - All With History (Legacy Archive)",
+    "family": "MOTUS Legacy Archive",
+    "cadence": "frozen",
+    "scope": "Pre-MOTUS revocation history; retained by FMCSA for historical continuity",
+    "role": "Historical lineage only; never substitute for modern MOTUS current authority or insurance state",
+    "tier": "archive",
+    "history": "legacy frozen baseline"
+  }
 ]

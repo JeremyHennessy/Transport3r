@@ -5,6 +5,7 @@ import {
   inspectionId,
   loadSchemaRegistry,
   queryByDot,
+  queryByDocketNumbers,
   queryByDotOrInspectionIds,
   readNumber,
   readValue,
@@ -30,6 +31,14 @@ export const SOURCE_IDS = {
   motusInsuranceDelta: 'x96h-evps',
   motusInsuranceHistoryDelta: 'xe5s-wca7',
   motusRevokeSuspendDelta: 'e67p-xyd5',
+  legacyCarrier: '6eyk-hxee',
+  legacyInsurance: 'ypjt-5ydn',
+  legacyActivePendingInsurance: 'qh9u-swkp',
+  legacyAuthHistory: '9mw4-x3tu',
+  legacyBoc3: '2emp-mxtb',
+  legacyInsuranceHistory: '6sqe-dvqs',
+  legacyRejected: '96tg-4mhf',
+  legacyRevocation: 'sa6p-acbp',
   smsCensus: 'kjg3-diqy',
   smsInspection: 'rbkj-cgst',
   smsCrash: '4wxs-vbns',
@@ -187,13 +196,40 @@ export async function loadCarrierEvidence(
     if (inspectionResult.error) errors.inspections = inspectionResult.error;
   }
 
-  const remaining = requested.filter((key) => key !== 'inspections');
+  let legacyDockets: string[] = [];
+  if (requested.includes('legacyInsurance')) {
+    const legacyCarrierResult = await capture('legacyCarrier', cachedSourceTask(registry, 'legacyCarrier', dotNumber, []));
+    if (legacyCarrierResult.slice) {
+      slices.legacyCarrier = legacyCarrierResult.slice;
+      legacyDockets = legacyCarrierResult.slice.rows
+        .map((row) => readValue(row, ['DOCKET_NUMBER', 'DOCKET_NO']))
+        .filter((value): value is string => Boolean(value));
+      legacyDockets = [...new Set(legacyDockets)];
+    }
+    if (legacyCarrierResult.error) errors.legacyCarrier = legacyCarrierResult.error;
+  }
+
+  const remaining = requested.filter((key) =>
+    key !== 'inspections' && key !== 'legacyCarrier' && key !== 'legacyInsurance'
+  );
   const results = await Promise.all(
     remaining.map((key) => capture(key, cachedSourceTask(registry, key, dotNumber, inspectionIds))),
   );
   for (const result of results) {
     if (result.slice) slices[result.key] = result.slice;
     if (result.error) errors[result.key] = result.error;
+  }
+
+  if (requested.includes('legacyInsurance')) {
+    const legacyInsuranceResult = await capture(
+      'legacyInsurance',
+      queryByDocketNumbers(registry, SOURCE_IDS.legacyInsurance, legacyDockets, {
+        limitPerChunk: 2000,
+        maxDocketNumbers: 100,
+      }),
+    );
+    if (legacyInsuranceResult.slice) slices.legacyInsurance = legacyInsuranceResult.slice;
+    if (legacyInsuranceResult.error) errors.legacyInsurance = legacyInsuranceResult.error;
   }
 
   return {

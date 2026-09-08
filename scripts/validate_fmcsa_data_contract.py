@@ -37,6 +37,9 @@ USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 
 USDOT_ALIASES = {"DOT_NUMBER", "USDOT_NUMBER", "USDOT_NUM", "USDOT_NO", "DOT_NO", "US_DOT_NUMBER"}
 INSPECTION_ID_ALIASES = {"INSPECTION_ID", "INSP_ID"}
+DOCKET_ALIASES = {"PREFIX_DOCKET_NUMBER", "DOCKET_NUMBER", "DOCKET_NO"}
+DOCKET_ONLY_SOURCE_IDS = {"ypjt-5ydn"}
+LEGACY_CARRIER_ID = "6eyk-hxee"
 CHILD_SOURCE_IDS = {"wt8s-2hbx", "876r-jsdb", "5qik-smay", "qbt8-7vic"}
 PARENT_INSPECTION_ID = "fx4q-ay7w"
 SMS_INSPECTION_ID = "rbkj-cgst"
@@ -136,7 +139,7 @@ def parse_fmcsa_date(value: Any) -> dt.date | None:
     text = str(value or "").strip()
     if not text or text in {"0", "00000000", "0000-00-00"}:
         return None
-    formats = ["%Y%m%d", "%m%d%Y", "%Y-%m-%d", "%m/%d/%Y", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
+    formats = ["%Y%m%d", "%m%d%Y", "%Y-%m-%d", "%m/%d/%Y", "%d-%b-%y", "%d-%b-%Y", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
     clean = text.rstrip("Z")
     for fmt in formats:
         try:
@@ -284,6 +287,44 @@ def validate_sample_normalization(source_id: str, schema: dict[str, Any]) -> dic
     return {"source": source_id, "checked_fields": len(selected), "numeric": numeric, "dates": dates}
 
 
+def validate_legacy_insurance_docket_lineage(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    source_id = "ypjt-5ydn"
+    insurance_schema = schemas[source_id]
+    carrier_schema = schemas[LEGACY_CARRIER_ID]
+    insurance_docket = find_column(insurance_schema, DOCKET_ALIASES)
+    carrier_docket = find_column(carrier_schema, DOCKET_ALIASES)
+    if not insurance_docket or not insurance_docket.get("field_name"):
+        raise RuntimeError(f"{source_id}: documented docket-number join field missing")
+    if not carrier_docket or not carrier_docket.get("field_name"):
+        raise RuntimeError(f"{LEGACY_CARRIER_ID}: docket-number lineage field missing")
+    insurance_field = str(insurance_docket["field_name"])
+    carrier_field = str(carrier_docket["field_name"])
+    seeds = query(source_id, {"$select": insurance_field, "$where": f"{insurance_field} is not null", "$limit": "10"})
+    for seed in seeds:
+        raw = str(seed.get(insurance_field) or "").strip()
+        if not raw:
+            continue
+        carrier_rows = query(LEGACY_CARRIER_ID, {
+            "$select": carrier_field,
+            "$where": f"{carrier_field}={literal(carrier_docket, raw)}",
+            "$limit": "5",
+        })
+        if carrier_rows:
+            requested = canonical_identifier(raw)
+            returned = {canonical_identifier(row.get(carrier_field)) for row in carrier_rows}
+            if requested not in returned:
+                raise RuntimeError(f"legacy insurance docket lineage leaked identities for {raw}")
+            return {
+                "source": source_id,
+                "join": insurance_field,
+                "docket": requested,
+                "parent_source": LEGACY_CARRIER_ID,
+                "parent_join": carrier_field,
+                "parent_rows": len(carrier_rows),
+            }
+    raise RuntimeError(f"{source_id}: sampled docket rows did not resolve to {LEGACY_CARRIER_ID}")
+
+
 def main() -> int:
     configured = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     registry = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -309,6 +350,9 @@ def main() -> int:
         if source_id in CHILD_SOURCE_IDS:
             join = find_column(schema, INSPECTION_ID_ALIASES)
             kind = "inspection_child"
+        elif source_id in DOCKET_ONLY_SOURCE_IDS:
+            join = find_column(schema, DOCKET_ALIASES)
+            kind = "docket_linked_archive"
         else:
             join = find_column(schema, USDOT_ALIASES)
             kind = "carrier"
@@ -322,7 +366,7 @@ def main() -> int:
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
         futures = {}
         for source_id in config_ids:
-            aliases = INSPECTION_ID_ALIASES if source_id in CHILD_SOURCE_IDS else USDOT_ALIASES
+            aliases = INSPECTION_ID_ALIASES if source_id in CHILD_SOURCE_IDS else DOCKET_ALIASES if source_id in DOCKET_ONLY_SOURCE_IDS else USDOT_ALIASES
             futures[pool.submit(live_roundtrip, source_id, schemas[source_id], aliases)] = source_id
         for future in concurrent.futures.as_completed(futures):
             live_join_results.append(future.result())
@@ -330,6 +374,7 @@ def main() -> int:
     parent_schema = schemas[PARENT_INSPECTION_ID]
     child_lineage = [validate_child_parent(source_id, schemas[source_id], parent_schema) for source_id in sorted(CHILD_SOURCE_IDS)]
     sms_lineage = validate_sms_lineage(schemas)
+    legacy_insurance_lineage = validate_legacy_insurance_docket_lineage(schemas)
 
     normalization_results: list[dict[str, Any]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
@@ -346,6 +391,7 @@ def main() -> int:
         "live_join_roundtrips": sorted(live_join_results, key=lambda row: row["source"]),
         "inspection_child_lineage": child_lineage,
         "sms_inspection_violation_lineage": sms_lineage,
+        "legacy_insurance_docket_lineage": legacy_insurance_lineage,
         "normalization_samples": sorted(normalization_results, key=lambda row: row["source"]),
     }
     print(json.dumps(payload, indent=2))
