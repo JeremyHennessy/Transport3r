@@ -48,8 +48,8 @@ SMS_VIOLATION_ID = "8mt8-2mdr"
 # Fields whose semantics are relied upon by the current underwriting UI or validated SMS replay.
 REQUIRED_FIELDS: dict[str, set[str]] = {
     "az4n-8mr2": {"dot_number", "legal_name", "status_code", "carrier_operation", "power_units", "truck_units", "bus_units", "fleetsize", "total_drivers", "avg_drivers_leased_per_month", "mcs150_mileage", "mcs150_mileage_year", "mcs150_date"},
-    "aayw-vxb3": {"dot_number", "report_date"},
-    "fx4q-ay7w": {"dot_number", "inspection_id", "insp_date"},
+    "aayw-vxb3": {"dot_number", "crash_id", "report_date", "fatalities", "injuries", "tow_away"},
+    "fx4q-ay7w": {"dot_number", "inspection_id", "insp_date", "oos_total"},
     "wt8s-2hbx": {"inspection_id", "insp_unit_vehicle_id_number", "insp_unit_make", "insp_unit_type_id", "insp_unit_license", "insp_unit_license_state", "insp_unit_number"},
     "876r-jsdb": {"inspection_id", "out_of_service_indicator", "viol_desc", "insp_viol_unit"},
     "5qik-smay": {"inspection_id"},
