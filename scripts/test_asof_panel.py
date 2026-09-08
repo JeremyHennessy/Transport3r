@@ -100,7 +100,7 @@ class CohortTests(unittest.TestCase):
 class FeatureTests(unittest.TestCase):
     def data(self):
         data={sid:[] for sid in cs.SOURCES}
-        data['az4n-8mr2']=[{'dot_number':'1','power_units':'2','total_drivers':'2','mcs150_date':'20260801'}]
+        data['az4n-8mr2']=[{'dot_number':'1','power_units':'2','total_drivers':'2','mcs150_date':'20260801','status_code':'A'}]
         return data
 
     def test_window_boundaries_future_and_known_oos(self):
@@ -158,6 +158,15 @@ class FeatureTests(unittest.TestCase):
         data['fx4q-ay7w']=[{'dot_number':'1','inspection_id':'1'}]*2
         with self.assertRaisesRegex(ValueError,'duplicate'):
             panel.features('1',data,AS_OF)
+
+    def test_inactive_carrier_empty_inspections_are_unavailable_not_zero(self):
+        data=self.data()
+        data['az4n-8mr2'][0]['status_code']='I'
+        row=panel.features('1',data,AS_OF)
+        self.assertIsNone(row['inspections_365d'])
+        self.assertIsNone(row['oos_inspections_365d'])
+        self.assertEqual(row['known_inspections_365d'],0)
+        self.assertIn('INSPECTION_POPULATION_UNAVAILABLE',row['coverage_issues'])
 
 if __name__=='__main__':
     unittest.main()

@@ -45,6 +45,9 @@ def features(dot, data, as_of):
     if len(census) != 1:
         issues.append('CENSUS_MISSING_OR_AMBIGUOUS')
     entity = census[0] if len(census)==1 else {}
+    inspection_population_available = entity.get('status_code') == 'A'
+    if not inspection_population_available:
+        issues.append('INSPECTION_POPULATION_UNAVAILABLE')
     units = number(entity.get('power_units'),True)
     drivers = number(entity.get('total_drivers'),True)
     census_date = parse_fmcsa_date(entity.get('mcs150_date'))
@@ -60,8 +63,9 @@ def features(dot, data, as_of):
     for days in [30,90,180,365]:
         inspections, bad, future = event_window(rows['fx4q-ay7w'],'insp_date','inspection_id',day,days)
         known_oos = [number(r.get('oos_total'),True) for r in inspections]
-        incomplete = bad>0 or any(x is None for x in known_oos)
-        out[f'inspections_{days}d'] = len(inspections) if not bad else None
+        incomplete = not inspection_population_available or bad>0 or any(x is None for x in known_oos)
+        out[f'known_inspections_{days}d'] = len(inspections)
+        out[f'inspections_{days}d'] = len(inspections) if not bad and inspection_population_available else None
         out[f'oos_inspections_{days}d'] = sum(x>0 for x in known_oos if x is not None) if not incomplete else None
         out[f'oos_rate_{days}d'] = out[f'oos_inspections_{days}d']/len(inspections) if inspections and not incomplete else None
         crashes, crash_bad, crash_future = event_window(rows['aayw-vxb3'],'report_date','crash_id',day,days)
