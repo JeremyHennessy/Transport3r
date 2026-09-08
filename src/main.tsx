@@ -2,6 +2,7 @@ import React, { Component, useEffect, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import CarrierRouteApp from './CarrierRouteApp';
+import FleetRouteApp from './FleetRouteApp';
 import WorkspaceApp from './WorkspaceApp';
 import './workspace.css';
 
@@ -41,6 +42,7 @@ function RootRouter() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
+  if (/^#\/carrier\/\d+\/fleet(?:\?|$)/.test(hash)) return <FleetRouteApp />;
   return hash.startsWith('#/carrier/') ? <CarrierRouteApp /> : <WorkspaceApp />;
 }
 

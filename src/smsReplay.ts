@@ -95,9 +95,9 @@ export function replayInspectionMeasure(
     if (!key) continue;
 
     const totalSeverity = readNumber(row, ['TOTAL_SEVERITY_WGHT']);
-    const severity = totalSeverity ?? (
-      numeric(readValue(row, ['SEVERITY_WEIGHT'])) + numeric(readValue(row, ['OOS_WEIGHT']))
-    );
+    const baseSeverity = numeric(readValue(row, ['SEVERITY_WEIGHT']));
+    const oosWeight = basic === 'controlledSubstances' ? 0 : numeric(readValue(row, ['OOS_WEIGHT']));
+    const severity = totalSeverity ?? (baseSeverity + oosWeight);
     violationSeverityByInspection.set(key, (violationSeverityByInspection.get(key) ?? 0) + severity);
 
     const rowTimeWeight = numeric(readValue(row, ['TIME_WEIGHT']));

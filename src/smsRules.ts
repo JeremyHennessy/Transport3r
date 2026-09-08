@@ -37,7 +37,7 @@ export const SMS_BASIC_RULES: Record<SmsBasicKey, SmsBasicRule> = {
     relevantInspectionField: 'fatigued_insp',
     officialMeasureField: 'hos_driv_measure',
     sufficientRelevantInspections: 3,
-    sufficientViolationInspections: 3,
+    sufficientViolationInspections: 1,
     interventionThresholds: { passenger: 50, hazmat: 60, general: 65 },
   },
   driverFitness: {
@@ -47,7 +47,7 @@ export const SMS_BASIC_RULES: Record<SmsBasicKey, SmsBasicRule> = {
     relevantInspectionField: 'dr_fitness_insp',
     officialMeasureField: 'driv_fit_measure',
     sufficientRelevantInspections: 5,
-    sufficientViolationInspections: 5,
+    sufficientViolationInspections: 1,
     interventionThresholds: { passenger: 65, hazmat: 75, general: 80 },
   },
   controlledSubstances: {
@@ -65,7 +65,7 @@ export const SMS_BASIC_RULES: Record<SmsBasicKey, SmsBasicRule> = {
     relevantInspectionField: 'vh_maint_insp',
     officialMeasureField: 'veh_maint_measure',
     sufficientRelevantInspections: 5,
-    sufficientViolationInspections: 5,
+    sufficientViolationInspections: 1,
     interventionThresholds: { passenger: 65, hazmat: 75, general: 80 },
   },
   hazmat: {
@@ -74,7 +74,7 @@ export const SMS_BASIC_RULES: Record<SmsBasicKey, SmsBasicRule> = {
     violationBasicMatches: ['hazardous materials compliance', 'hazmat compliance', 'hm compliance'],
     relevantInspectionField: 'hm_insp',
     sufficientRelevantInspections: 5,
-    sufficientViolationInspections: 5,
+    sufficientViolationInspections: 1,
     interventionThresholds: { passenger: 80, hazmat: 80, general: 80 },
   },
   crash: {
