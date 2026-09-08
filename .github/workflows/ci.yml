@@ -26,6 +26,7 @@ jobs:
       - name: Validate live FMCSA joins and normalization
         run: python scripts/validate_fmcsa_data_contract.py
       - run: npm install --no-audit --no-fund
+      - run: npm test
       - run: npm run typecheck
       - run: npm run build
       - name: Validate Python entrypoints compile
