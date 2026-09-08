@@ -31,6 +31,16 @@ export const SOURCE_IDS = {
   newEntrantOos: 'p2mt-9ige',
 } as const;
 
+export const UNIT_FIELD_ALIASES = {
+  vin: ['INSP_UNIT_VEHICLE_ID_NUMBER', 'VEHICLE_IDENTIFICATION_NUMBER', 'VIN'],
+  make: ['INSP_UNIT_MAKE', 'VEHICLE_MAKE', 'MAKE'],
+  type: ['INSP_UNIT_TYPE_ID', 'UNIT_TYPE', 'VEHICLE_TYPE'],
+  plate: ['INSP_UNIT_LICENSE', 'LICENSE', 'LICENSE_PLATE', 'PLATE'],
+  plateState: ['INSP_UNIT_LICENSE_STATE', 'LICENSE_STATE', 'PLATE_STATE', 'STATE'],
+  company: ['INSP_UNIT_COMPANY', 'COMPANY', 'UNIT_COMPANY'],
+  unitNumber: ['INSP_UNIT_NUMBER', 'UNIT_NUMBER'],
+} as const;
+
 export type EvidenceKey = keyof typeof SOURCE_IDS;
 
 export type CarrierEvidence = {
@@ -121,7 +131,7 @@ export function truthyFlag(value?: string): boolean {
 
 export function observedVins(evidence: CarrierEvidence | null): string[] {
   const values = (evidence?.slices.units?.rows ?? [])
-    .map((row) => readValue(row, ['VIN', 'VEHICLE_IDENTIFICATION_NUMBER']))
+    .map((row) => readValue(row, [...UNIT_FIELD_ALIASES.vin]))
     .filter((value): value is string => Boolean(value && value.length >= 6));
   return [...new Set(values)];
 }
