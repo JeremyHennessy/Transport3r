@@ -37,6 +37,9 @@ jobs:
       - name: Validate source registry alignment
         run: python scripts/validate_source_contract.py
 
+      - name: Audit Company Census fleet-band consistency
+        run: python scripts/audit_fleet_consistency.py
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
@@ -102,6 +105,7 @@ jobs:
           test -s /tmp/transport3r-app.css
           grep -q 'Know the carrier before you price the risk' /tmp/transport3r-app.js
           grep -q 'Runtime recovery' /tmp/transport3r-app.js
+          grep -q 'TRI_0_1_RESEARCH' /tmp/transport3r-app.js
 
           python - <<'PY'
           import json
@@ -171,13 +175,15 @@ jobs:
           render_route overview '#/overview' 'Know the carrier before you price the risk.'
           render_route carriers '#/carriers' 'Nationwide carrier intelligence'
           render_route summary '#/carrier/3938496/summary' 'Underwriting evidence at a glance'
+          render_route score '#/carrier/3938496/score' 'Transport Risk Index'
+          grep -Fq 'Research use only' /tmp/transport3r-ui/score.html
           render_route fleet '#/carrier/3938496/fleet' 'Reported fleet exposure'
           grep -Fq '3C63RRGLXNG286232' /tmp/transport3r-ui/fleet.html
           render_route insurance '#/carrier/3938496/insurance' 'Coverage continuity'
           render_route sms '#/carrier/3938496/sms' 'Official output and Transport replay'
           render_route sources '#/sources' 'All 36 configured FMCSA/DOT datasets'
 
-          echo "Rendered route smoke passed for overview, carriers, carrier summary, fleet, insurance, SMS and data sources."
+          echo "Rendered route smoke passed for overview, carriers, carrier summary, TRI score, fleet, insurance, SMS and data sources."
 
       - name: Upload live UI screenshots
         if: always()

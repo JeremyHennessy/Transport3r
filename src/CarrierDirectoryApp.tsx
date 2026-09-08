@@ -362,6 +362,7 @@ export default function CarrierDirectoryApp() {
                     <span className="number-cell">{formatNumber(carrier.mileage)}{carrier.mileageYear ? <small>{carrier.mileageYear}</small> : null}</span>
                     <span className="carrier-evidence-links">
                       <a href={`#/carrier/${carrier.dotNumber}/summary`}>Summary</a>
+                      <a href={`#/carrier/${carrier.dotNumber}/score`}>Score</a>
                       <a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a>
                       <a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a>
                       <a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a>
