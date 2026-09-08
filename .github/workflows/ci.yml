@@ -21,7 +21,7 @@ jobs:
           python-version: '3.12'
       - name: Refresh official FMCSA source contract
         run: python scripts/refresh_fmcsa.py --workers 6
-      - name: Test fleet mismatch gate
+      - name: Test data integrity and snapshot gates
         run: python -m unittest discover -s scripts -p "test_*.py"
       - name: Audit live fleet consistency
         run: python scripts/audit_fleet_consistency.py
@@ -34,7 +34,7 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - name: Validate Python entrypoints compile
-        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py
+        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/snapshot_store.py scripts/verify_snapshot.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py
       - name: Smoke live FMCSA Carrier 360 query joins
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 measure replay against FMCSA
