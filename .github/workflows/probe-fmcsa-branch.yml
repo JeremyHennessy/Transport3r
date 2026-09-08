@@ -1,0 +1,39 @@
+name: Probe FMCSA branch source contract
+
+on:
+  push:
+    branches: [fix/fleet-exposure-20260908]
+    paths:
+      - 'data/fmcsa_sources.json'
+      - 'scripts/refresh_fmcsa.py'
+      - '.github/workflows/probe-fmcsa-branch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Probe official DOT DataHub metadata and one-row availability
+        run: python scripts/refresh_fmcsa.py --workers 6
+      - name: Show BOC3 daily difference schema
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('public/data/source-schemas.json').read_text())
+          source = next(row for row in payload['sources'] if row['id'] == 'mhr5-hjyc')
+          print(json.dumps(source, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audited-fmcsa-lineage
+          path: |
+            public/data/source-health.json
+            public/data/source-schemas.json
