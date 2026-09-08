@@ -35,15 +35,15 @@ jobs:
       - name: Probe official FMCSA/DOT sources
         run: python scripts/refresh_fmcsa.py --workers 6
 
-      - name: Commit refreshed source health
+      - name: Commit refreshed FMCSA lineage
         run: |
-          if git diff --quiet -- public/data/source-health.json; then
-            echo 'No source-health changes.'
+          if git diff --quiet -- public/data/source-health.json public/data/source-schemas.json; then
+            echo 'No FMCSA lineage changes.'
             exit 0
           fi
           git config user.name 'transport3r-data-bot'
           git config user.email 'actions@users.noreply.github.com'
-          git add public/data/source-health.json
-          git commit -m 'data: refresh FMCSA source health'
+          git add public/data/source-health.json public/data/source-schemas.json
+          git commit -m 'data: refresh FMCSA source lineage'
           git pull --rebase origin main
           git push origin HEAD:main
