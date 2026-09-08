@@ -8,8 +8,8 @@ HTTP failures and non-array payloads fail the smoke test.
 
 The fleet contract is checked explicitly because the Inspection Per Unit file uses
 INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names. The carrier
-directory query is also checked because Company Census exposes fleet counts as text
-and the UI intentionally casts them before numeric filtering/sorting.
+directory query is also checked because its fleet filter/sort uses FMCSA's published
+single-letter FLEETSIZE code rather than treating the text POWER_UNITS field as numeric.
 """
 
 from __future__ import annotations
@@ -175,12 +175,12 @@ def main() -> int:
 
     directory_rows = query(
         "az4n-8mr2",
-        "phy_state='TX' AND carrier_operation='A' AND to_number(power_units)>=1",
+        "phy_state='TX' AND carrier_operation='A' AND fleetsize>='A'",
         limit=2,
-        order="to_number(power_units) DESC, dot_number DESC",
+        order="fleetsize DESC, dot_number DESC",
     )
     if not directory_rows:
-        raise RuntimeError("Carrier directory numeric fleet filter returned no representative Texas interstate carriers")
+        raise RuntimeError("Carrier directory fleet-size filter returned no representative Texas interstate carriers")
     directory_sample = directory_rows[0]
     if not str(directory_sample.get("dot_number") or "").strip() or not str(directory_sample.get("legal_name") or "").strip():
         raise RuntimeError("Carrier directory query returned a row without USDOT/legal name identity")
@@ -194,6 +194,7 @@ def main() -> int:
             "sample_dot_number": directory_sample.get("dot_number"),
             "sample_legal_name": directory_sample.get("legal_name"),
             "sample_power_units": directory_sample.get("power_units"),
+            "sample_fleet_size_code": directory_sample.get("fleetsize"),
         },
         "queries": results,
     }, indent=2))
