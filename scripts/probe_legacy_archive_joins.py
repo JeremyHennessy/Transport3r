@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""Diagnostic-only probe for legacy FMCSA authority archive join semantics.
-
-No runtime or scoring logic is changed. The probe inspects each official legacy archive's
-live schema and demonstrates whether a carrier can be reached directly by USDOT or must
-be reached through another documented archive key.
-"""
+"""Diagnostic-only probe for legacy FMCSA authority archive join semantics."""
 from __future__ import annotations
 
 import json
@@ -57,8 +52,7 @@ def metadata(source_id: str) -> dict[str, Any]:
 
 
 def resource(source_id: str, params: dict[str, str]) -> list[dict[str, Any]]:
-    url = f"{BASE}/resource/{source_id}.json?{urllib.parse.urlencode(params)}"
-    payload = fetch(url)
+    payload = fetch(f"{BASE}/resource/{source_id}.json?{urllib.parse.urlencode(params)}")
     if not isinstance(payload, list):
         raise RuntimeError(f"{source_id}: non-array resource result")
     return payload
@@ -78,40 +72,55 @@ def literal(column: dict[str, Any], value: Any) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
-def likely_key_columns(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    needles = ("DOT", "DOCKET", "MC", "MX", "FF", "CASE", "FILE", "PREFIX", "NUMBER", "ID")
-    out = []
-    for column in columns:
-        normalized = norm(column.get("name"))
-        if any(token in normalized for token in needles):
-            out.append({
-                "name": column.get("name"),
-                "field_name": column.get("fieldName"),
-                "type": column.get("dataTypeName"),
-                "description": column.get("description"),
-            })
-    return out
-
-
 def main() -> int:
     report: dict[str, Any] = {"status": "probe", "sources": {}}
-    schemas: dict[str, dict[str, Any]] = {}
+    metadata_by_id: dict[str, dict[str, Any]] = {}
     for source_id, label in LEGACY.items():
         meta = metadata(source_id)
+        metadata_by_id[source_id] = meta
         columns = list(meta.get("columns") or [])
         dot = find_field(columns, DOT_ALIASES)
         docket = find_field(columns, DOCKET_ALIASES)
-        schemas[source_id] = {"dot": dot, "docket": docket}
         report["sources"][source_id] = {
             "name": label,
-            "rows_updated_at": meta.get("rowsUpdatedAt"),
             "dot_field": dot.get("fieldName") if dot else None,
-            "dot_type": dot.get("dataTypeName") if dot else None,
             "docket_field": docket.get("fieldName") if docket else None,
-            "docket_type": docket.get("dataTypeName") if docket else None,
-            "field_count": len(columns),
-            "likely_key_columns": likely_key_columns(columns),
+            "all_columns": [
+                {"name": c.get("name"), "field_name": c.get("fieldName"), "type": c.get("dataTypeName"), "description": c.get("description")}
+                for c in columns
+            ],
         }
+
+    carrier_columns = list(metadata_by_id["6eyk-hxee"].get("columns") or [])
+    carrier_docket = find_field(carrier_columns, DOCKET_ALIASES)
+    if not carrier_docket:
+        raise RuntimeError("legacy Carrier docket field missing")
+    carrier_field = str(carrier_docket["fieldName"])
+
+    insurance_columns = list(metadata_by_id["ypjt-5ydn"].get("columns") or [])
+    prefix = next((c for c in insurance_columns if c.get("fieldName") == "prefix_docket_number"), None)
+    if not prefix:
+        raise RuntimeError("legacy Insur prefix_docket_number missing")
+    prefix_field = str(prefix["fieldName"])
+
+    seeds = resource("ypjt-5ydn", {
+        "$select": prefix_field,
+        "$where": f"{prefix_field} is not null",
+        "$limit": "25",
+    })
+    lineage_tests = []
+    for seed in seeds:
+        raw = str(seed.get(prefix_field) or "").strip()
+        if not raw:
+            continue
+        exact = resource("6eyk-hxee", {
+            "$select": carrier_field,
+            "$where": f"{carrier_field}={literal(carrier_docket, raw)}",
+            "$limit": "3",
+        })
+        lineage_tests.append({"prefix_docket_number": raw, "exact_carrier_matches": len(exact)})
+    report["legacy_insurance_lineage_tests"] = lineage_tests
+    report["exact_match_count"] = sum(1 for row in lineage_tests if row["exact_carrier_matches"] > 0)
 
     print(json.dumps(report, indent=2))
     return 0
