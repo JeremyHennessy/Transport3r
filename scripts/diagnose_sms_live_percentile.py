@@ -31,6 +31,8 @@ USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 PASSENGER_OUTPUT_ID = "m3ry-qcip"
 RANKING_OUTPUT_IDS = ("4y6x-dmck", "h9zy-gjn8")
 EXPECTED_SNAPSHOT = "July 31, 2026"
+PAGE_SIZE = 50_000
+MAX_SOURCE_ROWS = 1_500_000
 
 RULE = {
     "name": "Vehicle Maintenance",
@@ -82,13 +84,25 @@ def number(value: Any) -> float | None:
 
 
 def datahub_rows(source_id: str, fields: list[str]) -> list[dict[str, Any]]:
-    params = urllib.parse.urlencode({"$select": ",".join(fields), "$limit": "50000"})
-    payload = json.loads(fetch(f"{DATAHUB}/{source_id}.json?{params}", timeout=45, attempts=3).decode("utf-8"))
-    if not isinstance(payload, list):
-        raise RuntimeError(f"{source_id} returned non-array JSON")
-    if len(payload) >= 50_000:
-        raise RuntimeError(f"{source_id} hit the 50,000-row diagnostic limit; paginate before trusting ranks")
-    return payload
+    """Read a complete current DataHub source projection with explicit pagination."""
+    rows: list[dict[str, Any]] = []
+    offset = 0
+    while True:
+        params = urllib.parse.urlencode({
+            "$select": ",".join(fields),
+            "$limit": str(PAGE_SIZE),
+            "$offset": str(offset),
+            "$order": "dot_number ASC",
+        })
+        payload = json.loads(fetch(f"{DATAHUB}/{source_id}.json?{params}", timeout=45, attempts=3).decode("utf-8"))
+        if not isinstance(payload, list):
+            raise RuntimeError(f"{source_id} returned non-array JSON")
+        rows.extend(payload)
+        if len(rows) > MAX_SOURCE_ROWS:
+            raise RuntimeError(f"{source_id} exceeded safety cap of {MAX_SOURCE_ROWS:,} projected rows")
+        if len(payload) < PAGE_SIZE:
+            return rows
+        offset += len(payload)
 
 
 def passenger_rows() -> list[dict[str, Any]]:
