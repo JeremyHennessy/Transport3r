@@ -1,0 +1,26 @@
+{
+  "evidence_type": "OFFICIAL_FMCSA",
+  "basic": "Vehicle Maintenance",
+  "sms_snapshot": "2026-07-31",
+  "captured_from": "FMCSA SMS Public Passenger Carrier Vehicle Maintenance pages",
+  "captured_by_ci_run": 34253083338,
+  "captured_at": "2026-09-08T16:24:30Z",
+  "purpose": "Immutable percentile validation fixture for reconstructing the current SMS v3.21 ranking population and transform. Values were captured from live FMCSA pages during a successful validation run and must not be treated as Transport-calculated values.",
+  "carriers": [
+    {"dot_number":"1868971","measure":1.29,"percentile":10,"safety_event_group":1,"group_label":"5-10 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/1868971/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"2797021","measure":4.00,"percentile":36,"safety_event_group":1,"group_label":"5-10 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/2797021/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"3739959","measure":8.16,"percentile":68,"safety_event_group":1,"group_label":"5-10 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/3739959/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"4024810","measure":24.53,"percentile":99,"safety_event_group":1,"group_label":"5-10 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/4024810/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"787669","measure":0.37,"percentile":1,"safety_event_group":2,"group_label":"11-20 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/787669/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"2785715","measure":2.21,"percentile":19,"safety_event_group":2,"group_label":"11-20 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/2785715/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"240318","measure":3.93,"percentile":38,"safety_event_group":2,"group_label":"11-20 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/240318/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"1322119","measure":18.90,"percentile":98,"safety_event_group":2,"group_label":"11-20 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/1322119/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"825084","measure":0.15,"percentile":0,"safety_event_group":3,"group_label":"21-100 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/825084/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"276423","measure":0.90,"percentile":6,"safety_event_group":3,"group_label":"21-100 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/276423/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"4092902","measure":2.07,"percentile":20,"safety_event_group":3,"group_label":"21-100 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/4092902/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"2822783","measure":11.44,"percentile":95,"safety_event_group":3,"group_label":"21-100 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/2822783/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"1848503","measure":0.35,"percentile":2,"safety_event_group":4,"group_label":"101-500 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/1848503/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"665732","measure":1.09,"percentile":9,"safety_event_group":4,"group_label":"101-500 relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/665732/BASIC/VehicleMaint.aspx"},
+    {"dot_number":"1002211","measure":0.30,"percentile":1,"safety_event_group":5,"group_label":"501+ relevant vehicle inspections","url":"https://ai.fmcsa.dot.gov/SMS/Carrier/1002211/BASIC/VehicleMaint.aspx"}
+  ]
+}
