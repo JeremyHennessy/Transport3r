@@ -1,0 +1,33 @@
+name: Fix FMCSA data-contract gate
+
+on:
+  push:
+    branches: [fix/fleet-exposure-20260908]
+    paths:
+      - 'scripts/fix_data_contract_gate.py'
+      - '.github/workflows/fix-data-contract-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply assertion-guarded repair
+        run: python scripts/fix_data_contract_gate.py
+      - name: Commit repaired audit gate
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/validate_fmcsa_data_contract.py .github/workflows/probe-fmcsa-branch.yml
+          git diff --cached --quiet && { echo 'Expected guarded repair produced no diff'; exit 1; }
+          git commit -m 'fix: enforce FMCSA audit date normalization and pipefail'
+          git push origin HEAD:fix/fleet-exposure-20260908
