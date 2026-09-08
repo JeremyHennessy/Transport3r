@@ -1,0 +1,34 @@
+{
+  "source_id": "c5y8-a4uz",
+  "captured_at": "2026-09-08T22:04:46.049Z",
+  "metadata_url": "https://data.transportation.gov/api/views/c5y8-a4uz.json",
+  "maximum_amount_description": "BI&PD Maximum Dollar Limit (company shall not be liable for amounts in excess of). Amount (in thousands)",
+  "distribution_url": "https://data.transportation.gov/resource/c5y8-a4uz.json?%24select=max_cov_amount%2Ccount%28*%29+as+rows&%24where=max_cov_amount+is+not+null&%24group=max_cov_amount&%24order=rows+DESC&%24limit=6",
+  "distribution": [
+    {
+      "max_cov_amount": "750000.00",
+      "rows": "67903"
+    },
+    {
+      "max_cov_amount": "1000000.00",
+      "rows": "30847"
+    },
+    {
+      "max_cov_amount": "75000.00",
+      "rows": "5891"
+    },
+    {
+      "max_cov_amount": "5000.00",
+      "rows": "4065"
+    },
+    {
+      "max_cov_amount": "5000000.00",
+      "rows": "1479"
+    },
+    {
+      "max_cov_amount": "2000000.00",
+      "rows": "1146"
+    }
+  ],
+  "conclusion": "Units unresolved. No guessed conversion based on value thresholds."
+}
