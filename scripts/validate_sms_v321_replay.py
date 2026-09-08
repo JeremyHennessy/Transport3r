@@ -29,6 +29,7 @@ import time
 import urllib.parse
 import urllib.request
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 BASE = "https://data.transportation.gov/resource"
@@ -188,7 +189,13 @@ def main(runtime_sample: str | None = None) -> int:
         if len(inspections) >= 10000 or len(violations) >= 20000:
             skipped.append({"dot_number": dot_number, "reason": "validation query hit row limit"})
             continue
-        runtime_carriers.append({'dot_number':dot_number,'official':output,'inspections':inspections,'violations':violations})
+        outputs = {'smsABProperty': [output]}
+        if runtime_sample:
+            populations = [('smsCProperty', 'h9zy-gjn8'), ('smsABPass', 'm3ry-qcip'), ('smsCPass', 'h3zn-uid9')]
+            with ThreadPoolExecutor(max_workers=3) as pool:
+                pending = {key: pool.submit(fetch_json, source, {'$where': f"dot_number='{dot_number}'", '$limit': '5'}) for key, source in populations}
+                outputs.update({key: future.result() for key, future in pending.items()})
+        runtime_carriers.append({'dot_number':dot_number,'official':output,'outputs':outputs,'inspections':inspections,'violations':violations})
 
         for key, rule in RULES.items():
             official = optional_number(output.get(rule["official"]))
@@ -231,10 +238,26 @@ def main(runtime_sample: str | None = None) -> int:
         "skipped": skipped,
     }
     if runtime_sample:
+        # Cover both passenger subsets as well as the general-file numeric sample.
+        sources = {'smsABProperty': OUTPUT_ID, 'smsCProperty': 'h9zy-gjn8', 'smsABPass': 'm3ry-qcip', 'smsCPass': 'h3zn-uid9'}
+        for population in ['smsABPass', 'smsCPass']:
+            passenger_rows = fetch_json(sources[population], {'$limit': '60'})
+            selected = [row for row in passenger_rows if 3 <= number(row.get('insp_total')) <= 90 and sum(optional_number(row.get(rule['official'])) is not None for rule in RULES.values()) >= 2][:2]
+            if len(selected) < 2:
+                raise RuntimeError(f'Insufficient passenger validation candidates: {population}')
+            for output in selected:
+                dot_number = str(output['dot_number'])
+                if any(carrier['dot_number'] == dot_number for carrier in runtime_carriers):
+                    continue
+                jobs = {**sources, 'inspections': INSPECTION_ID, 'violations': VIOLATION_ID}
+                with ThreadPoolExecutor(max_workers=6) as pool:
+                    pending = {key: pool.submit(fetch_json, source, {'$where': f"dot_number='{dot_number}'", '$limit': str(10000 if key == 'inspections' else 20000 if key == 'violations' else 5)}) for key, source in jobs.items()}
+                    rows = {key: future.result() for key, future in pending.items()}
+                runtime_carriers.append({'dot_number': dot_number, 'official': output, 'outputs': {key: rows[key] for key in sources}, 'inspections': rows['inspections'], 'violations': rows['violations']})
         with pathlib.Path(runtime_sample).open('x',encoding='utf-8') as handle:
             json.dump({'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
                        'purpose':'LIVE_RUNTIME_REGRESSION_NOT_HISTORICAL_TRAINING',
-                       'source_ids':[OUTPUT_ID,INSPECTION_ID,VIOLATION_ID],'carriers':runtime_carriers},handle,indent=2)
+                       'source_ids':[*sources.values(),INSPECTION_ID,VIOLATION_ID],'carriers':runtime_carriers},handle,indent=2)
     print(json.dumps(summary, indent=2))
     return 0 if not mismatches else 2
 

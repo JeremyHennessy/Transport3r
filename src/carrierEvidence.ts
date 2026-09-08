@@ -343,21 +343,44 @@ export function activeInsuranceRows(evidence: CarrierEvidence | null): DataRow[]
   return evidence?.slices.motusInsurance?.rows ?? [];
 }
 
-export function officialSmsRows(evidence: CarrierEvidence | null): DataRow[] {
-  const candidates: EvidenceKey[] = ['smsABProperty', 'smsCProperty', 'smsABPass', 'smsCPass'];
-  for (const key of candidates) {
-    const rows = evidence?.slices[key]?.rows ?? [];
-    if (rows.length) return rows;
+export const SMS_OUTPUT_KEYS = ['smsABProperty', 'smsCProperty', 'smsABPass', 'smsCPass'] as const;
+
+// The general AB/C files include property AND passenger carriers. Passenger files
+// are overlapping, more specific outputs, not a mutually exclusive fifth class.
+export function selectOfficialSmsOutput(evidence: CarrierEvidence | null): {
+  row: DataRow | null; sourceId: string | null; issues: string[];
+} {
+  const issues: string[] = [];
+  for (const key of SMS_OUTPUT_KEYS) {
+    const slice = evidence?.slices[key];
+    if (!slice || evidence?.errors[key] || slice.truncated) issues.push(`INCOMPLETE_SMS_OUTPUT:${key}`);
+    if ((slice?.rows.length ?? 0) > 1) issues.push(`DUPLICATE_SMS_OUTPUT:${key}`);
+    if (slice?.rows.some(row => !evidence?.dotNumber || readValue(row, ['DOT_NUMBER'])?.trim() !== evidence.dotNumber)) issues.push(`SMS_OUTPUT_IDENTITY_MISMATCH:${key}`);
   }
-  return [];
+  const rowFor = (key: typeof SMS_OUTPUT_KEYS[number]) => evidence?.slices[key]?.rows[0];
+  const ab = rowFor('smsABPass') ?? rowFor('smsABProperty');
+  const c = rowFor('smsCPass') ?? rowFor('smsCProperty');
+  if (ab && c) issues.push('CONFLICTING_SMS_OPERATION_POPULATIONS');
+  for (const [general, passenger] of [['smsABProperty','smsABPass'], ['smsCProperty','smsCPass']] as const) {
+    const generalRow = rowFor(general), passengerRow = rowFor(passenger);
+    if (!generalRow || !passengerRow) continue;
+    for (const field of ['unsafe_driv_measure','hos_driv_measure','driv_fit_measure','contr_subst_measure','veh_maint_measure','hm_measure']) {
+      const left = readValue(generalRow, [field]), right = readValue(passengerRow, [field]);
+      if (left !== undefined && right !== undefined && (readNumber(generalRow, [field]) === null || readNumber(passengerRow, [field]) === null || readNumber(generalRow, [field]) !== readNumber(passengerRow, [field]))) issues.push(`CONFLICTING_SMS_MEASURE:${field}`);
+    }
+  }
+  if (issues.length) return { row: null, sourceId: null, issues };
+  const key = SMS_OUTPUT_KEYS.find(key => key.endsWith('Pass') && rowFor(key)) ?? SMS_OUTPUT_KEYS.find(key => rowFor(key));
+  return { row: key ? rowFor(key)! : null, sourceId: key ? SOURCE_IDS[key] : null, issues };
+}
+
+export function officialSmsRows(evidence: CarrierEvidence | null): DataRow[] {
+  const { row } = selectOfficialSmsOutput(evidence);
+  return row ? [row] : [];
 }
 
 export function officialSmsSourceId(evidence: CarrierEvidence | null): string | null {
-  const candidates: EvidenceKey[] = ['smsABProperty', 'smsCProperty', 'smsABPass', 'smsCPass'];
-  for (const key of candidates) {
-    if ((evidence?.slices[key]?.rows.length ?? 0) > 0) return SOURCE_IDS[key];
-  }
-  return null;
+  return selectOfficialSmsOutput(evidence).sourceId;
 }
 
 export const MOTUS_DELTA_KEYS: EvidenceKey[] = ['motusCarrierDelta', 'motusAuthDelta', 'motusBoc3Delta', 'motusInsuranceDelta', 'motusInsuranceHistoryDelta', 'motusRevokeSuspendDelta'];

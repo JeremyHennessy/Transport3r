@@ -1,4 +1,4 @@
-import { CarrierEvidence } from './carrierEvidence';
+import { CarrierEvidence, selectOfficialSmsOutput } from './carrierEvidence';
 import { DataRow, readNumber, readValue } from './datahub';
 import {
   INSPECTION_MEASURE_BASICS,
@@ -26,6 +26,7 @@ export type SmsMeasureReplay = {
   cappedInspections: number;
   truncatedInput: boolean;
   inputIssues: string[];
+  officialOutputIssues: string[];
 };
 
 function truthy(raw?: string): boolean {
@@ -50,33 +51,19 @@ function violationMatchesBasic(row: DataRow, basic: InspectionMeasureBasicKey): 
   return SMS_BASIC_RULES[basic].violationBasicMatches.some((match) => description.includes(match));
 }
 
-function officialOutputRow(evidence: CarrierEvidence): DataRow | null {
-  const candidates = [
-    evidence.slices.smsABProperty?.rows ?? [],
-    evidence.slices.smsCProperty?.rows ?? [],
-    evidence.slices.smsABPass?.rows ?? [],
-    evidence.slices.smsCPass?.rows ?? [],
-  ];
-  for (const rows of candidates) {
-    if (rows.length) return rows[0];
-  }
-  return null;
-}
-
-function officialMeasure(evidence: CarrierEvidence, basic: InspectionMeasureBasicKey): number | null {
+function officialMeasure(row: DataRow | null, basic: InspectionMeasureBasicKey): number | null {
   const field = SMS_BASIC_RULES[basic].officialMeasureField;
   if (!field) return null;
-  const row = officialOutputRow(evidence);
   if (!row) return null;
-  const value = readNumber(row, [field]);
-  return value === null ? null : value;
+  const raw = readValue(row, [field]);
+  return raw && /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(raw.trim()) ? readNumber(row, [field]) : null;
 }
 
 export function replayInspectionMeasure(
   inspections: DataRow[],
   violations: DataRow[],
   basic: InspectionMeasureBasicKey,
-): Omit<SmsMeasureReplay, 'officialMeasure' | 'delta' | 'status' | 'truncatedInput'> {
+): Omit<SmsMeasureReplay, 'officialMeasure' | 'delta' | 'status' | 'truncatedInput' | 'officialOutputIssues'> {
   const rule = SMS_BASIC_RULES[basic];
   if (!rule.relevantInspectionField) throw new Error(`${basic} does not define a relevant-inspection field`);
 
@@ -167,6 +154,7 @@ function compare(calculated: number | null, official: number | null, truncatedIn
 }
 
 export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsMeasureReplay[] {
+  const officialOutput = selectOfficialSmsOutput(evidence);
   const inspections = evidence.slices.smsInspection?.rows ?? [];
   const violations = evidence.slices.smsViolation?.rows ?? [];
   const truncatedInput = Boolean(!evidence.slices.smsInspection || !evidence.slices.smsViolation ||
@@ -178,7 +166,7 @@ export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsM
     const inputIssues = [...replay.inputIssues];
     if (evidence.dotNumber && [...inspections,...violations].some((row) => readValue(row, ['DOT_NUMBER'])?.trim() !== evidence.dotNumber)) inputIssues.push('CARRIER_IDENTITY_MISMATCH');
     const incomplete = truncatedInput || inputIssues.length > 0;
-    const official = officialMeasure(evidence, basic);
+    const official = officialMeasure(officialOutput.row, basic);
     return {
       ...replay,
       numerator: incomplete ? null : replay.numerator,
@@ -186,9 +174,10 @@ export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsM
       calculatedMeasure: incomplete ? null : replay.calculatedMeasure,
       safetyEventGroup: incomplete ? null : replay.safetyEventGroup,
       inputIssues,
+      officialOutputIssues: officialOutput.issues,
       officialMeasure: official,
       truncatedInput,
-      ...compare(replay.calculatedMeasure, official, incomplete),
+      ...compare(replay.calculatedMeasure, official, incomplete || officialOutput.issues.length > 0),
     };
   });
 }

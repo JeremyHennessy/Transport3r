@@ -40,4 +40,14 @@ jobs:
       - name: Validate SMS v3.21 measure replay against FMCSA
         run: python scripts/validate_sms_v321_replay.py --runtime-sample /tmp/transport3r-sms-runtime.json
       - name: Validate application TypeScript SMS replay against the same FMCSA inputs
-        run: node scripts/validate-sms-runtime.mjs /tmp/transport3r-sms-runtime.json
+        shell: bash
+        run: node scripts/validate-sms-runtime.mjs /tmp/transport3r-sms-runtime.json | tee /tmp/transport3r-sms-runtime-result.json
+      - name: Retain SMS runtime inputs and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sms-runtime-${{ github.sha }}
+          path: |
+            /tmp/transport3r-sms-runtime.json
+            /tmp/transport3r-sms-runtime-result.json
+          if-no-files-found: warn
