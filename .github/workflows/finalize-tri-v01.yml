@@ -1,0 +1,50 @@
+name: Finalize TRI v0.1
+
+on:
+  push:
+    branches: [feature/tri-score-v01-20260908]
+    paths:
+      - 'scripts/finalize_tri_v01.py'
+      - '.github/workflows/finalize-tri-v01.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply permanent release gates
+        run: python scripts/finalize_tri_v01.py
+      - name: Audit live fleet bands
+        run: python scripts/audit_fleet_consistency.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Production build
+        run: npm run build
+      - name: Smoke Carrier 360 live joins
+        run: python scripts/smoke_carrier_queries.py
+      - name: Replay SMS v3.21
+        run: python scripts/validate_sms_v321_replay.py
+      - name: Commit final release tree
+        run: |
+          rm -f scripts/finalize_tri_v01.py
+          git restore --source=HEAD -- .github/workflows/finalize-tri-v01.yml
+          git config user.name 'transport3r-score-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Finalize TRI v0.1 release gates'
+          git push origin HEAD:feature/tri-score-v01-20260908
