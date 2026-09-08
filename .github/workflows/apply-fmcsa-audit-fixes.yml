@@ -27,6 +27,8 @@ jobs:
         run: python scripts/apply_fmcsa_audit_v2.py
       - name: Apply documented legacy docket lineage
         run: python scripts/apply_legacy_docket_lineage_fix.py
+      - name: Apply live-verified prefix docket alias
+        run: python scripts/apply_prefix_docket_alias_fix.py
       - name: Refresh all official FMCSA schemas and health
         run: python scripts/refresh_fmcsa.py --workers 6
       - name: Validate 36-source registry alignment
@@ -49,6 +51,7 @@ jobs:
             scripts/apply_fmcsa_audit_fixes.py \
             scripts/apply_fmcsa_audit_v2.py \
             scripts/apply_legacy_docket_lineage_fix.py \
+            scripts/apply_prefix_docket_alias_fix.py \
             scripts/fix_data_contract_gate.py \
             scripts/probe_legacy_archive_joins.py \
             .github/workflows/apply-fmcsa-audit-fixes.yml \
