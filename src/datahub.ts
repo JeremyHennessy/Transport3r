@@ -31,6 +31,7 @@ export type DataSlice = {
   rows: DataRow[];
   total: number | null;
   truncated: boolean;
+  scope?: 'carrier' | 'loaded_inspections' | 'dockets';
 };
 
 const DATAHUB = 'https://data.transportation.gov/resource';
@@ -66,21 +67,44 @@ export function readNumber(row: DataRow, aliases: string[]): number | null {
 }
 
 export function parseDateValue(raw?: string): Date | null {
-  if (!raw) return null;
-  const direct = new Date(raw);
-  if (!Number.isNaN(direct.valueOf())) return direct;
-  const compact = raw.match(/^(\d{2})(\d{2})(\d{4})$/);
-  if (compact) {
-    const [, mm, dd, yyyy] = compact;
-    const parsed = new Date(`${yyyy}-${mm}-${dd}T00:00:00Z`);
-    return Number.isNaN(parsed.valueOf()) ? null : parsed;
+  const text = raw?.trim();
+  if (!text || ['0', '00000000', '0000-00-00'].includes(text)) return null;
+  function date(year: number, month: number, day: number): Date | null {
+    if (year < 1000 || month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const value = new Date(Date.UTC(year, month - 1, day));
+    return value.getUTCFullYear() === year && value.getUTCMonth() === month - 1 && value.getUTCDate() === day ? value : null;
+  }
+  if (/^\d{8}$/.test(text)) {
+    // Daily files use YYYYMMDD; retained legacy files may use MMDDYYYY.
+    const ymd = date(Number(text.slice(0, 4)), Number(text.slice(4, 6)), Number(text.slice(6, 8)));
+    return ymd ?? date(Number(text.slice(4, 8)), Number(text.slice(0, 2)), Number(text.slice(2, 4)));
+  }
+  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (iso) {
+    const day = date(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+    if (!day || !iso[4]) return day;
+    if (!/^T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?$/.test(iso[4])) return null;
+    const value = new Date(/[Zz]|[+-]\d{2}:\d{2}$/.test(iso[4]) ? text : `${text}Z`);
+    return Number.isNaN(value.valueOf()) ? null : value;
+  }
+  const us = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (us) return date(Number(us[3]), Number(us[1]), Number(us[2]));
+  const named = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2}|\d{4})$/);
+  if (named) {
+    let year = Number(named[3]);
+    if (named[3].length === 2) year += year <= 68 ? 2000 : 1900;
+    return date(year, ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'].indexOf(named[2].toUpperCase()) + 1, Number(named[1]));
   }
   return null;
 }
 
+export function formatDateValue(raw?: string): string {
+  return parseDateValue(raw)?.toLocaleDateString(undefined, { timeZone: 'UTC' }) ?? '—';
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...init, signal: controller.signal });
   } catch (cause) {
@@ -89,7 +113,7 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs =
     }
     throw cause;
   } finally {
-    window.clearTimeout(timeout);
+    globalThis.clearTimeout(timeout);
   }
 }
 
@@ -158,6 +182,20 @@ async function countWhere(sourceId: string, where: string): Promise<number | nul
   }
 }
 
+// Bounded paging with a stable order and one-row lookahead. A cap is never a total.
+async function fetchWindow(sourceId: string, where: string, limit: number, order = ':id'): Promise<{ rows: DataRow[]; truncated: boolean }> {
+  if (!Number.isSafeInteger(limit) || limit < 1) throw new Error('Row limit must be a positive integer');
+  const rows: DataRow[] = [];
+  while (rows.length <= limit) {
+    const pageSize = Math.min(1000, limit + 1 - rows.length);
+    const params = new URLSearchParams({ '$where': where, '$limit': String(pageSize), '$offset': String(rows.length), '$order': order });
+    const page = await fetchRows(sourceId, params);
+    rows.push(...page);
+    if (page.length < pageSize) break;
+  }
+  return { rows: rows.slice(0, limit), truncated: rows.length > limit };
+}
+
 export async function queryByDot(
   registry: SchemaRegistry,
   sourceId: string,
@@ -170,17 +208,16 @@ export async function queryByDot(
 
   const where = `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
   const limit = options.limit ?? 500;
-  const params = new URLSearchParams({ '$where': where, '$limit': String(limit) });
   const orderColumn = options.orderAliases ? findColumn(schema, options.orderAliases) : undefined;
-  if (orderColumn?.field_name) params.set('$order', `${orderColumn.field_name} DESC`);
-
-  const rows = await fetchRows(sourceId, params);
+  const window = await fetchWindow(sourceId, where, limit, orderColumn?.field_name ? `${orderColumn.field_name} DESC, :id` : ':id');
+  const { rows } = window;
   const total = options.includeTotal ? await countWhere(sourceId, where) : null;
   return {
     sourceId,
     rows,
     total,
-    truncated: total !== null ? rows.length < total : rows.length >= limit,
+    truncated: window.truncated || (total !== null && rows.length < total),
+    scope: 'carrier',
   };
 }
 
@@ -200,7 +237,8 @@ export async function queryByInspectionIds(
   const inspectionColumn = findColumn(schema, INSPECTION_ID_ALIASES);
   if (!inspectionColumn?.field_name) throw new Error(`${sourceId} has no registered inspection ID field`);
 
-  const unique = [...new Set(inspectionIds.filter(Boolean))].slice(0, options.maxInspectionIds ?? 250);
+  const allIds = [...new Set(inspectionIds.filter(Boolean))];
+  const unique = allIds.slice(0, options.maxInspectionIds ?? 500);
   if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
 
   const limitPerChunk = options.limitPerChunk ?? 5000;
@@ -209,16 +247,17 @@ export async function queryByInspectionIds(
     batches.map(async (batch) => {
       const values = batch.map((id) => literal(inspectionColumn, id)).join(',');
       const where = `${inspectionColumn.field_name} in (${values})`;
-      const params = new URLSearchParams({ '$where': where, '$limit': String(limitPerChunk) });
-      return fetchRows(sourceId, params);
+      return fetchWindow(sourceId, where, limitPerChunk);
     }),
   );
-  const rows = responses.flat();
+  const rows = responses.flatMap((response) => response.rows);
+  const truncated = unique.length < allIds.length || responses.some((batch) => batch.truncated);
   return {
     sourceId,
     rows,
-    total: rows.length,
-    truncated: unique.length < inspectionIds.length || responses.some((batch) => batch.length >= limitPerChunk),
+    total: truncated ? null : rows.length,
+    truncated,
+    scope: 'loaded_inspections',
   };
 }
 
@@ -232,7 +271,8 @@ export async function queryByDocketNumbers(
   const docketColumn = findColumn(schema, DOCKET_ALIASES);
   if (!docketColumn?.field_name) throw new Error(`${sourceId} has no registered docket-number field`);
 
-  const unique = [...new Set(docketNumbers.filter(Boolean))].slice(0, options.maxDocketNumbers ?? 100);
+  const allDockets = [...new Set(docketNumbers.filter(Boolean))];
+  const unique = allDockets.slice(0, options.maxDocketNumbers ?? 100);
   if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
 
   const limitPerChunk = options.limitPerChunk ?? 2000;
@@ -241,16 +281,17 @@ export async function queryByDocketNumbers(
     batches.map(async (batch) => {
       const values = batch.map((id) => literal(docketColumn, id)).join(',');
       const where = `${docketColumn.field_name} in (${values})`;
-      const params = new URLSearchParams({ '$where': where, '$limit': String(limitPerChunk) });
-      return fetchRows(sourceId, params);
+      return fetchWindow(sourceId, where, limitPerChunk);
     }),
   );
-  const rows = responses.flat();
+  const rows = responses.flatMap((response) => response.rows);
+  const truncated = unique.length < allDockets.length || responses.some((batch) => batch.truncated);
   return {
     sourceId,
     rows,
-    total: rows.length,
-    truncated: unique.length < docketNumbers.length || responses.some((batch) => batch.length >= limitPerChunk),
+    total: truncated ? null : rows.length,
+    truncated,
+    scope: 'dockets',
   };
 }
 
@@ -262,10 +303,12 @@ export async function queryByDotOrInspectionIds(
   options: { limit?: number; maxInspectionIds?: number } = {},
 ): Promise<DataSlice> {
   const schema = sourceSchema(registry, sourceId);
-  const dotColumn = findColumn(schema, USDOT_ALIASES);
-  if (dotColumn?.field_name) return queryByDot(registry, sourceId, dotNumber, { limit: options.limit ?? 2500 });
+  // Child evidence uses the same loaded parent set, even if a future schema adds USDOT.
+  const inspectionColumn = findColumn(schema, INSPECTION_ID_ALIASES);
+  if (!inspectionColumn?.field_name) return queryByDot(registry, sourceId, dotNumber, { limit: options.limit ?? 2500 });
   return queryByInspectionIds(registry, sourceId, inspectionIds, {
-    maxInspectionIds: options.maxInspectionIds ?? 250,
+    maxInspectionIds: options.maxInspectionIds ?? 500,
+    limitPerChunk: options.limit ?? 5000,
   });
 }
 

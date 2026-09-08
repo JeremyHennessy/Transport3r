@@ -34,6 +34,10 @@ jobs:
       - name: Refresh official FMCSA source contract
         run: python scripts/refresh_fmcsa.py --workers 6
 
+      - name: Test fleet mismatch gate
+        run: python -m unittest discover -s scripts -p "test_*.py"
+      - name: Audit live fleet consistency
+        run: python scripts/audit_fleet_consistency.py
       - name: Validate source registry alignment
         run: python scripts/validate_source_contract.py
 

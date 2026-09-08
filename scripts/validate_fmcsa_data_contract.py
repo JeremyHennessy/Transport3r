@@ -51,7 +51,7 @@ REQUIRED_FIELDS: dict[str, set[str]] = {
     "aayw-vxb3": {"dot_number", "report_date"},
     "fx4q-ay7w": {"dot_number", "inspection_id", "insp_date"},
     "wt8s-2hbx": {"inspection_id", "insp_unit_vehicle_id_number", "insp_unit_make", "insp_unit_type_id", "insp_unit_license", "insp_unit_license_state", "insp_unit_number"},
-    "876r-jsdb": {"inspection_id"},
+    "876r-jsdb": {"inspection_id", "out_of_service_indicator", "viol_desc", "insp_viol_unit"},
     "5qik-smay": {"inspection_id"},
     "qbt8-7vic": {"inspection_id"},
     "inys-ebih": {"usdot_number", "docket_number", "op_auth_type", "op_auth_status"},

@@ -11,3 +11,7 @@ warehouse/staging/
 coverage/
 playwright-report/
 test-results/
+
+# Python validation caches
+__pycache__/
+*.pyc

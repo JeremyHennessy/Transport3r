@@ -142,7 +142,9 @@ function compare(calculated: number | null, official: number | null, truncatedIn
 export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsMeasureReplay[] {
   const inspections = evidence.slices.smsInspection?.rows ?? [];
   const violations = evidence.slices.smsViolation?.rows ?? [];
-  const truncatedInput = Boolean(evidence.slices.smsInspection?.truncated || evidence.slices.smsViolation?.truncated);
+  const truncatedInput = Boolean(!evidence.slices.smsInspection || !evidence.slices.smsViolation ||
+    evidence.errors.smsInspection || evidence.errors.smsViolation ||
+    evidence.slices.smsInspection?.truncated || evidence.slices.smsViolation?.truncated);
 
   return INSPECTION_MEASURE_BASICS.map((basic) => {
     const replay = replayInspectionMeasure(inspections, violations, basic);
