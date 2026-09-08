@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Prove the streaming extraction contract needed for full SMS percentile replay.
 
-Rejected hypothesis: FMCSA DataHub's SODA2 endpoint does not expose `to_number()` on
-these text weight columns, so server-side numeric aggregation is not viable.
+Rejected hypotheses:
+1. FMCSA DataHub's SODA2 endpoint does not expose `to_number()` on these text weight
+   columns, so server-side numeric aggregation is not viable.
+2. Do not assume SMS relevance flags are encoded specifically as `Y`; inspect the
+   current monthly contract and interpret truthy values client-side.
 
-Current hypothesis: use DataHub only to filter/project the monthly SMS rows, stream the
-raw text weights, then perform the already validated v3.21 arithmetic locally.
-This probe measures the relevant row counts, tests SODA3 filtered CSV export, and
-replays Vehicle Maintenance for a 12-carrier batch from raw projected rows.
+Current hypothesis: use DataHub only to project/filter stable identity/category fields,
+stream raw text weights, then perform the already validated v3.21 arithmetic locally.
 """
 
 from __future__ import annotations
@@ -57,8 +58,11 @@ def fetch_json(source_id: str, params: dict[str, str]) -> list[dict[str, Any]]:
     return payload
 
 
-def count_rows(source_id: str, where: str) -> int:
-    rows = fetch_json(source_id, {"$select": "count(*) as count", "$where": where})
+def count_rows(source_id: str, where: str | None = None) -> int:
+    params = {"$select": "count(*) as count"}
+    if where:
+        params["$where"] = where
+    rows = fetch_json(source_id, params)
     if not rows:
         return 0
     return int(float(str(rows[0].get("count") or 0)))
@@ -72,6 +76,10 @@ def number(value: Any) -> float | None:
         return parsed if math.isfinite(parsed) else None
     except (TypeError, ValueError):
         return None
+
+
+def truthy(value: Any) -> bool:
+    return str(value or "").strip().upper() in {"Y", "YES", "1", "TRUE", "T"}
 
 
 def choose_candidates() -> list[dict[str, Any]]:
@@ -105,7 +113,7 @@ def soda3_export_probe(source_id: str, query: str) -> dict[str, Any]:
         text = payload.decode("utf-8-sig", errors="replace")
         rows = list(csv.DictReader(io.StringIO(text)))
         return {"status": "ok", "url": url, "bytes": len(payload), "rows": rows[:3]}
-    except Exception as exc:  # noqa: BLE001 - diagnostic preserves exact upstream behavior
+    except Exception as exc:  # noqa: BLE001
         return {"status": "failed", "url": url, "error": f"{type(exc).__name__}: {exc}"}
 
 
@@ -114,15 +122,31 @@ def main() -> int:
     dots = [str(row["dot_number"]) for row in candidates]
     in_list = ",".join(f"'{dot}'" for dot in dots)
 
-    inspection_where = "vh_maint_insp='Y'"
-    violation_where = "basic_desc='Vehicle Maintenance'"
-    relevant_inspection_rows = count_rows(INSPECTION_ID, inspection_where)
-    vm_violation_rows = count_rows(VIOLATION_ID, violation_where)
+    flag_distribution = fetch_json(
+        INSPECTION_ID,
+        {
+            "$select": "vh_maint_insp,count(*) as count",
+            "$group": "vh_maint_insp",
+            "$order": "count DESC",
+            "$limit": "100",
+        },
+    )
+    truthy_flag_values = [
+        str(row.get("vh_maint_insp"))
+        for row in flag_distribution
+        if truthy(row.get("vh_maint_insp"))
+    ]
+    if not truthy_flag_values:
+        raise RuntimeError(f"No recognized truthy Vehicle Maintenance inspection flag in current monthly file: {flag_distribution}")
+
+    relevant_where = "vh_maint_insp in (" + ",".join("'" + value.replace("'", "''") + "'" for value in truthy_flag_values) + ")"
+    relevant_inspection_rows = count_rows(INSPECTION_ID, relevant_where)
+    vm_violation_rows = count_rows(VIOLATION_ID, "basic_desc='Vehicle Maintenance'")
 
     export_probes = {
         "inspection": soda3_export_probe(
             INSPECTION_ID,
-            "SELECT dot_number,unique_id,time_weight WHERE vh_maint_insp='Y' LIMIT 3",
+            f"SELECT dot_number,unique_id,time_weight,vh_maint_insp WHERE {relevant_where} LIMIT 3",
         ),
         "violation": soda3_export_probe(
             VIOLATION_ID,
@@ -130,11 +154,13 @@ def main() -> int:
         ),
     }
 
+    # Batch extraction intentionally does not filter the relevance flag server-side.
+    # This proves our local truthy handling matches the already validated replay.
     inspection_rows = fetch_json(
         INSPECTION_ID,
         {
-            "$select": "dot_number,unique_id,time_weight",
-            "$where": f"dot_number in ({in_list}) and vh_maint_insp='Y'",
+            "$select": "dot_number,unique_id,time_weight,vh_maint_insp",
+            "$where": f"dot_number in ({in_list})",
             "$order": "dot_number ASC,unique_id ASC",
             "$limit": "10000",
         },
@@ -155,6 +181,8 @@ def main() -> int:
     relevant_count_by_dot: dict[str, int] = defaultdict(int)
     inspection_time_by_key: dict[tuple[str, str], float] = {}
     for row in inspection_rows:
+        if not truthy(row.get("vh_maint_insp")):
+            continue
         dot = str(row.get("dot_number") or "")
         unique_id = str(row.get("unique_id") or "")
         time_weight = number(row.get("time_weight")) or 0.0
@@ -194,7 +222,7 @@ def main() -> int:
         dot = str(output["dot_number"])
         denominator = denominator_by_dot.get(dot, 0.0)
         if denominator <= 0:
-            raise RuntimeError(f"No Vehicle Maintenance denominator returned for USDOT {dot}")
+            raise RuntimeError(f"No Vehicle Maintenance denominator returned for USDOT {dot}; flag distribution={flag_distribution}")
         calculated = numerator_by_dot.get(dot, 0.0) / denominator
         official = number(output.get("veh_maint_measure"))
         if official is None:
@@ -221,6 +249,8 @@ def main() -> int:
     payload = {
         "status": "ok" if not measure_mismatches and not relevant_count_mismatches and not violation_count_mismatches else "mismatch",
         "rejected_server_cast": "FMCSA SODA2 endpoint returns query.soql.no-such-function for to_number(text)",
+        "vh_maint_insp_distribution": flag_distribution,
+        "truthy_flag_values": truthy_flag_values,
         "relevant_inspection_rows": relevant_inspection_rows,
         "vehicle_maintenance_violation_rows": vm_violation_rows,
         "soda3_export_probes": export_probes,
