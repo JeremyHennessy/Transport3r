@@ -23,10 +23,12 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate Python entrypoints compile
-        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/probe_sms_population_aggregation.py
+        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/probe_sms_population_aggregation.py scripts/diagnose_sms_vehicle_percentile_exact.py
       - name: Smoke live FMCSA Carrier 360 query joins
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 measure replay against FMCSA
         run: python scripts/validate_sms_v321_replay.py
-      - name: Prove SMS population aggregation contract
+      - name: Prove SMS population streaming contract
         run: python scripts/probe_sms_population_aggregation.py
+      - name: Reconstruct exact nationwide Vehicle Maintenance percentile population
+        run: python scripts/diagnose_sms_vehicle_percentile_exact.py
