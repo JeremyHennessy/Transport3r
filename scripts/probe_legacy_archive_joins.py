@@ -3,7 +3,7 @@
 
 No runtime or scoring logic is changed. The probe inspects each official legacy archive's
 live schema and demonstrates whether a carrier can be reached directly by USDOT or must
-be reached through a docket bridge from Carrier - All With History.
+be reached through another documented archive key.
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ LEGACY = {
     "sa6p-acbp": "Revocation - All With History",
 }
 DOT_ALIASES = {"DOT_NUMBER", "USDOT_NUMBER", "USDOT_NUM", "USDOT_NO", "DOT_NO", "US_DOT_NUMBER"}
-DOCKET_ALIASES = {"DOCKET_NUMBER", "DOCKET_NO", "DOCKET_NUM", "DOCKET"}
+DOCKET_ALIASES = {"DOCKET_NUMBER", "DOCKET_NO", "DOCKET_NUM", "DOCKET", "DOCKETNUMBER", "DOCKETNUM"}
 
 
 def norm(value: Any) -> str:
@@ -78,61 +78,39 @@ def literal(column: dict[str, Any], value: Any) -> str:
     return "'" + text.replace("'", "''") + "'"
 
 
+def likely_key_columns(columns: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    needles = ("DOT", "DOCKET", "MC", "MX", "FF", "CASE", "FILE", "PREFIX", "NUMBER", "ID")
+    out = []
+    for column in columns:
+        normalized = norm(column.get("name"))
+        if any(token in normalized for token in needles):
+            out.append({
+                "name": column.get("name"),
+                "field_name": column.get("fieldName"),
+                "type": column.get("dataTypeName"),
+                "description": column.get("description"),
+            })
+    return out
+
+
 def main() -> int:
-    report: dict[str, Any] = {"status": "ok", "sources": {}}
+    report: dict[str, Any] = {"status": "probe", "sources": {}}
     schemas: dict[str, dict[str, Any]] = {}
     for source_id, label in LEGACY.items():
         meta = metadata(source_id)
         columns = list(meta.get("columns") or [])
         dot = find_field(columns, DOT_ALIASES)
         docket = find_field(columns, DOCKET_ALIASES)
-        if not docket:
-            raise RuntimeError(f"{source_id}: expected legacy docket field is missing")
         schemas[source_id] = {"dot": dot, "docket": docket}
         report["sources"][source_id] = {
             "name": label,
             "rows_updated_at": meta.get("rowsUpdatedAt"),
             "dot_field": dot.get("fieldName") if dot else None,
             "dot_type": dot.get("dataTypeName") if dot else None,
-            "docket_field": docket.get("fieldName"),
-            "docket_type": docket.get("dataTypeName"),
+            "docket_field": docket.get("fieldName") if docket else None,
+            "docket_type": docket.get("dataTypeName") if docket else None,
             "field_count": len(columns),
-            "join_strategy": "direct_usdot" if dot else "docket_bridge",
-        }
-
-    carrier = schemas["6eyk-hxee"]
-    if not carrier["dot"] or not carrier["docket"]:
-        raise RuntimeError("6eyk-hxee must expose both USDOT and docket for archive bridging")
-    dot_field = str(carrier["dot"]["fieldName"])
-    docket_field = str(carrier["docket"]["fieldName"])
-    seed = resource("6eyk-hxee", {
-        "$select": f"{dot_field},{docket_field}",
-        "$where": f"{dot_field} is not null and {docket_field} is not null",
-        "$limit": "1",
-    })
-    if not seed:
-        raise RuntimeError("6eyk-hxee: no USDOT+docket bridge seed")
-    seed_dot = seed[0][dot_field]
-    seed_docket = seed[0][docket_field]
-    report["bridge_seed"] = {"dot_number": str(seed_dot), "docket_number": str(seed_docket)}
-
-    for source_id, shape in schemas.items():
-        dot = shape["dot"]
-        docket = shape["docket"]
-        if dot:
-            field = str(dot["fieldName"])
-            where = f"{field}={literal(dot, seed_dot)}"
-            strategy = "direct_usdot"
-        else:
-            field = str(docket["fieldName"])
-            where = f"{field}={literal(docket, seed_docket)}"
-            strategy = "docket_bridge"
-        rows = resource(source_id, {"$select": field, "$where": where, "$limit": "5"})
-        report["sources"][source_id]["bridge_test"] = {
-            "strategy": strategy,
-            "query_field": field,
-            "rows": len(rows),
-            "matched_seed": len(rows) > 0,
+            "likely_key_columns": likely_key_columns(columns),
         }
 
     print(json.dumps(report, indent=2))
