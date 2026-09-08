@@ -53,3 +53,59 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Verify hosted release
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${PAGE_URL}" ]]; then
+            echo "Pages deployment did not return a public URL" >&2
+            exit 1
+          fi
+
+          echo "Verifying ${PAGE_URL} for ${EXPECTED_SHA}"
+          curl --fail --location --silent --show-error \
+            --retry 8 --retry-delay 2 --retry-all-errors \
+            "${PAGE_URL}" -o /tmp/transport3r-index.html
+
+          grep -q '<div id="root"></div>' /tmp/transport3r-index.html
+
+          JS_PATH="$(grep -oE 'src="[^"]+\.js"' /tmp/transport3r-index.html | head -1 | sed -E 's/^src="//;s/"$//')"
+          CSS_PATH="$(grep -oE 'href="[^"]+\.css"' /tmp/transport3r-index.html | head -1 | sed -E 's/^href="//;s/"$//')"
+          if [[ -z "${JS_PATH}" || -z "${CSS_PATH}" ]]; then
+            echo "Hosted index is missing compiled JS/CSS references" >&2
+            cat /tmp/transport3r-index.html >&2
+            exit 1
+          fi
+
+          ORIGIN="$(printf '%s' "${PAGE_URL}" | sed -E 's#^(https?://[^/]+).*$#\1#')"
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors "${ORIGIN}${JS_PATH}" -o /tmp/transport3r-app.js
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors "${ORIGIN}${CSS_PATH}" -o /tmp/transport3r-app.css
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors "${PAGE_URL%/}/data/source-health.json" -o /tmp/source-health.json
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors "${PAGE_URL%/}/data/source-schemas.json" -o /tmp/source-schemas.json
+
+          test -s /tmp/transport3r-app.js
+          test -s /tmp/transport3r-app.css
+          grep -q 'Know the carrier before you price the risk' /tmp/transport3r-app.js
+          grep -q 'Runtime recovery' /tmp/transport3r-app.js
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          health = json.loads(Path('/tmp/source-health.json').read_text())
+          schemas = json.loads(Path('/tmp/source-schemas.json').read_text())
+          assert len(health.get('sources', [])) == 27, health
+          assert schemas.get('source_count') == 27, schemas.get('source_count')
+          assert schemas.get('field_count', 0) > 0, schemas.get('field_count')
+          print({
+              'hosted_source_count': len(health.get('sources', [])),
+              'hosted_schema_sources': schemas.get('source_count'),
+              'hosted_schema_fields': schemas.get('field_count'),
+          })
+          PY
+
+          echo "Hosted Pages release verified: ${PAGE_URL}"
