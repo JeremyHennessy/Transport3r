@@ -85,6 +85,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   summary: [
     'inspections', 'violations', 'crash',
     'motusCarrier', 'motusInsurance', 'motusRevokeSuspend',
+    'motusCarrierDelta', 'motusAuthDelta', 'motusBoc3Delta',
     'motusInsuranceDelta', 'motusInsuranceHistoryDelta', 'motusRevokeSuspendDelta',
     'smsABProperty', 'smsCProperty', 'smsABPass', 'smsCPass',
     'newEntrantOos',
@@ -275,6 +276,26 @@ export function rowCountLabel(slice?: DataSlice): string {
   return `${count.toLocaleString()}${slice.truncated && slice.total === null ? '+' : ''}`;
 }
 
+export function evidenceIssues(evidence: CarrierEvidence): Array<{ key: EvidenceKey; message: string }> {
+  return MODE_KEYS[evidence.mode].flatMap((key) => {
+    if (evidence.errors[key]) return [{ key, message: evidence.errors[key]! }];
+    const slice = evidence.slices[key];
+    if (!slice) return [{ key, message: 'Source evidence was not returned.' }];
+    return slice.truncated ? [{ key, message: 'Loaded evidence is partial; the returned rows are not a complete total.' }] : [];
+  });
+}
+
+export function aggregateRows(evidence: CarrierEvidence | null, keys: EvidenceKey[]): { loaded: number; complete: boolean; label: string } {
+  const loaded = keys.reduce((sum, key) => sum + (evidence?.slices[key]?.rows.length ?? 0), 0);
+  const complete = keys.length > 0 && keys.every((key) => Boolean(evidence?.slices[key] && !evidence.errors[key] && !evidence.slices[key]?.truncated));
+  return { loaded, complete, label: complete ? loaded.toLocaleString() : loaded > 0 ? `${loaded.toLocaleString()}+` : '—' };
+}
+
+export function observedVinCountLabel(evidence: CarrierEvidence | null): string {
+  if (!evidence?.slices.units || evidence.errors.units) return '—';
+  return `${observedVins(evidence).length.toLocaleString()}${evidence.slices.units.truncated ? '+' : ''}`;
+}
+
 export function truthyFlag(value?: string): boolean {
   if (!value) return false;
   return ['Y', 'YES', '1', 'TRUE', 'T', 'OOS'].includes(value.trim().toUpperCase());
@@ -295,18 +316,20 @@ export function oosViolationCount(evidence: CarrierEvidence | null): number | nu
   return flags.filter(truthyFlag).length;
 }
 
-export function severeCrashCounts(evidence: CarrierEvidence | null): { fatal: number; injury: number; tow: number } {
-  let fatal = 0;
-  let injury = 0;
-  let tow = 0;
-  for (const row of evidence?.slices.crash?.rows ?? []) {
-    const fatalities = readNumber(row, ['FATALITIES', 'FATALITY_CNT', 'FATALITY_COUNT', 'FATAL_CNT']) ?? 0;
-    const injuries = readNumber(row, ['INJURIES', 'INJURY_CNT', 'INJURY_COUNT', 'INJ_CNT']) ?? 0;
-    if (fatalities > 0) fatal += 1;
-    if (injuries > 0) injury += 1;
-    if (truthyFlag(readValue(row, ['TOW_AWAY', 'TOWAWAY', 'TOW_AWAY_FLAG']))) tow += 1;
-  }
-  return { fatal, injury, tow };
+export function severeCrashCounts(evidence: CarrierEvidence | null): { fatal: number | null; injury: number | null; tow: number | null; incomplete: boolean } {
+  const slice = evidence?.slices.crash;
+  if (!slice || evidence?.errors.crash) return { fatal: null, injury: null, tow: null, incomplete: true };
+  const fatalities = slice.rows.map((row) => readNumber(row, ['FATALITIES', 'FATALITY_CNT', 'FATALITY_COUNT', 'FATAL_CNT']));
+  const injuries = slice.rows.map((row) => readNumber(row, ['INJURIES', 'INJURY_CNT', 'INJURY_COUNT', 'INJ_CNT']));
+  const tows = slice.rows.map((row) => readValue(row, ['TOW_AWAY', 'TOWAWAY', 'TOW_AWAY_FLAG']));
+  const count = (values: Array<boolean | null>) => {
+    const positives = values.filter((value) => value === true).length;
+    return positives || !values.includes(null) ? positives : null;
+  };
+  const numberFlag = (value: number | null) => value === null || value < 0 || !Number.isInteger(value) ? null : value > 0;
+  const towFlags = tows.map((value) => value && ['Y','YES','1','TRUE','T','N','NO','0','FALSE','F'].includes(value.trim().toUpperCase()) ? truthyFlag(value) : null);
+  return { fatal: count(fatalities.map(numberFlag)), injury: count(injuries.map(numberFlag)), tow: count(towFlags),
+    incomplete: slice.truncated || [...fatalities.map(numberFlag), ...injuries.map(numberFlag), ...towFlags].includes(null) };
 }
 
 export function authorityStatuses(evidence: CarrierEvidence | null): string[] {
@@ -337,13 +360,4 @@ export function officialSmsSourceId(evidence: CarrierEvidence | null): string | 
   return null;
 }
 
-export function recentChangeCount(evidence: CarrierEvidence | null): number {
-  return [
-    evidence?.slices.motusCarrierDelta,
-    evidence?.slices.motusAuthDelta,
-    evidence?.slices.motusBoc3Delta,
-    evidence?.slices.motusInsuranceDelta,
-    evidence?.slices.motusInsuranceHistoryDelta,
-    evidence?.slices.motusRevokeSuspendDelta,
-  ].reduce((sum, slice) => sum + rowCount(slice), 0);
-}
+export const MOTUS_DELTA_KEYS: EvidenceKey[] = ['motusCarrierDelta', 'motusAuthDelta', 'motusBoc3Delta', 'motusInsuranceDelta', 'motusInsuranceHistoryDelta', 'motusRevokeSuspendDelta'];

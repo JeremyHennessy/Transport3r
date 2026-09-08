@@ -1,0 +1,26 @@
+{
+  "provenance": "Public OOS source rows captured during the custody audit. STATUS is USDOT entity status per FMCSA dictionary Rev 3, not order status.",
+  "captured_at": "2026-09-08T20:29:40.434235+00:00",
+  "source": "p2mt-9ige",
+  "url": "https://data.transportation.gov/resource/p2mt-9ige.json?%24select=dot_number%2Coos_date%2Cstatus%2Crescind_date&%24where=rescind_date+is+not+null&%24limit=3",
+  "rows": [
+    {
+      "dot_number": "1438",
+      "oos_date": "2022-07-09",
+      "status": "ACTIVE",
+      "rescind_date": "2022-07-11"
+    },
+    {
+      "dot_number": "13172",
+      "oos_date": "2022-03-16",
+      "status": "ACTIVE",
+      "rescind_date": "2022-03-31"
+    },
+    {
+      "dot_number": "14662",
+      "oos_date": "2003-03-19",
+      "status": "INACTIVE",
+      "rescind_date": "2003-03-25"
+    }
+  ]
+}

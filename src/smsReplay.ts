@@ -151,6 +151,7 @@ export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsM
     const official = officialMeasure(evidence, basic);
     return {
       ...replay,
+      calculatedMeasure: truncatedInput ? null : replay.calculatedMeasure,
       officialMeasure: official,
       truncatedInput,
       ...compare(replay.calculatedMeasure, official, truncatedInput),
@@ -159,7 +160,7 @@ export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsM
 }
 
 export function replaySummary(replays: SmsMeasureReplay[]) {
-  const validationCandidates = replays.filter((replay) => replay.officialMeasure !== null && !replay.truncatedInput);
+  const validationCandidates = replays.filter((replay) => ['MATCH', 'CLOSE', 'MISMATCH'].includes(replay.status));
   const matches = validationCandidates.filter((replay) => replay.status === 'MATCH' || replay.status === 'CLOSE');
   const mismatches = validationCandidates.filter((replay) => replay.status === 'MISMATCH');
   return {
