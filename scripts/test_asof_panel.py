@@ -139,6 +139,10 @@ class FeatureTests(unittest.TestCase):
         self.assertIsNone(row['crash_vehicle_reports_per_current_power_unit_90d'])
         self.assertIsNone(row['oos_rate_90d'])
         self.assertEqual(panel.number(0,True),0)
+        data['az4n-8mr2']=[{'dot_number':'1','power_units':'0'}]
+        row=panel.features('1',data,AS_OF)
+        self.assertEqual(row['fleet_group'],'ZERO_REPORTED')
+        self.assertIsNone(row['crash_vehicle_reports_per_current_power_unit_90d'])
 
     def test_sms_populations_remain_separate_and_no_fake_percentile(self):
         data=self.data()

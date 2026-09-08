@@ -54,7 +54,7 @@ def features(dot, data, as_of):
            'mcs150_age_days':(day-census_date).days if census_date and census_date <= day else None,
            'carrier_operation':entity.get('carrier_operation'), 'hm_indicator':entity.get('hm_ind'),
            'passenger_indicator':entity.get('crgo_passengers'), 'census_status':entity.get('status_code'),
-           'fleet_group':'UNKNOWN' if units is None else '1_6' if units<=6 else '7_100' if units<=100 else '101_999' if units<1000 else '1000_PLUS'}
+           'fleet_group':'UNKNOWN' if units is None else 'ZERO_REPORTED' if units==0 else '1_6' if units<=6 else '7_100' if units<=100 else '101_999' if units<1000 else '1000_PLUS'}
     if units is None or units == 0:
         issues.append('POWER_UNIT_DENOMINATOR_UNAVAILABLE')
     for days in [30,90,180,365]:
