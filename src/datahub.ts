@@ -36,6 +36,7 @@ export type DataSlice = {
 const DATAHUB = 'https://data.transportation.gov/resource';
 const USDOT_ALIASES = ['DOT_NUMBER', 'USDOT_NUMBER', 'USDOT_NUM', 'USDOT_NO', 'DOT_NO', 'US_DOT_NUMBER'];
 const INSPECTION_ID_ALIASES = ['INSPECTION_ID', 'INSP_ID'];
+const REQUEST_TIMEOUT_MS = 9000;
 
 let schemaPromise: Promise<SchemaRegistry> | null = null;
 
@@ -76,6 +77,21 @@ export function parseDateValue(raw?: string): Date | null {
   return null;
 }
 
+async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw cause;
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
 export async function loadSchemaRegistry(): Promise<SchemaRegistry> {
   if (!schemaPromise) {
     schemaPromise = fetch(`${import.meta.env.BASE_URL}data/source-schemas.json`, { cache: 'no-store' })
@@ -114,7 +130,15 @@ function literal(column: SchemaColumn, value: string | number): string {
 }
 
 async function fetchRows(sourceId: string, params: URLSearchParams): Promise<DataRow[]> {
-  const response = await fetch(`${DATAHUB}/${sourceId}.json?${params.toString()}`);
+  let response: Response;
+  try {
+    response = await fetchWithTimeout(`${DATAHUB}/${sourceId}.json?${params.toString()}`, {
+      headers: { Accept: 'application/json' },
+    });
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`${sourceId} request failed: ${message}`);
+  }
   if (!response.ok) throw new Error(`${sourceId} returned HTTP ${response.status}`);
   const payload = await response.json();
   if (!Array.isArray(payload)) throw new Error(`${sourceId} returned a non-array payload`);
@@ -137,7 +161,7 @@ export async function queryByDot(
   registry: SchemaRegistry,
   sourceId: string,
   dotNumber: string,
-  options: { limit?: number; orderAliases?: string[] } = {},
+  options: { limit?: number; orderAliases?: string[]; includeTotal?: boolean } = {},
 ): Promise<DataSlice> {
   const schema = sourceSchema(registry, sourceId);
   const dotColumn = findColumn(schema, USDOT_ALIASES);
@@ -149,8 +173,14 @@ export async function queryByDot(
   const orderColumn = options.orderAliases ? findColumn(schema, options.orderAliases) : undefined;
   if (orderColumn?.field_name) params.set('$order', `${orderColumn.field_name} DESC`);
 
-  const [rows, total] = await Promise.all([fetchRows(sourceId, params), countWhere(sourceId, where)]);
-  return { sourceId, rows, total, truncated: total !== null ? rows.length < total : rows.length >= limit };
+  const rows = await fetchRows(sourceId, params);
+  const total = options.includeTotal ? await countWhere(sourceId, where) : null;
+  return {
+    sourceId,
+    rows,
+    total,
+    truncated: total !== null ? rows.length < total : rows.length >= limit,
+  };
 }
 
 function chunks<T>(items: T[], size: number): T[][] {
@@ -163,17 +193,17 @@ export async function queryByInspectionIds(
   registry: SchemaRegistry,
   sourceId: string,
   inspectionIds: string[],
-  options: { limitPerChunk?: number; maxInspectionIds?: number } = {},
+  options: { limitPerChunk?: number; maxInspectionIds?: number; idsPerChunk?: number } = {},
 ): Promise<DataSlice> {
   const schema = sourceSchema(registry, sourceId);
   const inspectionColumn = findColumn(schema, INSPECTION_ID_ALIASES);
   if (!inspectionColumn?.field_name) throw new Error(`${sourceId} has no registered inspection ID field`);
 
-  const unique = [...new Set(inspectionIds.filter(Boolean))].slice(0, options.maxInspectionIds ?? 500);
+  const unique = [...new Set(inspectionIds.filter(Boolean))].slice(0, options.maxInspectionIds ?? 250);
   if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
 
   const limitPerChunk = options.limitPerChunk ?? 5000;
-  const batches = chunks(unique, 35);
+  const batches = chunks(unique, options.idsPerChunk ?? 100);
   const responses = await Promise.all(
     batches.map(async (batch) => {
       const values = batch.map((id) => literal(inspectionColumn, id)).join(',');
@@ -183,7 +213,12 @@ export async function queryByInspectionIds(
     }),
   );
   const rows = responses.flat();
-  return { sourceId, rows, total: rows.length, truncated: responses.some((batch) => batch.length >= limitPerChunk) };
+  return {
+    sourceId,
+    rows,
+    total: rows.length,
+    truncated: unique.length < inspectionIds.length || responses.some((batch) => batch.length >= limitPerChunk),
+  };
 }
 
 export async function queryByDotOrInspectionIds(
@@ -197,7 +232,7 @@ export async function queryByDotOrInspectionIds(
   const dotColumn = findColumn(schema, USDOT_ALIASES);
   if (dotColumn?.field_name) return queryByDot(registry, sourceId, dotNumber, { limit: options.limit ?? 2500 });
   return queryByInspectionIds(registry, sourceId, inspectionIds, {
-    maxInspectionIds: options.maxInspectionIds ?? 500,
+    maxInspectionIds: options.maxInspectionIds ?? 250,
   });
 }
 
