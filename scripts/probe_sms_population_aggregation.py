@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import math
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from collections import defaultdict
@@ -35,6 +36,10 @@ def fetch_json(source_id: str, params: dict[str, str], attempts: int = 3) -> lis
             if not isinstance(payload, list):
                 raise RuntimeError(f"{source_id} returned non-array JSON")
             return payload
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            last_error = RuntimeError(f"HTTP {exc.code} for {url}: {body[:2000]}")
+            break
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             if attempt < attempts:
@@ -76,10 +81,80 @@ def choose_candidates() -> list[dict[str, Any]]:
     return selected
 
 
+def probe_query(label: str, source_id: str, params: dict[str, str]) -> dict[str, Any]:
+    try:
+        rows = fetch_json(source_id, params, attempts=1)
+        return {"label": label, "status": "ok", "rows": rows[:3]}
+    except Exception as exc:  # noqa: BLE001 - diagnostic must preserve exact upstream error
+        return {"label": label, "status": "failed", "error": f"{type(exc).__name__}: {exc}"}
+
+
 def main() -> int:
     candidates = choose_candidates()
     dots = [str(row["dot_number"]) for row in candidates]
     in_list = ",".join(f"'{dot}'" for dot in dots)
+    one_dot = dots[0]
+
+    probes = [
+        probe_query(
+            "inspection grouped count",
+            INSPECTION_ID,
+            {
+                "$select": "dot_number,count(*) as relevant_inspections",
+                "$where": f"dot_number in ({in_list}) and vh_maint_insp='Y'",
+                "$group": "dot_number",
+                "$order": "dot_number ASC",
+                "$limit": "1000",
+            },
+        ),
+        probe_query(
+            "inspection to_number projection",
+            INSPECTION_ID,
+            {
+                "$select": "dot_number,time_weight,to_number(time_weight) as numeric_time_weight",
+                "$where": f"dot_number='{one_dot}' and vh_maint_insp='Y'",
+                "$limit": "3",
+            },
+        ),
+        probe_query(
+            "inspection transformed sum",
+            INSPECTION_ID,
+            {
+                "$select": "dot_number,sum(to_number(time_weight)) as denominator",
+                "$where": f"dot_number in ({in_list}) and vh_maint_insp='Y'",
+                "$group": "dot_number",
+                "$order": "dot_number ASC",
+                "$limit": "1000",
+            },
+        ),
+        probe_query(
+            "violation to_number projection",
+            VIOLATION_ID,
+            {
+                "$select": "dot_number,unique_id,severity_weight,oos_weight,time_weight,to_number(severity_weight) as numeric_severity",
+                "$where": f"dot_number='{one_dot}' and basic_desc='Vehicle Maintenance'",
+                "$limit": "3",
+            },
+        ),
+        probe_query(
+            "violation transformed group",
+            VIOLATION_ID,
+            {
+                "$select": "dot_number,unique_id,max(to_number(time_weight)) as time_weight,sum(to_number(severity_weight)+to_number(oos_weight)) as severity",
+                "$where": f"dot_number in ({in_list}) and basic_desc='Vehicle Maintenance'",
+                "$group": "dot_number,unique_id",
+                "$order": "dot_number ASC,unique_id ASC",
+                "$limit": "10000",
+            },
+        ),
+    ]
+    print(json.dumps({"query_probes": probes}, indent=2))
+
+    required_labels = {"inspection grouped count", "inspection to_number projection", "inspection transformed sum", "violation to_number projection", "violation transformed group"}
+    failed = [probe for probe in probes if probe["label"] in required_labels and probe["status"] != "ok"]
+    if failed:
+        print(json.dumps({"status": "aggregation_contract_failed", "failed": failed}, indent=2))
+        return 2
 
     denominators = fetch_json(
         INSPECTION_ID,
@@ -144,10 +219,7 @@ def main() -> int:
         )
 
     mismatches = [row for row in comparisons if abs(row["delta"]) > 0.015]
-    inspection_count_mismatches = [
-        row for row in comparisons
-        if row["aggregated_relevant_inspections"] != row["official_vehicle_inspections"]
-    ]
+    inspection_count_mismatches = [row for row in comparisons if row["aggregated_relevant_inspections"] != row["official_vehicle_inspections"]]
     payload = {
         "status": "ok" if not mismatches and not inspection_count_mismatches else "mismatch",
         "candidate_count": len(comparisons),
