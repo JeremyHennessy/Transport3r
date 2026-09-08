@@ -60,6 +60,12 @@ export const UNIT_FIELD_ALIASES = {
   unitNumber: ['INSP_UNIT_NUMBER', 'UNIT_NUMBER'],
 } as const;
 
+export const VIOLATION_FIELD_ALIASES = {
+  oos: ['OUT_OF_SERVICE_INDICATOR', 'OOS', 'OOS_IND', 'OOS_FLAG', 'OUT_OF_SERVICE'],
+  description: ['VIOL_DESC', 'VIOLATION_DESC', 'DESCRIPTION', 'BASIC_DESC'],
+  unit: ['INSP_VIOL_UNIT', 'UNIT_NUMBER', 'INSP_UNIT_NUMBER'],
+} as const;
+
 export type EvidenceKey = keyof typeof SOURCE_IDS;
 export type CarrierEvidenceMode = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence' | 'inspection';
 
@@ -79,7 +85,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   summary: [
     'inspections', 'violations', 'crash',
     'motusCarrier', 'motusInsurance', 'motusRevokeSuspend',
-    'motusInsuranceDelta', 'motusRevokeSuspendDelta',
+    'motusInsuranceDelta', 'motusInsuranceHistoryDelta', 'motusRevokeSuspendDelta',
     'smsABProperty', 'smsCProperty', 'smsABPass', 'smsCPass',
     'newEntrantOos',
   ],
@@ -118,7 +124,7 @@ function sourceTask(
     const limit = key === 'violations' ? 5000 : key === 'units' ? 3500 : 2000;
     return queryByDotOrInspectionIds(registry, sourceId, dotNumber, inspectionIds, {
       limit,
-      maxInspectionIds: 250,
+      maxInspectionIds: 500,
     });
   }
 
@@ -155,7 +161,7 @@ function cachedSourceTask(
   dotNumber: string,
   inspectionIds: string[],
 ): Promise<DataSlice> {
-  const cacheKey = `${dotNumber}:${key}`;
+  const cacheKey = `${dotNumber}:${key}:${CHILD_KEYS.has(key) ? inspectionIds.join(',') : ''}`;
   const existing = sliceCache.get(cacheKey);
   if (existing) return existing;
   const task = sourceTask(registry, key, dotNumber, inspectionIds).catch((cause) => {
@@ -213,14 +219,24 @@ export async function loadCarrierEvidence(
     key !== 'inspections' && key !== 'legacyCarrier' && key !== 'legacyInsurance'
   );
   const results = await Promise.all(
-    remaining.map((key) => capture(key, cachedSourceTask(registry, key, dotNumber, inspectionIds))),
+    remaining.map((key) => {
+      if (CHILD_KEYS.has(key) && errors.inspections) {
+        return Promise.resolve({ key, error: 'Parent inspections unavailable; child evidence was not queried.' });
+      }
+      return capture(key, cachedSourceTask(registry, key, dotNumber, inspectionIds));
+    }),
   );
   for (const result of results) {
-    if (result.slice) slices[result.key] = result.slice;
+    if ('slice' in result && result.slice) {
+      const incompleteParents = CHILD_KEYS.has(result.key) && (slices.inspections?.truncated || inspectionIds.length < (slices.inspections?.rows.length ?? 0));
+      slices[result.key] = incompleteParents ? { ...result.slice, truncated: true, total: null } : result.slice;
+    }
     if (result.error) errors[result.key] = result.error;
   }
 
-  if (requested.includes('legacyInsurance')) {
+  if (requested.includes('legacyInsurance') && errors.legacyCarrier) {
+    errors.legacyInsurance = 'Legacy carrier/docket bridge unavailable; historical filings were not queried.';
+  } else if (requested.includes('legacyInsurance')) {
     const legacyInsuranceResult = await capture(
       'legacyInsurance',
       queryByDocketNumbers(registry, SOURCE_IDS.legacyInsurance, legacyDockets, {
@@ -228,7 +244,8 @@ export async function loadCarrierEvidence(
         maxDocketNumbers: 100,
       }),
     );
-    if (legacyInsuranceResult.slice) slices.legacyInsurance = legacyInsuranceResult.slice;
+    if (legacyInsuranceResult.slice) slices.legacyInsurance = slices.legacyCarrier?.truncated
+      ? { ...legacyInsuranceResult.slice, truncated: true, total: null } : legacyInsuranceResult.slice;
     if (legacyInsuranceResult.error) errors.legacyInsurance = legacyInsuranceResult.error;
   }
 
@@ -253,7 +270,7 @@ export function rowCount(slice?: DataSlice): number {
 }
 
 export function rowCountLabel(slice?: DataSlice): string {
-  if (!slice) return '0';
+  if (!slice) return '—';
   const count = slice.total ?? slice.rows.length;
   return `${count.toLocaleString()}${slice.truncated && slice.total === null ? '+' : ''}`;
 }
@@ -270,10 +287,12 @@ export function observedVins(evidence: CarrierEvidence | null): string[] {
   return [...new Set(values)];
 }
 
-export function oosViolationCount(evidence: CarrierEvidence | null): number {
-  return (evidence?.slices.violations?.rows ?? []).filter((row) =>
-    truthyFlag(readValue(row, ['OOS', 'OOS_IND', 'OOS_FLAG', 'OUT_OF_SERVICE'])),
-  ).length;
+export function oosViolationCount(evidence: CarrierEvidence | null): number | null {
+  const slice = evidence?.slices.violations;
+  if (!slice || evidence?.errors.violations) return null;
+  const flags = slice.rows.map((row) => readValue(row, [...VIOLATION_FIELD_ALIASES.oos]));
+  if (flags.some((flag) => !flag || !['Y','YES','1','TRUE','T','OOS','N','NO','0','FALSE','F'].includes(flag.trim().toUpperCase()))) return null;
+  return flags.filter(truthyFlag).length;
 }
 
 export function severeCrashCounts(evidence: CarrierEvidence | null): { fatal: number; injury: number; tow: number } {
