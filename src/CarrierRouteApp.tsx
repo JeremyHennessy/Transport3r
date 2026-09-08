@@ -17,9 +17,11 @@ import {
   severeCrashCounts,
 } from './carrierEvidence';
 import { DataRow, readNumber, readValue, schemaLabel } from './datahub';
+import { assessFleetBand, fleetBandLabel } from './fleetIntegrity';
 import { replayCarrierInspectionMeasures, replaySummary } from './smsReplay';
+import { buildTransportScore, TRI_RULESET } from './transportScore';
 
-type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence';
+type CarrierSection = 'summary' | 'score' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence';
 
 type ParsedRoute =
   | { kind: 'section'; dotNumber: string; section: CarrierSection }
@@ -33,9 +35,13 @@ type Carrier = {
   state?: string;
   operation?: string;
   powerUnits?: string;
+  truckUnits?: string;
+  busUnits?: string;
+  fleetSizeCode?: string;
   drivers?: string;
   mileage?: string;
   mileageYear?: string;
+  mcs150Date?: string;
   hazmat?: string;
   statusCode?: string;
   raw: DataRow;
@@ -44,6 +50,7 @@ type Carrier = {
 const DATAHUB = 'https://data.transportation.gov/resource';
 const SECTIONS: Array<{ id: CarrierSection; label: string; description: string }> = [
   { id: 'summary', label: 'Summary', description: 'Decision view' },
+  { id: 'score', label: 'Score', description: 'TRI v0.1 research' },
   { id: 'safety', label: 'Safety', description: 'Inspections & crashes' },
   { id: 'fleet', label: 'Fleet', description: 'Observed vehicles' },
   { id: 'authority', label: 'Authority', description: 'MOTUS & OOS' },
@@ -68,7 +75,9 @@ function parseRoute(): ParsedRoute | null {
 }
 
 function routeMode(route: ParsedRoute): CarrierEvidenceMode {
-  return route.kind === 'inspection' ? 'inspection' : route.section;
+  if (route.kind === 'inspection') return 'inspection';
+  if (route.section === 'score') return 'summary';
+  return route.section;
 }
 
 function carrierFromRow(row: DataRow): Carrier {
@@ -80,9 +89,13 @@ function carrierFromRow(row: DataRow): Carrier {
     state: readValue(row, ['PHY_STATE', 'PHYSICAL_STATE', 'STATE']),
     operation: readValue(row, ['CARRIER_OPERATION', 'CARRIER_OPERATION_DESC', 'OPERATION']),
     powerUnits: readValue(row, ['POWER_UNITS', 'NBR_POWER_UNIT', 'TOTAL_POWER_UNITS']),
+    truckUnits: readValue(row, ['TRUCK_UNITS']),
+    busUnits: readValue(row, ['BUS_UNITS']),
+    fleetSizeCode: readValue(row, ['FLEETSIZE', 'FLEET_SIZE_CODE']),
     drivers: readValue(row, ['TOTAL_DRIVERS', 'DRIVER_TOTAL', 'DRIVERS']),
     mileage: readValue(row, ['MCS150_MILEAGE', 'MILEAGE', 'VMT']),
     mileageYear: readValue(row, ['MCS150_MILEAGE_YEAR', 'MILEAGE_YEAR', 'VMT_YEAR']),
+    mcs150Date: readValue(row, ['MCS150_DATE']),
     hazmat: readValue(row, ['HM_IND', 'HAZMAT_IND', 'HAZMAT_FLAG']),
     statusCode: readValue(row, ['STATUS_CODE', 'STATUS']),
     raw: row,
@@ -139,7 +152,7 @@ function Brand() {
   return <a className="t3-brand" href="#/overview" aria-label="Transport3r overview"><span className="t3-mark" aria-hidden="true"><svg viewBox="0 0 42 42"><path d="M8 10.5h26v6H23.8V34h-6V16.5H8z"/><path d="M27 21h7v13h-7z" className="accent"/></svg></span><span className="t3-brand-text">Transport<span>3r</span></span></a>;
 }
 
-function Badge({ children, tone = 'official' }: { children: ReactNode; tone?: 'official' | 'calculated' | 'warning' | 'good' | 'neutral' }) {
+function Badge({ children, tone = 'official' }: { children: ReactNode; tone?: 'official' | 'calculated' | 'modelled' | 'warning' | 'good' | 'neutral' }) {
   return <span className={`c360-badge ${tone}`}>{children}</span>;
 }
 
@@ -178,9 +191,54 @@ function CarrierHeader({ carrier, route }: { carrier: Carrier; route: ParsedRout
       <div className="c360-title-block"><div className="t3-eyebrow">Carrier 360 · USDOT {carrier.dotNumber}</div><h1>{carrier.legalName}</h1>{carrier.dbaName && <p>DBA {carrier.dbaName}</p>}<div className="c360-meta"><span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || 'Location unavailable'}</span><span>{formatOperation(carrier.operation)}</span><span>HM {carrier.hazmat || '—'}</span><span>Status {carrier.statusCode || '—'}</span></div></div>
       <div className="c360-title-actions"><Badge>Official FMCSA spine</Badge><button className="t3-button secondary" onClick={copyLink}>{copyState === 'copied' ? 'Link copied' : 'Copy carrier link'}</button><a className="t3-button text" href="#/carriers">Back to carriers</a></div>
     </section>
-    <section className="c360-exposure-strip"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} /><Metric label="Drivers" value={formatNumber(carrier.drivers)} /><Metric label="Reported VMT" value={formatNumber(carrier.mileage)} detail={carrier.mileageYear ? `MCS-150 mileage year ${carrier.mileageYear}` : 'Mileage year unavailable'} /><Metric label="Operating class" value={formatOperation(carrier.operation)} /></section>
+    <section className="c360-exposure-strip"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} /><Metric label="Fleet band" value={fleetBandLabel(carrier.fleetSizeCode)} detail="Company Census FLEETSIZE" /><Metric label="Drivers" value={formatNumber(carrier.drivers)} /><Metric label="Reported VMT" value={formatNumber(carrier.mileage)} detail={carrier.mileageYear ? `MCS-150 mileage year ${carrier.mileageYear}` : 'Mileage year unavailable'} /><Metric label="Operating class" value={formatOperation(carrier.operation)} /></section>
     <nav className="c360-tabs" aria-label="Carrier evidence sections">{SECTIONS.map((section) => <a key={section.id} href={`#/carrier/${carrier.dotNumber}/${section.id}`} className={route.kind === 'section' && route.section === section.id ? 'active' : ''}><strong>{section.label}</strong><span>{section.description}</span></a>)}</nav>
   </>;
+}
+
+
+function ScoreSummary({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
+  const score = buildTransportScore({
+    powerUnits: carrier.powerUnits,
+    drivers: carrier.drivers,
+    mileage: carrier.mileage,
+    mileageYear: carrier.mileageYear,
+    mcs150Date: carrier.mcs150Date,
+    fleetSizeCode: carrier.fleetSizeCode,
+  }, evidence);
+  const tone = score.score === null ? 'neutral' : score.score >= 65 ? 'warning' : score.score < 25 ? 'good' : 'calculated';
+  return <div className="c360-score-summary">
+    <div className="c360-score-number"><span>TRI v{TRI_RULESET.version}</span><strong>{score.score === null ? '—' : score.score.toFixed(1)}</strong><small>{score.band}</small></div>
+    <div className="c360-score-summary-copy"><div><Badge tone="modelled">Transport modelled</Badge><Badge tone={tone}>{score.confidence}% confidence</Badge></div><p>Research underwriting index. Official public SMS percentiles are the largest input; event, authority and coverage signals are separately modelled. Not an FMCSA safety rating or an actuarially validated pricing score.</p></div>
+    <a href={`#/carrier/${carrier.dotNumber}/score`}>Open score methodology →</a>
+  </div>;
+}
+
+function Score({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
+  const score = buildTransportScore({
+    powerUnits: carrier.powerUnits,
+    drivers: carrier.drivers,
+    mileage: carrier.mileage,
+    mileageYear: carrier.mileageYear,
+    mcs150Date: carrier.mcs150Date,
+    fleetSizeCode: carrier.fleetSizeCode,
+  }, evidence);
+  return <section className="c360-card">
+    <SectionHeading eyebrow={`Transport modelled · ${TRI_RULESET.id}`} title="Transport Risk Index" badges={<div className="c360-badge-stack"><Badge tone="modelled">Research v{TRI_RULESET.version}</Badge><Badge>Official SMS backbone</Badge></div>} />
+    <div className="c360-score-hero">
+      <div className="c360-score-dial"><span>0</span><strong>{score.score === null ? '—' : score.score.toFixed(1)}</strong><span>100</span><small>Higher = more underwriting concern</small></div>
+      <div><div className="t3-eyebrow">Signal band</div><h3>{score.band}</h3><p>Confidence {score.confidence}%. The score is suppressed when there is not enough safety/enforcement evidence to support a meaningful composite.</p></div>
+      <div><div className="t3-eyebrow">Fleet data integrity</div><h3>{score.fleetIntegrity.status}</h3><p>Reported {formatNumber(carrier.powerUnits)} power units · {score.fleetIntegrity.actualLabel}{score.fleetIntegrity.status === 'MISMATCH' ? ` · expected ${score.fleetIntegrity.expectedLabel}` : ''}.</p></div>
+    </div>
+    {score.hardFlags.length > 0 && <div className="c360-review warning"><strong>Hard-review flags are not averaged away by the score</strong><ul>{score.hardFlags.map((flag) => <li key={flag}>{flag}</li>)}</ul></div>}
+    <h3 className="c360-subhead">Score components</h3>
+    <div className="c360-score-components">{score.components.map((component) => <article key={component.id}><div className="c360-score-component-head"><span>{component.label}</span><strong>{component.score === null ? 'N/A' : component.score.toFixed(1)}</strong></div><div className="c360-score-bar"><i style={{ width: `${component.score ?? 0}%` }}/></div><small>{Math.round(component.weight * 100)}% configured composite weight · unavailable components are reweighted out</small>{component.evidence.length > 0 && <ul>{component.evidence.map((item) => <li key={item}>{item}</li>)}</ul>}</article>)}</div>
+    <h3 className="c360-subhead">Official public SMS percentiles used</h3>
+    <div className="c360-official-grid">{score.officialBasics.map((basic) => <div key={basic.key}><span>{basic.label}</span><strong>{basic.percentile === null ? 'N/A' : basic.percentile.toFixed(1)}</strong><small>{Math.round(basic.weight * 100)}% inside SMS component</small></div>)}</div>
+    <div className="c360-note"><strong>TRI v0.1 calculation contract</strong><p>Configured composite weights: 60% official SMS percentile index, 20% modelled safety-event pressure, 15% authority/enforcement pressure and 5% coverage-change pressure. Missing components are not scored as zero; available components are reweighted. Company Census freshness and fleet-band consistency affect confidence and hard-review flags, not the numeric risk score.</p></div>
+    <div className="c360-review clear"><strong>Research use only</strong><p>TRI v0.1 is designed for triage and evidence prioritization. It is not an FMCSA safety rating, does not determine legal operating status, and has not been calibrated against insurer loss outcomes. Do not use it as an automated bind/decline, eligibility, pricing or premium decision.</p></div>
+    <SourceErrors evidence={evidence}/>
+  </section>;
 }
 
 function Summary({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
@@ -191,16 +249,18 @@ function Summary({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvi
   const newEntrant = rowCount(evidence.slices.newEntrantOos);
   const revokeHistory = rowCount(evidence.slices.motusRevokeSuspend);
   const changes = recentChangeCount(evidence);
+  const fleetIntegrity = assessFleetBand(carrier.powerUnits, carrier.fleetSizeCode);
   const concerns: string[] = [];
   if (newEntrant) concerns.push(`${newEntrant} New Entrant OOS record${newEntrant === 1 ? '' : 's'} returned; verify current effect.`);
   if (revokeHistory) concerns.push(`${revokeHistory} revoke/suspend history row${revokeHistory === 1 ? '' : 's'} returned; history is not the same as current status.`);
   if (crashes.fatal) concerns.push(`${crashes.fatal} loaded crash record${crashes.fatal === 1 ? '' : 's'} reports one or more fatalities.`);
   if (crashes.injury) concerns.push(`${crashes.injury} loaded crash record${crashes.injury === 1 ? '' : 's'} reports injuries.`);
   if (oos) concerns.push(`${oos} loaded violation row${oos === 1 ? '' : 's'} is flagged out of service.`);
+  if (fleetIntegrity.status === 'MISMATCH') concerns.push(`Company Census fleet band ${fleetIntegrity.actual ?? '—'} conflicts with ${carrier.powerUnits ?? '—'} reported power units; expected band ${fleetIntegrity.expected ?? '—'}.`);
 
   return <section className="c360-card">
     <SectionHeading eyebrow="Decision summary" title="Underwriting evidence at a glance" badges={<div className="c360-badge-stack"><Badge>Official FMCSA</Badge>{changes > 0 && <Badge tone="warning">Recent MOTUS change</Badge>}</div>} />
-    <div className="c360-metric-grid four"><Metric label="Loaded inspections" value={rowCountLabel(evidence.slices.inspections)} detail="Recent inspection window"/><Metric label="Loaded crashes" value={rowCountLabel(evidence.slices.crash)} detail={`${crashes.fatal} fatality-involved · ${crashes.injury} injury-involved`}/><Metric label="Active/pending filings" value={formatNumber(activeInsurance)} detail="MOTUS insurance"/><Metric label="24h MOTUS changes" value={formatNumber(changes)} detail="Loaded carrier/insurance/revoke deltas"/></div>
+    <ScoreSummary carrier={carrier} evidence={evidence}/><div className="c360-metric-grid four"><Metric label="Loaded inspections" value={rowCountLabel(evidence.slices.inspections)} detail="Recent inspection window"/><Metric label="Loaded crashes" value={rowCountLabel(evidence.slices.crash)} detail={`${crashes.fatal} fatality-involved · ${crashes.injury} injury-involved`}/><Metric label="Active/pending filings" value={formatNumber(activeInsurance)} detail="MOTUS insurance"/><Metric label="24h MOTUS changes" value={formatNumber(changes)} detail="Loaded carrier/insurance/revoke deltas"/></div>
     <div className="c360-decision-grid">
       <article><span>Identity & exposure</span><strong>{formatNumber(carrier.powerUnits)} power units · {formatNumber(carrier.drivers)} drivers</strong><p>Reported VMT {formatNumber(carrier.mileage)}{carrier.mileageYear ? ` (${carrier.mileageYear})` : ''}. Census values describe the carrier report, not an insured schedule.</p></article>
       <article><span>Safety</span><strong>{rowCountLabel(evidence.slices.inspections)} inspections · {rowCountLabel(evidence.slices.crash)} crashes loaded</strong><p>{oos.toLocaleString()} loaded OOS violation rows. Crash involvement does not establish fault.</p></article>
@@ -233,7 +293,8 @@ function Fleet({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvide
   const vins = observedVins(evidence);
   const reported = Number(carrier.powerUnits);
   const ratio = Number.isFinite(reported) && reported > 0 ? Math.round((vins.length / reported) * 100) : null;
-  return <section className="c360-card"><SectionHeading eyebrow="Roadside vehicle observations" title="Fleet evidence" badges={<Badge>Official FMCSA</Badge>} /><div className="c360-metric-grid four"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} detail="Company Census report"/><Metric label="Unique observed VINs" value={formatNumber(vins.length)} detail="Loaded inspection-unit evidence"/><Metric label="Inspection-unit rows" value={rowCountLabel(evidence.slices.units)} detail="Most recent inspection-ID window"/><Metric label="Observed / reported" value={ratio === null ? '—' : `${ratio}%`} detail="Context only — not ownership coverage"/></div>{!units.length ? <div className="c360-empty"><strong>No inspection-unit rows returned for the loaded inspection window.</strong><p>This is not evidence that the carrier has no vehicles.</p></div> : <div className="c360-table fleet"><div className="c360-table-row header"><span>VIN</span><span>Make</span><span>Type</span><span>Plate</span><span>State</span><span>Unit</span></div>{units.slice(0, 250).map((row, index) => <div className="c360-table-row" key={`${readValue(row, [...UNIT_FIELD_ALIASES.vin]) ?? 'unit'}-${index}`}><span className="mono">{readValue(row, [...UNIT_FIELD_ALIASES.vin]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.make]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.type]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plate]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plateState]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.unitNumber]) ?? '—'}</span></div>)}</div>}<p className="c360-disclaimer">Observed VINs establish an FMCSA inspection association only. They do not prove current ownership or inclusion on an insured vehicle schedule.</p><SourceErrors evidence={evidence}/></section>;
+  const fleetIntegrity = assessFleetBand(carrier.powerUnits, carrier.fleetSizeCode);
+  return <section className="c360-card"><SectionHeading eyebrow="Reported exposure + roadside observations" title="Fleet evidence" badges={<div className="c360-badge-stack"><Badge>Official FMCSA</Badge><Badge tone={fleetIntegrity.status === 'MISMATCH' ? 'warning' : fleetIntegrity.status === 'MATCH' ? 'good' : 'neutral'}>{fleetIntegrity.status === 'MATCH' ? 'Census band consistent' : fleetIntegrity.status === 'MISMATCH' ? 'Census band mismatch' : 'Band not comparable'}</Badge></div>} /><div className="c360-metric-grid six"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} detail="Company Census POWER_UNITS"/><Metric label="Fleet band" value={fleetIntegrity.actualLabel} detail={fleetIntegrity.status === 'MISMATCH' ? `Expected ${fleetIntegrity.expectedLabel}` : 'Company Census FLEETSIZE'}/><Metric label="Truck units" value={formatNumber(carrier.truckUnits)} detail="Company Census"/><Metric label="Bus units" value={formatNumber(carrier.busUnits)} detail="Company Census"/><Metric label="Unique observed VINs" value={formatNumber(vins.length)} detail="Loaded inspection-unit evidence"/><Metric label="Observed / reported" value={ratio === null ? '—' : `${ratio}%`} detail="Context only — not ownership coverage"/></div>{fleetIntegrity.status === 'MISMATCH' && <div className="c360-review warning"><strong>FMCSA Census fields disagree on fleet size</strong><p>POWER_UNITS reports {formatNumber(carrier.powerUnits)}, which maps to {fleetIntegrity.expectedLabel}, while FLEETSIZE reports {fleetIntegrity.actualLabel}. Transport3r is preserving both source values and flagging the inconsistency instead of silently choosing one.</p></div>}{!units.length ? <div className="c360-empty"><strong>No inspection-unit rows returned for the loaded inspection window.</strong><p>This is not evidence that the carrier has no vehicles.</p></div> : <div className="c360-table fleet"><div className="c360-table-row header"><span>VIN</span><span>Make</span><span>Type</span><span>Plate</span><span>State</span><span>Unit</span></div>{units.slice(0, 250).map((row, index) => <div className="c360-table-row" key={`${readValue(row, [...UNIT_FIELD_ALIASES.vin]) ?? 'unit'}-${index}`}><span className="mono">{readValue(row, [...UNIT_FIELD_ALIASES.vin]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.make]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.type]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plate]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plateState]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.unitNumber]) ?? '—'}</span></div>)}</div>}<p className="c360-disclaimer">Observed VINs establish an FMCSA inspection association only. They do not prove current ownership or inclusion on an insured vehicle schedule.</p><SourceErrors evidence={evidence}/></section>;
 }
 
 function Authority({ evidence }: { evidence: CarrierEvidence }) {
@@ -310,6 +371,7 @@ export default function CarrierRouteApp() {
     if (!route || !carrier || !evidence) return null;
     if (route.kind === 'inspection') return <InspectionDetail carrier={carrier} evidence={evidence} inspectionIdValue={route.inspectionId}/>;
     if (route.section === 'summary') return <Summary carrier={carrier} evidence={evidence}/>;
+    if (route.section === 'score') return <Score carrier={carrier} evidence={evidence}/>;
     if (route.section === 'safety') return <Safety carrier={carrier} evidence={evidence}/>;
     if (route.section === 'fleet') return <Fleet carrier={carrier} evidence={evidence}/>;
     if (route.section === 'authority') return <Authority evidence={evidence}/>;
