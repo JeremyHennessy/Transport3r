@@ -25,6 +25,8 @@ jobs:
           node-version: 22
       - name: Apply reconciled source and methodology corrections
         run: python scripts/apply_fmcsa_audit_v2.py
+      - name: Apply documented legacy docket lineage
+        run: python scripts/apply_legacy_docket_lineage_fix.py
       - name: Refresh all official FMCSA schemas and health
         run: python scripts/refresh_fmcsa.py --workers 6
       - name: Validate 36-source registry alignment
@@ -41,9 +43,18 @@ jobs:
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 replay
         run: python scripts/validate_sms_v321_replay.py
-      - name: Remove one-time migration machinery
+      - name: Remove one-time audit machinery
         run: |
-          rm -f scripts/apply_fmcsa_audit_fixes.py scripts/apply_fmcsa_audit_v2.py .github/workflows/apply-fmcsa-audit-fixes.yml
+          rm -f \
+            scripts/apply_fmcsa_audit_fixes.py \
+            scripts/apply_fmcsa_audit_v2.py \
+            scripts/apply_legacy_docket_lineage_fix.py \
+            scripts/fix_data_contract_gate.py \
+            scripts/probe_legacy_archive_joins.py \
+            .github/workflows/apply-fmcsa-audit-fixes.yml \
+            .github/workflows/fix-data-contract-gate.yml \
+            .github/workflows/probe-fmcsa-branch.yml \
+            .github/workflows/probe-legacy-archives.yml
       - name: Commit only after complete audit gate
         run: |
           git config user.name 'transport3r-audit-bot'
