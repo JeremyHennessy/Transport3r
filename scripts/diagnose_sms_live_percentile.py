@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 """Infer current SMS percentile ranking mechanics from official FMCSA passenger pages.
 
-Bulk passenger output (`SMS AB Pass`, m3ry-qcip) currently exposes measures and
-safety-event counts but leaves percentile columns blank. FMCSA's live passenger BASIC
-pages do publish the official percentile. This diagnostic therefore builds the full
-passenger comparison population from bulk output, samples carriers likely to have a
-percentile, fetches their live BASIC page, and tests ranking/tie transforms.
+Bulk passenger output (`SMS AB Pass`, m3ry-qcip) exposes measures and safety-event
+counts but currently leaves percentile columns blank. FMCSA's live passenger BASIC
+pages publish official percentiles for data-sufficient carriers.
+
+This diagnostic tests one specific hypothesis supported by FMCSA's Help Center: the
+percentile comparison population consists of carriers that meet the BASIC's minimum
+violation-inspection data-sufficiency threshold, rather than every carrier that has a
+measure. It builds those eligible safety-event groups from bulk output, samples live
+passenger BASIC pages, and compares ranking/tie transforms.
 
 Diagnostic-only: this script does not bless a production percentile formula.
 """
@@ -188,7 +192,9 @@ def main() -> int:
 
     for basic_key, rule in BASICS.items():
         populations: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        candidates: list[dict[str, Any]] = []
+        eligible_rows: list[dict[str, Any]] = []
+        excluded_for_sufficiency = 0
+
         for row in rows:
             measure = number(row.get(rule["measure"]))
             if measure is None:
@@ -196,10 +202,15 @@ def main() -> int:
             group = safety_group(integer(row.get(rule["event_total"])), rule["groups"])
             if group is None:
                 continue
+
+            violation_inspections = integer(row.get(rule["violation_inspections"]))
+            if violation_inspections < rule["min_violation_inspections"] or measure <= 0:
+                excluded_for_sufficiency += 1
+                continue
+
             enriched = {**row, "_measure": measure, "_group": group}
             populations[group].append(enriched)
-            if integer(row.get(rule["violation_inspections"])) >= rule["min_violation_inspections"] and measure > 0:
-                candidates.append(enriched)
+            eligible_rows.append(enriched)
 
         rank_maps: dict[tuple[int, str], dict[str, float]] = {}
         for group, population in populations.items():
@@ -209,8 +220,8 @@ def main() -> int:
                 pct_values = scaled_percentiles(measures, method)
                 rank_maps[(group, method)] = {str(row["dot_number"]): pct for row, pct in zip(population, pct_values, strict=True)}
 
-        candidates.sort(key=lambda row: (row["_group"], row["_measure"], str(row["dot_number"])))
-        sample = quantile_sample(candidates, PAGE_SAMPLE_PER_BASIC)
+        eligible_rows.sort(key=lambda row: (row["_group"], row["_measure"], str(row["dot_number"])))
+        sample = quantile_sample(eligible_rows, PAGE_SAMPLE_PER_BASIC)
         observations: list[dict[str, Any]] = []
         fetch_errors: list[dict[str, str]] = []
 
@@ -227,6 +238,7 @@ def main() -> int:
                     continue
                 if abs(page["measure"] - row["_measure"]) > 0.02:
                     continue
+
                 predictions: dict[str, float] = {}
                 for method in ("min", "max", "average", "dense"):
                     raw_pct = rank_maps[(row["_group"], method)][dot_number]
@@ -236,6 +248,7 @@ def main() -> int:
                     "dot_number": dot_number,
                     "group": row["_group"],
                     "bulk_measure": row["_measure"],
+                    "violation_inspections": integer(row.get(rule["violation_inspections"])),
                     "official_measure": page["measure"],
                     "official_percentile": page["percentile"],
                     "official_group_text": page["group_text"],
@@ -261,8 +274,10 @@ def main() -> int:
         scored_methods.sort(key=lambda item: (item["mae"], item["max_error"], item["method"]))
         reports[basic_key] = {
             "label": rule["label"],
+            "population_rule": f"measure > 0 and {rule['violation_inspections']} >= {rule['min_violation_inspections']}",
             "ranking_population": {str(group): len(population) for group, population in populations.items()},
-            "eligible_candidate_count": len(candidates),
+            "excluded_for_sufficiency": excluded_for_sufficiency,
+            "eligible_candidate_count": len(eligible_rows),
             "official_observations": len(observations),
             "best_methods": scored_methods[:10],
             "observations": observations[:12],
