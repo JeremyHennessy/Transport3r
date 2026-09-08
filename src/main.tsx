@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import CarrierDirectoryApp from './CarrierDirectoryApp';
 import CarrierRouteApp from './CarrierRouteApp';
 import './styles.css';
 import './carrier360.css';
 import './carrierRoutes.css';
+import './carrierDirectory.css';
 
 function RootRouter() {
   const [hash, setHash] = useState(window.location.hash);
@@ -30,7 +32,9 @@ function RootRouter() {
     return () => document.removeEventListener('click', openCarrierRoute, true);
   }, []);
 
-  return hash.startsWith('#/carrier/') ? <CarrierRouteApp /> : <App />;
+  if (hash.startsWith('#/carrier/')) return <CarrierRouteApp />;
+  if (hash.startsWith('#/carriers') || hash.startsWith('#/prospect')) return <CarrierDirectoryApp />;
+  return <App />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
