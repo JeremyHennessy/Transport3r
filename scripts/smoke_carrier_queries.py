@@ -2,9 +2,12 @@
 """Runtime smoke test for Transport3r's FMCSA Carrier 360 join contract.
 
 The test discovers a real USDOT + inspection ID from the current public inspection
-file, then exercises every live query shape used by the first Carrier 360 slice.
-A source is allowed to return zero rows for that carrier; malformed joins, missing
-required join columns, HTTP failures and non-array payloads fail the smoke test.
+file, then exercises every live query shape used by Carrier 360. A source is allowed
+to return zero rows for that carrier; malformed joins, missing required join columns,
+HTTP failures and non-array payloads fail the smoke test.
+
+The fleet contract is checked explicitly because the Inspection Per Unit file uses
+INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names.
 """
 
 from __future__ import annotations
@@ -23,6 +26,14 @@ USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 
 USDOT_ALIASES = {"DOT_NUMBER", "USDOT_NUMBER", "USDOT_NUM", "USDOT_NO", "DOT_NO", "US_DOT_NUMBER"}
 INSPECTION_ID_ALIASES = {"INSPECTION_ID", "INSP_ID"}
+FLEET_FIELDS = {
+    "insp_unit_vehicle_id_number",
+    "insp_unit_make",
+    "insp_unit_type_id",
+    "insp_unit_license",
+    "insp_unit_license_state",
+    "insp_unit_number",
+}
 
 DIRECT_DOT_SOURCES = {
     "az4n-8mr2": "Company Census",
@@ -107,6 +118,11 @@ def main() -> int:
     if missing_schemas:
         raise RuntimeError(f"Missing schema registry entries: {', '.join(missing_schemas)}")
 
+    fleet_schema_fields = {str(column.get("field_name") or "") for column in schemas["wt8s-2hbx"].get("columns", [])}
+    missing_fleet_fields = sorted(FLEET_FIELDS - fleet_schema_fields)
+    if missing_fleet_fields:
+        raise RuntimeError(f"Inspection Units schema lost required Carrier Fleet fields: {', '.join(missing_fleet_fields)}")
+
     inspection_schema = schemas["fx4q-ay7w"]
     inspection_dot = find_column(inspection_schema, USDOT_ALIASES)
     inspection_id_column = find_column(inspection_schema, INSPECTION_ID_ALIASES)
@@ -143,7 +159,14 @@ def main() -> int:
             f"{child_inspection_id['field_name']}={literal(child_inspection_id, inspection_id)}",
             limit=2,
         )
-        results.append({"source": source_id, "name": name, "join": child_inspection_id["field_name"], "rows": len(rows)})
+        result: dict[str, Any] = {"source": source_id, "name": name, "join": child_inspection_id["field_name"], "rows": len(rows)}
+        if source_id == "wt8s-2hbx" and rows:
+            populated_fleet_fields = sorted({field for row in rows for field in FLEET_FIELDS if str(row.get(field) or "").strip()})
+            if not populated_fleet_fields:
+                raise RuntimeError("Inspection Units returned rows but none of the registered fleet display fields were populated")
+            result["populated_fleet_fields"] = populated_fleet_fields
+            result["sample_vin"] = next((str(row.get("insp_unit_vehicle_id_number")) for row in rows if row.get("insp_unit_vehicle_id_number")), None)
+        results.append(result)
 
     print(json.dumps({"status": "ok", "dot_number": dot_number, "inspection_id": inspection_id, "queries": results}, indent=2))
     return 0
