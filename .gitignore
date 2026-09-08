@@ -2,6 +2,8 @@ node_modules/
 dist/
 .DS_Store
 *.log
+__pycache__/
+*.pyc
 
 # Full FMCSA raw snapshots are warehouse inputs, never repository history.
 warehouse/raw/
