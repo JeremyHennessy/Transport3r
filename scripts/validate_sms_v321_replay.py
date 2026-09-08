@@ -21,6 +21,9 @@ not publish that official measure.
 from __future__ import annotations
 
 import json
+import argparse
+import datetime as dt
+import pathlib
 import math
 import time
 import urllib.parse
@@ -172,10 +175,11 @@ def choose_candidates() -> list[dict[str, Any]]:
     return candidates
 
 
-def main() -> int:
+def main(runtime_sample: str | None = None) -> int:
     candidates = choose_candidates()
     comparisons: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
+    runtime_carriers: list[dict[str, Any]] = []
 
     for output in candidates:
         dot_number = str(output["dot_number"])
@@ -184,6 +188,7 @@ def main() -> int:
         if len(inspections) >= 10000 or len(violations) >= 20000:
             skipped.append({"dot_number": dot_number, "reason": "validation query hit row limit"})
             continue
+        runtime_carriers.append({'dot_number':dot_number,'official':output,'inspections':inspections,'violations':violations})
 
         for key, rule in RULES.items():
             official = optional_number(output.get(rule["official"]))
@@ -225,9 +230,17 @@ def main() -> int:
         "sample_matches": [row for row in comparisons if abs(row["delta"]) <= tolerance][:12],
         "skipped": skipped,
     }
+    if runtime_sample:
+        with pathlib.Path(runtime_sample).open('x',encoding='utf-8') as handle:
+            json.dump({'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
+                       'purpose':'LIVE_RUNTIME_REGRESSION_NOT_HISTORICAL_TRAINING',
+                       'source_ids':[OUTPUT_ID,INSPECTION_ID,VIOLATION_ID],'carriers':runtime_carriers},handle,indent=2)
     print(json.dumps(summary, indent=2))
     return 0 if not mismatches else 2
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--runtime-sample',help='Write the live inputs once for application TypeScript regression')
+    args=parser.parse_args()
+    raise SystemExit(main(args.runtime_sample))

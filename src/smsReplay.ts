@@ -14,8 +14,8 @@ export type SmsMeasureReplay = {
   ruleset: typeof SMS_RULESET.id;
   basic: InspectionMeasureBasicKey;
   label: string;
-  numerator: number;
-  denominator: number;
+  numerator: number | null;
+  denominator: number | null;
   calculatedMeasure: number | null;
   officialMeasure: number | null;
   delta: number | null;
@@ -25,6 +25,7 @@ export type SmsMeasureReplay = {
   safetyEventGroup: number | null;
   cappedInspections: number;
   truncatedInput: boolean;
+  inputIssues: string[];
 };
 
 function truthy(raw?: string): boolean {
@@ -32,10 +33,12 @@ function truthy(raw?: string): boolean {
   return ['Y', 'YES', 'TRUE', 'T', '1'].includes(raw.trim().toUpperCase());
 }
 
-function numeric(raw: unknown): number {
-  if (raw === null || raw === undefined || String(raw).trim() === '') return 0;
-  const value = Number(String(raw).replaceAll(',', ''));
-  return Number.isFinite(value) ? value : 0;
+function numeric(raw: unknown): number | null {
+  if (raw === null || raw === undefined || String(raw).trim() === '') return null;
+  const text = String(raw).trim();
+  if (!/^\d+(?:\.\d+)?$/.test(text)) return null;
+  const value = Number(text);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function inspectionKey(row: DataRow): string | undefined {
@@ -78,11 +81,24 @@ export function replayInspectionMeasure(
   if (!rule.relevantInspectionField) throw new Error(`${basic} does not define a relevant-inspection field`);
 
   const relevant = inspections.filter((row) => truthy(readValue(row, [rule.relevantInspectionField!]))) ;
+  const issues = new Set<string>();
+  const seen = new Set<string>();
+  for (const row of inspections) {
+    const key = inspectionKey(row);
+    if (!key) issues.add('MISSING_INSPECTION_ID');
+    else if (seen.has(key)) issues.add(`DUPLICATE_INSPECTION_ID:${key}`);
+    else seen.add(key);
+    const flag = readValue(row, [rule.relevantInspectionField!]);
+    // Published SMS inputs use affirmative flags and can omit non-affirmative fields.
+    if (flag && !['Y','YES','TRUE','T','1','N','NO','FALSE','F','0'].includes(flag.trim().toUpperCase())) issues.add(`INVALID_RELEVANCE_FLAG:${key}`);
+  }
   const inspectionTimeWeights = new Map<string, number>();
   for (const row of relevant) {
     const key = inspectionKey(row);
     if (!key) continue;
-    inspectionTimeWeights.set(key, numeric(readValue(row, ['TIME_WEIGHT'])));
+    const weight = numeric(readValue(row, ['TIME_WEIGHT']));
+    if (weight === null || ![1,2,3].includes(weight)) issues.add(`INVALID_INSPECTION_TIME_WEIGHT:${key}`);
+    else inspectionTimeWeights.set(key, weight);
   }
 
   const denominator = [...inspectionTimeWeights.values()].reduce((sum, weight) => sum + weight, 0);
@@ -90,18 +106,28 @@ export function replayInspectionMeasure(
   const violationTimeWeightByInspection = new Map<string, number>();
 
   for (const row of violations) {
+    if (!readValue(row, ['BASIC_DESC'])) issues.add('MISSING_VIOLATION_BASIC');
     if (!violationMatchesBasic(row, basic)) continue;
     const key = inspectionKey(row);
-    if (!key) continue;
+    if (!key || !inspectionTimeWeights.has(key)) {
+      issues.add(`UNMATCHED_RELEVANT_INSPECTION:${key ?? 'missing'}`);
+      continue;
+    }
 
-    const totalSeverity = readNumber(row, ['TOTAL_SEVERITY_WGHT']);
+    const rawTotalSeverity = readValue(row, ['TOTAL_SEVERITY_WGHT']);
+    const totalSeverity = numeric(rawTotalSeverity);
     const baseSeverity = numeric(readValue(row, ['SEVERITY_WEIGHT']));
     const oosWeight = basic === 'controlledSubstances' ? 0 : numeric(readValue(row, ['OOS_WEIGHT']));
-    const severity = totalSeverity ?? (baseSeverity + oosWeight);
+    const severity = rawTotalSeverity !== undefined ? totalSeverity : baseSeverity !== null && oosWeight !== null ? baseSeverity + oosWeight : null;
+    if (severity === null) {
+      issues.add(`INVALID_VIOLATION_SEVERITY:${key}`);
+      continue;
+    }
     violationSeverityByInspection.set(key, (violationSeverityByInspection.get(key) ?? 0) + severity);
 
     const rowTimeWeight = numeric(readValue(row, ['TIME_WEIGHT']));
-    if (rowTimeWeight > 0) violationTimeWeightByInspection.set(key, rowTimeWeight);
+    if (rowTimeWeight === null || rowTimeWeight !== inspectionTimeWeights.get(key)) issues.add(`INCONSISTENT_VIOLATION_TIME_WEIGHT:${key}`);
+    else violationTimeWeightByInspection.set(key, rowTimeWeight);
   }
 
   let numerator = 0;
@@ -118,13 +144,14 @@ export function replayInspectionMeasure(
     ruleset: SMS_RULESET.id,
     basic,
     label: rule.label,
-    numerator,
-    denominator,
-    calculatedMeasure,
+    numerator: issues.size ? null : numerator,
+    denominator: issues.size ? null : denominator,
+    calculatedMeasure: issues.size ? null : calculatedMeasure,
     relevantInspections: inspectionTimeWeights.size,
     violationInspections: violationSeverityByInspection.size,
-    safetyEventGroup: safetyEventGroup(basic, basic === 'controlledSubstances' ? violationSeverityByInspection.size : inspectionTimeWeights.size),
+    safetyEventGroup: issues.size ? null : safetyEventGroup(basic, basic === 'controlledSubstances' ? violationSeverityByInspection.size : inspectionTimeWeights.size),
     cappedInspections,
+    inputIssues: [...issues],
   };
 }
 
@@ -148,13 +175,20 @@ export function replayCarrierInspectionMeasures(evidence: CarrierEvidence): SmsM
 
   return INSPECTION_MEASURE_BASICS.map((basic) => {
     const replay = replayInspectionMeasure(inspections, violations, basic);
+    const inputIssues = [...replay.inputIssues];
+    if (evidence.dotNumber && [...inspections,...violations].some((row) => readValue(row, ['DOT_NUMBER'])?.trim() !== evidence.dotNumber)) inputIssues.push('CARRIER_IDENTITY_MISMATCH');
+    const incomplete = truncatedInput || inputIssues.length > 0;
     const official = officialMeasure(evidence, basic);
     return {
       ...replay,
-      calculatedMeasure: truncatedInput ? null : replay.calculatedMeasure,
+      numerator: incomplete ? null : replay.numerator,
+      denominator: incomplete ? null : replay.denominator,
+      calculatedMeasure: incomplete ? null : replay.calculatedMeasure,
+      safetyEventGroup: incomplete ? null : replay.safetyEventGroup,
+      inputIssues,
       officialMeasure: official,
       truncatedInput,
-      ...compare(replay.calculatedMeasure, official, truncatedInput),
+      ...compare(replay.calculatedMeasure, official, incomplete),
     };
   });
 }
