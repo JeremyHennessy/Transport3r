@@ -1,0 +1,32 @@
+name: Apply FMCSA audit fixes
+
+on:
+  push:
+    branches: [fix/fleet-exposure-20260908]
+    paths:
+      - '.github/workflows/apply-fmcsa-audit-fixes.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply assertion-guarded source audit fixes
+        run: python scripts/apply_fmcsa_audit_fixes.py
+      - name: Commit branch migration
+        run: |
+          git config user.name 'transport3r-audit-bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add data/fmcsa_sources.json src/FleetRouteApp.tsx src/carrierEvidence.ts src/CarrierRouteApp.tsx src/WorkspaceApp.tsx src/smsRules.ts src/smsReplay.ts scripts/smoke_carrier_queries.py scripts/validate_source_contract.py .github/workflows/ci.yml .github/workflows/pages.yml
+          git diff --cached --check
+          git commit -m 'Audit FMCSA source and field contracts'
+          git push origin HEAD:fix/fleet-exposure-20260908
