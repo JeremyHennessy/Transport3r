@@ -56,13 +56,14 @@ jobs:
             scripts/apply_prefix_docket_alias_fix.py \
             scripts/apply_sms_date_format_fix.py \
             scripts/fix_data_contract_gate.py \
-            scripts/probe_legacy_archive_joins.py \
-            .github/workflows/apply-fmcsa-audit-fixes.yml \
-            .github/workflows/fix-data-contract-gate.yml \
-            .github/workflows/probe-fmcsa-branch.yml \
-            .github/workflows/probe-legacy-archives.yml
-      - name: Commit only after complete audit gate
+            scripts/probe_legacy_archive_joins.py
+      - name: Commit audited non-workflow tree
         run: |
+          # The Actions token has contents:write but cannot write workflow files.
+          # Preserve the checked-in workflow directory here; workflow updates/cleanup
+          # are applied separately through the authorized GitHub connection after this
+          # audited code/data tree is pushed.
+          git restore --source=HEAD -- .github/workflows
           git config user.name 'transport3r-audit-bot'
           git config user.email 'actions@users.noreply.github.com'
           git add -A
