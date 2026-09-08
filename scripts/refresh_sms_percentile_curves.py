@@ -3,17 +3,21 @@
 
 FMCSA's Help Center directs users to each BASIC's public "Measure vs. Percentile"
 graph as the conversion chart. Passenger-carrier BASIC percentiles are also public.
-Transport3r uses those public surfaces instead of reverse-engineering FMCSA ranking
-or tie behavior.
+Transport3r uses those official public surfaces instead of reverse-engineering FMCSA
+ranking or tie behavior.
 
-For HOS Compliance, Driver Fitness, and Vehicle Maintenance, this job discovers public
-passenger carriers in every current v3.21 safety-event group, fetches candidates one at
-a time, and stops once two independent carriers prove the same curve and lookup
-behavior. Sequential early-exit is intentional because the public SMS site throttles
-bursty requests.
+For each HOS Compliance, Driver Fitness, and Vehicle Maintenance safety-event group:
+1. Find a data-sufficient passenger carrier in current SMS bulk output.
+2. Fetch that carrier's BASIC page and official MeasurePercentileGraph page.
+3. Verify current bulk and live measures agree and establish the SMS snapshot.
+4. Determine which graph lookup modes reproduce the anchor carrier percentile.
+5. Fetch a second independent passenger BASIC page in the same group and require the
+   same graph to reproduce that carrier's published percentile.
 
-The output is source evidence. Any property percentile derived from it must be labelled
-TRANSPORT_CALCULATED, never an official FMCSA property percentile.
+Only one official graph is fetched per group; the second independent carrier validates
+that the curve generalizes to another carrier in the same group. Requests are
+sequential with bounded fallback candidates because the public SMS site throttles
+bursty traffic.
 """
 
 from __future__ import annotations
@@ -38,9 +42,8 @@ USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 PASSENGER_OUTPUT_ID = "m3ry-qcip"
 RULESET = "SMS_3_21_CURRENT"
 CANDIDATES_PER_GROUP = 10
-MIN_VALIDATORS_PER_GROUP = 2
-REQUEST_PAUSE_SECONDS = 0.8
-GROUP_PAUSE_SECONDS = 1.2
+REQUEST_PAUSE_SECONDS = 0.6
+GROUP_PAUSE_SECONDS = 0.8
 
 BASICS: dict[str, dict[str, Any]] = {
     "hos": {
@@ -107,7 +110,7 @@ class TableParser(HTMLParser):
             self.table = None
 
 
-def fetch_bytes(url: str, timeout: int = 25, attempts: int = 4) -> bytes:
+def fetch_bytes(url: str, timeout: int = 12, attempts: int = 2) -> bytes:
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
@@ -117,10 +120,10 @@ def fetch_bytes(url: str, timeout: int = 25, attempts: int = 4) -> bytes:
             )
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 return response.read()
-        except Exception as exc:  # noqa: BLE001 - keep exact upstream failure for CI evidence
+        except Exception as exc:  # noqa: BLE001 - preserve exact upstream failure
             last_error = exc
             if attempt < attempts:
-                time.sleep(min(8.0, 1.5 * (2 ** (attempt - 1))))
+                time.sleep(1.0)
     assert last_error is not None
     raise last_error
 
@@ -205,10 +208,6 @@ def parse_curve(raw: bytes) -> list[dict[str, float]]:
     raise RuntimeError("Could not parse Measure | Percentile conversion table")
 
 
-def curve_signature(curve: list[dict[str, float]]) -> str:
-    return json.dumps(curve, sort_keys=True, separators=(",", ":"))
-
-
 def lookup(curve: list[dict[str, float]], measure: float, mode: str) -> float:
     exact = [point for point in curve if abs(point["measure"] - measure) < 1e-9]
     if mode == "exact":
@@ -239,12 +238,7 @@ def candidate_rows(rows: list[dict[str, Any]], rule: dict[str, Any], group: int)
             continue
         dot = str(row.get("dot_number") or "").strip()
         if dot:
-            eligible.append({
-                "dot_number": dot,
-                "bulk_measure": measure,
-                "event_total": event_total,
-                "violation_inspections": integer(row.get(rule["violation_field"])),
-            })
+            eligible.append({"dot_number": dot, "bulk_measure": measure, "event_total": event_total})
     eligible.sort(key=lambda row: (row["bulk_measure"], row["dot_number"]))
     if len(eligible) <= CANDIDATES_PER_GROUP:
         return eligible
@@ -255,34 +249,35 @@ def candidate_rows(rows: list[dict[str, Any]], rule: dict[str, Any], group: int)
     return list({row["dot_number"]: row for row in selected}.values())
 
 
-def fetch_observation(basic: str, rule: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
-    dot = candidate["dot_number"]
-    base = f"{SMS_ROOT}/Carrier/{dot}/BASIC/{rule['path']}"
-    basic_url = f"{base}.aspx"
-    graph_url = f"{base}/MeasurePercentileGraph.aspx"
-    page = parse_basic_page(fetch_bytes(basic_url))
-    time.sleep(REQUEST_PAUSE_SECONDS)
-    curve = parse_curve(fetch_bytes(graph_url))
-    return {**candidate, "basic": basic, "basic_url": basic_url, "graph_url": graph_url, "page": page, "curve": curve}
+def basic_url(rule: dict[str, Any], dot: str) -> str:
+    return f"{SMS_ROOT}/Carrier/{dot}/BASIC/{rule['path']}.aspx"
 
 
-def supported_lookup_modes(curve: list[dict[str, float]], observations: list[dict[str, Any]]) -> list[str]:
-    supported: list[str] = []
-    for mode in ("exact", "ceiling", "floor", "nearest"):
-        comparisons = 0
-        matches = 0
-        for observation in observations:
-            page = observation["page"]
-            try:
-                predicted = lookup(curve, float(page["measure"]), mode)
-            except KeyError:
-                continue
-            comparisons += 1
-            if abs(predicted - float(page["percentile"])) < 1e-9:
-                matches += 1
-        if comparisons >= MIN_VALIDATORS_PER_GROUP and matches == comparisons:
-            supported.append(mode)
-    return supported
+def graph_url(rule: dict[str, Any], dot: str) -> str:
+    return f"{SMS_ROOT}/Carrier/{dot}/BASIC/{rule['path']}/MeasurePercentileGraph.aspx"
+
+
+def valid_page(candidate: dict[str, Any], page: dict[str, Any], expected_snapshot: str | None) -> str | None:
+    if page["snapshot"] is None or page["measure"] is None or page["percentile"] is None:
+        return "snapshot/measure/percentile unavailable"
+    if expected_snapshot is not None and page["snapshot"] != expected_snapshot:
+        return f"snapshot {page['snapshot']} != {expected_snapshot}"
+    if abs(float(page["measure"]) - float(candidate["bulk_measure"])) > 0.02:
+        return f"bulk/live measure mismatch {candidate['bulk_measure']} vs {page['measure']}"
+    return None
+
+
+def modes_matching(curve: list[dict[str, float]], page: dict[str, Any], allowed: list[str] | None = None) -> list[str]:
+    modes = allowed or ["exact", "ceiling", "floor", "nearest"]
+    matched: list[str] = []
+    for mode in modes:
+        try:
+            predicted = lookup(curve, float(page["measure"]), mode)
+        except KeyError:
+            continue
+        if abs(predicted - float(page["percentile"])) < 1e-9:
+            matched.append(mode)
+    return matched
 
 
 def validate_group(
@@ -291,50 +286,64 @@ def validate_group(
     group: int,
     candidates: list[dict[str, Any]],
     expected_snapshot: str | None,
-) -> tuple[list[dict[str, Any]], list[dict[str, str]], str, list[dict[str, float]], str]:
-    by_signature: dict[str, list[dict[str, Any]]] = {}
+) -> tuple[dict[str, Any], dict[str, Any], list[dict[str, float]], str, list[dict[str, str]]]:
     failures: list[dict[str, str]] = []
-    group_snapshot: str | None = None
+    anchor: dict[str, Any] | None = None
+    curve: list[dict[str, float]] | None = None
+    supported_modes: list[str] = []
 
+    # Phase 1: obtain one official graph and prove it reproduces its own carrier's
+    # published percentile.
     for candidate in candidates:
         try:
-            observation = fetch_observation(basic, rule, candidate)
+            page = parse_basic_page(fetch_bytes(basic_url(rule, candidate["dot_number"])))
+            problem = valid_page(candidate, page, expected_snapshot)
+            if problem:
+                failures.append({"dot_number": candidate["dot_number"], "error": problem})
+                continue
+            time.sleep(REQUEST_PAUSE_SECONDS)
+            candidate_curve = parse_curve(fetch_bytes(graph_url(rule, candidate["dot_number"])))
+            modes = modes_matching(candidate_curve, page)
+            if not modes:
+                failures.append({"dot_number": candidate["dot_number"], "error": "official graph did not reproduce anchor percentile"})
+                continue
+            anchor = {**candidate, "page": page}
+            curve = candidate_curve
+            supported_modes = modes
+            break
         except Exception as exc:  # noqa: BLE001
             failures.append({"dot_number": candidate["dot_number"], "error": f"{type(exc).__name__}: {exc}"})
+        finally:
             time.sleep(REQUEST_PAUSE_SECONDS)
-            continue
 
-        page = observation["page"]
-        if page["snapshot"] is None or page["measure"] is None or page["percentile"] is None:
-            failures.append({"dot_number": candidate["dot_number"], "error": "snapshot/measure/percentile unavailable"})
-            continue
-        if abs(float(page["measure"]) - float(candidate["bulk_measure"])) > 0.02:
-            failures.append({"dot_number": candidate["dot_number"], "error": f"bulk/live measure mismatch {candidate['bulk_measure']} vs {page['measure']}"})
-            continue
-        if expected_snapshot is not None and page["snapshot"] != expected_snapshot:
-            failures.append({"dot_number": candidate["dot_number"], "error": f"snapshot {page['snapshot']} != {expected_snapshot}"})
-            continue
-        if group_snapshot is None:
-            group_snapshot = str(page["snapshot"])
-        elif page["snapshot"] != group_snapshot:
-            failures.append({"dot_number": candidate["dot_number"], "error": f"group snapshot mismatch {page['snapshot']} != {group_snapshot}"})
-            continue
+    if anchor is None or curve is None:
+        raise RuntimeError(f"{basic} group {group}: no valid anchor graph; failures={failures[:6]}")
 
-        signature = curve_signature(observation["curve"])
-        by_signature.setdefault(signature, []).append(observation)
-        matched = by_signature[signature]
-        if len(matched) >= MIN_VALIDATORS_PER_GROUP:
-            modes = supported_lookup_modes(observation["curve"], matched)
-            if modes:
-                preferred = next(mode for mode in ("exact", "ceiling", "floor", "nearest") if mode in modes)
-                return matched, failures, group_snapshot, observation["curve"], preferred
+    # Phase 2: validate the same curve against a second independent public passenger
+    # carrier. No second graph request is needed because the first graph is the
+    # official conversion source for the group.
+    for candidate in candidates:
+        if candidate["dot_number"] == anchor["dot_number"]:
+            continue
+        try:
+            page = parse_basic_page(fetch_bytes(basic_url(rule, candidate["dot_number"])))
+            problem = valid_page(candidate, page, str(anchor["page"]["snapshot"]))
+            if problem:
+                failures.append({"dot_number": candidate["dot_number"], "error": problem})
+                continue
+            modes = modes_matching(curve, page, supported_modes)
+            if not modes:
+                failures.append({"dot_number": candidate["dot_number"], "error": "anchor graph did not reproduce validator percentile"})
+                continue
+            validator = {**candidate, "page": page}
+            preferred = next(mode for mode in ("exact", "ceiling", "floor", "nearest") if mode in modes)
+            return anchor, validator, curve, preferred, failures
+        except Exception as exc:  # noqa: BLE001
+            failures.append({"dot_number": candidate["dot_number"], "error": f"{type(exc).__name__}: {exc}"})
+        finally:
+            time.sleep(REQUEST_PAUSE_SECONDS)
 
-        time.sleep(REQUEST_PAUSE_SECONDS)
-
-    counts = {signature[:24]: len(items) for signature, items in by_signature.items()}
-    raise RuntimeError(
-        f"{basic} group {group}: no two-carrier curve proof; successful_signatures={counts}; failures={failures[:6]}"
-    )
+    raise RuntimeError(f"{basic} group {group}: no independent validator for anchor {anchor['dot_number']}; failures={failures[:8]}")
 
 
 def main() -> int:
@@ -344,37 +353,35 @@ def main() -> int:
     total_validations = 0
 
     for basic, rule in BASICS.items():
-        group_outputs: dict[str, Any] = {}
+        groups_out: dict[str, Any] = {}
         for group, minimum, maximum in rule["groups"]:
             candidates = candidate_rows(passenger_rows, rule, group)
-            if len(candidates) < MIN_VALIDATORS_PER_GROUP:
+            if len(candidates) < 2:
                 raise RuntimeError(f"{basic} group {group}: only {len(candidates)} data-sufficient passenger candidates")
-
-            matched, failures, snapshot, curve, lookup_mode = validate_group(
+            anchor, validator, curve, lookup_mode, failures = validate_group(
                 basic, rule, group, candidates, consensus_snapshot
             )
+            snapshot = str(anchor["page"]["snapshot"])
             if consensus_snapshot is None:
                 consensus_snapshot = snapshot
-
-            representative = matched[0]
-            group_outputs[str(group)] = {
+            representative_dot = anchor["dot_number"]
+            groups_out[str(group)] = {
                 "event_min": minimum,
                 "event_max": None if math.isinf(maximum) else maximum,
-                "curve_source": representative["graph_url"],
-                "representative_dot_number": representative["dot_number"],
+                "curve_source": graph_url(rule, representative_dot),
+                "representative_dot_number": representative_dot,
                 "lookup_mode": lookup_mode,
-                "validator_count": len(matched),
-                "validator_dot_numbers": [observation["dot_number"] for observation in matched],
+                "validator_count": 2,
+                "validator_dot_numbers": [representative_dot, validator["dot_number"]],
                 "failed_candidate_count": len(failures),
                 "curve": curve,
             }
-            total_validations += len(matched)
+            total_validations += 2
             time.sleep(GROUP_PAUSE_SECONDS)
-
-        output_basics[basic] = {"label": rule["label"], "group_basis": rule["event_field"], "groups": group_outputs}
+        output_basics[basic] = {"label": rule["label"], "group_basis": rule["event_field"], "groups": groups_out}
 
     if consensus_snapshot is None:
-        raise RuntimeError("No SMS snapshot established from validated BASIC pages")
+        raise RuntimeError("No SMS snapshot established")
 
     payload = {
         "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -393,7 +400,7 @@ def main() -> int:
         "ruleset": RULESET,
         "validation_count": total_validations,
         "basic_count": len(output_basics),
-        "group_count": sum(len(basic["groups"]) for basic in output_basics.values()),
+        "group_count": sum(len(item["groups"]) for item in output_basics.values()),
     }, indent=2))
     return 0
 
