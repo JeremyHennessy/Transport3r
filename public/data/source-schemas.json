@@ -1,0 +1,5085 @@
+{
+  "generated_at": "2026-09-08T15:05:23.776059Z",
+  "source_count": 27,
+  "field_count": 683,
+  "sources": [
+    {
+      "id": "az4n-8mr2",
+      "name": "Company Census File",
+      "family": "Census",
+      "rows_updated_at": "2026-09-08T14:49:24Z",
+      "metadata_url": "https://data.transportation.gov/api/views/az4n-8mr2",
+      "resource_url": "https://data.transportation.gov/resource/az4n-8mr2.json",
+      "download_url": "https://data.transportation.gov/api/views/az4n-8mr2/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "MCS150_DATE",
+          "field_name": "mcs150_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "ADD_DATE",
+          "field_name": "add_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "STATUS_CODE",
+          "field_name": "status_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "DUN_BRADSTREET_NO",
+          "field_name": "dun_bradstreet_no",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "PHY_OMC_REGION",
+          "field_name": "phy_omc_region",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "SAFETY_INV_TERR",
+          "field_name": "safety_inv_terr",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 8,
+          "name": "CARRIER_OPERATION",
+          "field_name": "carrier_operation",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 9,
+          "name": "BUSINESS_ORG_ID",
+          "field_name": "business_org_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 10,
+          "name": "MCS150_MILEAGE",
+          "field_name": "mcs150_mileage",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 11,
+          "name": "MCS150_MILEAGE_YEAR",
+          "field_name": "mcs150_mileage_year",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 12,
+          "name": "MCS151_MILEAGE",
+          "field_name": "mcs151_mileage",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 13,
+          "name": "TOTAL_CARS",
+          "field_name": "total_cars",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 14,
+          "name": "MCS150_UPDATE_CODE_ID",
+          "field_name": "mcs150_update_code_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 15,
+          "name": "PRIOR_REVOKE_FLAG",
+          "field_name": "prior_revoke_flag",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 16,
+          "name": "PRIOR_REVOKE_DOT_NUMBER",
+          "field_name": "prior_revoke_dot_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 17,
+          "name": "PHONE",
+          "field_name": "phone",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 18,
+          "name": "FAX",
+          "field_name": "fax",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 19,
+          "name": "CELL_PHONE",
+          "field_name": "cell_phone",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 20,
+          "name": "COMPANY_OFFICER_1",
+          "field_name": "company_officer_1",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 21,
+          "name": "COMPANY_OFFICER_2",
+          "field_name": "company_officer_2",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 22,
+          "name": "BUSINESS_ORG_DESC",
+          "field_name": "business_org_desc",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 23,
+          "name": "TRUCK_UNITS",
+          "field_name": "truck_units",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 24,
+          "name": "POWER_UNITS",
+          "field_name": "power_units",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 25,
+          "name": "BUS_UNITS",
+          "field_name": "bus_units",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 26,
+          "name": "FLEETSIZE",
+          "field_name": "fleetsize",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 27,
+          "name": "REVIEW_ID",
+          "field_name": "review_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 28,
+          "name": "RECORDABLE_CRASH_RATE",
+          "field_name": "recordable_crash_rate",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 29,
+          "name": "MAIL_NATIONALITY_INDICATOR",
+          "field_name": "mail_nationality_indicator",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 30,
+          "name": "PHY_NATIONALITY_INDICATOR",
+          "field_name": "phy_nationality_indicator",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 31,
+          "name": "PHY_BARRIO",
+          "field_name": "phy_barrio",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 32,
+          "name": "MAIL_BARRIO",
+          "field_name": "mail_barrio",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 33,
+          "name": "CARSHIP",
+          "field_name": "carship",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 34,
+          "name": "DOCKET1PREFIX",
+          "field_name": "docket1prefix",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 35,
+          "name": "DOCKET1",
+          "field_name": "docket1",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 36,
+          "name": "DOCKET2PREFIX",
+          "field_name": "docket2prefix",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 37,
+          "name": "DOCKET2",
+          "field_name": "docket2",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 38,
+          "name": "DOCKET3PREFIX",
+          "field_name": "docket3prefix",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 39,
+          "name": "DOCKET3",
+          "field_name": "docket3",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 40,
+          "name": "POINTNUM",
+          "field_name": "pointnum",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 41,
+          "name": "TOTAL_INTRASTATE_DRIVERS",
+          "field_name": "total_intrastate_drivers",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 42,
+          "name": "MCSIPSTEP",
+          "field_name": "mcsipstep",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 43,
+          "name": "MCSIPDATE",
+          "field_name": "mcsipdate",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 44,
+          "name": "HM_Ind",
+          "field_name": "hm_ind",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 45,
+          "name": "INTERSTATE_BEYOND_100_MILES",
+          "field_name": "interstate_beyond_100_miles",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 46,
+          "name": "INTERSTATE_WITHIN_100_MILES",
+          "field_name": "interstate_within_100_miles",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 47,
+          "name": "INTRASTATE_BEYOND_100_MILES",
+          "field_name": "intrastate_beyond_100_miles",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 48,
+          "name": "INTRASTATE_WITHIN_100_MILES",
+          "field_name": "intrastate_within_100_miles",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 49,
+          "name": "TOTAL_CDL",
+          "field_name": "total_cdl",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 50,
+          "name": "TOTAL_DRIVERS",
+          "field_name": "total_drivers",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 51,
+          "name": "AVG_DRIVERS_LEASED_PER_MONTH",
+          "field_name": "avg_drivers_leased_per_month",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 52,
+          "name": "CLASSDEF",
+          "field_name": "classdef",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 53,
+          "name": "LEGAL_NAME",
+          "field_name": "legal_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 54,
+          "name": "DBA_NAME",
+          "field_name": "dba_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 55,
+          "name": "PHY_STREET",
+          "field_name": "phy_street",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 56,
+          "name": "PHY_CITY",
+          "field_name": "phy_city",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 57,
+          "name": "PHY_COUNTRY",
+          "field_name": "phy_country",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 58,
+          "name": "PHY_STATE",
+          "field_name": "phy_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 59,
+          "name": "PHY_ZIP",
+          "field_name": "phy_zip",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 60,
+          "name": "PHY_CNTY",
+          "field_name": "phy_cnty",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 61,
+          "name": "CARRIER_MAILING_STREET",
+          "field_name": "carrier_mailing_street",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 62,
+          "name": "CARRIER_MAILING_STATE",
+          "field_name": "carrier_mailing_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 63,
+          "name": "CARRIER_MAILING_CITY",
+          "field_name": "carrier_mailing_city",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 64,
+          "name": "CARRIER_MAILING_COUNTRY",
+          "field_name": "carrier_mailing_country",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 65,
+          "name": "CARRIER_MAILING_ZIP",
+          "field_name": "carrier_mailing_zip",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 66,
+          "name": "CARRIER_MAILING_CNTY",
+          "field_name": "carrier_mailing_cnty",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 67,
+          "name": "CARRIER_MAILING_UND_DATE",
+          "field_name": "carrier_mailing_und_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 68,
+          "name": "DRIVER_INTER_TOTAL",
+          "field_name": "driver_inter_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 69,
+          "name": "EMAIL_ADDRESS",
+          "field_name": "email_address",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 70,
+          "name": "REVIEW_TYPE",
+          "field_name": "review_type",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 71,
+          "name": "REVIEW_DATE",
+          "field_name": "review_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 72,
+          "name": "SAFETY_RATING",
+          "field_name": "safety_rating",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 73,
+          "name": "SAFETY_RATING_DATE",
+          "field_name": "safety_rating_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 74,
+          "name": "UNDELIV_PHY",
+          "field_name": "undeliv_phy",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 75,
+          "name": "CRGO_GENFREIGHT",
+          "field_name": "crgo_genfreight",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 76,
+          "name": "CRGO_HOUSEHOLD",
+          "field_name": "crgo_household",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 77,
+          "name": "CRGO_METALSHEET",
+          "field_name": "crgo_metalsheet",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 78,
+          "name": "CRGO_MOTOVEH",
+          "field_name": "crgo_motoveh",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 79,
+          "name": "CRGO_DRIVETOW",
+          "field_name": "crgo_drivetow",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 80,
+          "name": "CRGO_LOGPOLE",
+          "field_name": "crgo_logpole",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 81,
+          "name": "CRGO_BLDGMAT",
+          "field_name": "crgo_bldgmat",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 82,
+          "name": "CRGO_MOBILEHOME",
+          "field_name": "crgo_mobilehome",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 83,
+          "name": "CRGO_MACHLRG",
+          "field_name": "crgo_machlrg",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 84,
+          "name": "CRGO_PRODUCE",
+          "field_name": "crgo_produce",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 85,
+          "name": "CRGO_LIQGAS",
+          "field_name": "crgo_liqgas",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 86,
+          "name": "CRGO_INTERMODAL",
+          "field_name": "crgo_intermodal",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 87,
+          "name": "CRGO_PASSENGERS",
+          "field_name": "crgo_passengers",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 88,
+          "name": "CRGO_OILFIELD",
+          "field_name": "crgo_oilfield",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 89,
+          "name": "CRGO_LIVESTOCK",
+          "field_name": "crgo_livestock",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 90,
+          "name": "CRGO_GRAINFEED",
+          "field_name": "crgo_grainfeed",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 91,
+          "name": "CRGO_COALCOKE",
+          "field_name": "crgo_coalcoke",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 92,
+          "name": "CRGO_MEAT",
+          "field_name": "crgo_meat",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 93,
+          "name": "CRGO_GARBAGE",
+          "field_name": "crgo_garbage",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 94,
+          "name": "CRGO_USMAIL",
+          "field_name": "crgo_usmail",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 95,
+          "name": "CRGO_CHEM",
+          "field_name": "crgo_chem",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 96,
+          "name": "CRGO_DRYBULK",
+          "field_name": "crgo_drybulk",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 97,
+          "name": "CRGO_COLDFOOD",
+          "field_name": "crgo_coldfood",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 98,
+          "name": "CRGO_BEVERAGES",
+          "field_name": "crgo_beverages",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 99,
+          "name": "CRGO_PAPERPROD",
+          "field_name": "crgo_paperprod",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 100,
+          "name": "CRGO_UTILITY",
+          "field_name": "crgo_utility",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 101,
+          "name": "CRGO_FARMSUPP",
+          "field_name": "crgo_farmsupp",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 102,
+          "name": "CRGO_CONSTRUCT",
+          "field_name": "crgo_construct",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 103,
+          "name": "CRGO_WATERWELL",
+          "field_name": "crgo_waterwell",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 104,
+          "name": "CRGO_CARGOOTHR",
+          "field_name": "crgo_cargoothr",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 105,
+          "name": "CRGO_CARGOOTHR_DESC",
+          "field_name": "crgo_cargoothr_desc",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 106,
+          "name": "OWNTRUCK",
+          "field_name": "owntruck",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 107,
+          "name": "OWNTRACT",
+          "field_name": "owntract",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 108,
+          "name": "OWNTRAIL",
+          "field_name": "owntrail",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 109,
+          "name": "OWNCOACH",
+          "field_name": "owncoach",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 110,
+          "name": "OWNSCHOOL_1_8",
+          "field_name": "ownschool_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 111,
+          "name": "OWNSCHOOL_9_15",
+          "field_name": "ownschool_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 112,
+          "name": "OWNSCHOOL_16",
+          "field_name": "ownschool_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 113,
+          "name": "OWNBUS_16",
+          "field_name": "ownbus_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 114,
+          "name": "OWNVAN_1_8",
+          "field_name": "ownvan_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 115,
+          "name": "OWNVAN_9_15",
+          "field_name": "ownvan_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 116,
+          "name": "OWNLIMO_1_8",
+          "field_name": "ownlimo_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 117,
+          "name": "OWNLIMO_9_15",
+          "field_name": "ownlimo_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 118,
+          "name": "OWNLIMO_16",
+          "field_name": "ownlimo_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 119,
+          "name": "TRMTRUCK",
+          "field_name": "trmtruck",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 120,
+          "name": "TRMTRACT",
+          "field_name": "trmtract",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 121,
+          "name": "TRMTRAIL",
+          "field_name": "trmtrail",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 122,
+          "name": "TRMCOACH",
+          "field_name": "trmcoach",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 123,
+          "name": "TRMSCHOOL_1_8",
+          "field_name": "trmschool_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 124,
+          "name": "TRMSCHOOL_9_15",
+          "field_name": "trmschool_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 125,
+          "name": "TRMSCHOOL_16",
+          "field_name": "trmschool_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 126,
+          "name": "TRMBUS_16",
+          "field_name": "trmbus_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 127,
+          "name": "TRMVAN_1_8",
+          "field_name": "trmvan_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 128,
+          "name": "TRMVAN_9_15",
+          "field_name": "trmvan_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 129,
+          "name": "TRMLIMO_1_8",
+          "field_name": "trmlimo_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 130,
+          "name": "TRMLIMO_9_15",
+          "field_name": "trmlimo_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 131,
+          "name": "TRMLIMO_16",
+          "field_name": "trmlimo_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 132,
+          "name": "TRPTRUCK",
+          "field_name": "trptruck",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 133,
+          "name": "TRPTRACT",
+          "field_name": "trptract",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 134,
+          "name": "TRPTRAIL",
+          "field_name": "trptrail",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 135,
+          "name": "TRPCOACH",
+          "field_name": "trpcoach",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 136,
+          "name": "TRPSCHOOL_1_8",
+          "field_name": "trpschool_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 137,
+          "name": "TRPSCHOOL_9_15",
+          "field_name": "trpschool_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 138,
+          "name": "TRPSCHOOL_16",
+          "field_name": "trpschool_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 139,
+          "name": "TRPBUS_16",
+          "field_name": "trpbus_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 140,
+          "name": "TRPVAN_1_8",
+          "field_name": "trpvan_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 141,
+          "name": "TRPVAN_9_15",
+          "field_name": "trpvan_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 142,
+          "name": "TRPLIMO_1_8",
+          "field_name": "trplimo_1_8",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 143,
+          "name": "TRPLIMO_9_15",
+          "field_name": "trplimo_9_15",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 144,
+          "name": "TRPLIMO_16",
+          "field_name": "trplimo_16",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 145,
+          "name": "DOCKET1_STATUS_CODE",
+          "field_name": "docket1_status_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 146,
+          "name": "DOCKET2_STATUS_CODE",
+          "field_name": "docket2_status_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 147,
+          "name": "DOCKET3_STATUS_CODE",
+          "field_name": "docket3_status_code",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "p2mt-9ige",
+      "name": "New Entrant Out of Service Orders",
+      "family": "Enforcement",
+      "rows_updated_at": "2026-09-08T08:29:04Z",
+      "metadata_url": "https://data.transportation.gov/api/views/p2mt-9ige",
+      "resource_url": "https://data.transportation.gov/resource/p2mt-9ige.json",
+      "download_url": "https://data.transportation.gov/api/views/p2mt-9ige/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "LEGAL_NAME",
+          "field_name": "legal_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "DBA_NAME",
+          "field_name": "dba_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "OOS_DATE",
+          "field_name": "oos_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "OOS_REASON",
+          "field_name": "oos_reason",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "STATUS",
+          "field_name": "status",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "RESCIND_DATE",
+          "field_name": "rescind_date",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "wt8s-2hbx",
+      "name": "Inspections Per Unit",
+      "family": "Inspection",
+      "rows_updated_at": "2026-09-08T11:07:56Z",
+      "metadata_url": "https://data.transportation.gov/api/views/wt8s-2hbx",
+      "resource_url": "https://data.transportation.gov/resource/wt8s-2hbx.json",
+      "download_url": "https://data.transportation.gov/api/views/wt8s-2hbx/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "INSPECTION_ID",
+          "field_name": "inspection_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "INSP_UNIT_ID",
+          "field_name": "insp_unit_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "INSP_UNIT_TYPE_ID",
+          "field_name": "insp_unit_type_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "INSP_UNIT_NUMBER",
+          "field_name": "insp_unit_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "INSP_UNIT_MAKE",
+          "field_name": "insp_unit_make",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "INSP_UNIT_COMPANY",
+          "field_name": "insp_unit_company",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 8,
+          "name": "INSP_UNIT_LICENSE",
+          "field_name": "insp_unit_license",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 9,
+          "name": "INSP_UNIT_LICENSE_STATE",
+          "field_name": "insp_unit_license_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 10,
+          "name": "INSP_UNIT_VEHICLE_ID_NUMBER",
+          "field_name": "insp_unit_vehicle_id_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 11,
+          "name": "INSP_UNIT_DECAL",
+          "field_name": "insp_unit_decal",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 12,
+          "name": "INSP_UNIT_DECAL_NUMBER",
+          "field_name": "insp_unit_decal_number",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "qbt8-7vic",
+      "name": "Inspections and Citations",
+      "family": "Inspection",
+      "rows_updated_at": "2026-09-08T10:09:56Z",
+      "metadata_url": "https://data.transportation.gov/api/views/qbt8-7vic",
+      "resource_url": "https://data.transportation.gov/resource/qbt8-7vic.json",
+      "download_url": "https://data.transportation.gov/api/views/qbt8-7vic/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "INSPECTION_ID",
+          "field_name": "inspection_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "VIOSEQNUM",
+          "field_name": "vioseqnum",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "ADJSEQ",
+          "field_name": "adjseq",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "CITATION_CODE",
+          "field_name": "citation_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "CITATION_RESULT",
+          "field_name": "citation_result",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "5qik-smay",
+      "name": "Special Studies",
+      "family": "Inspection",
+      "rows_updated_at": "2026-09-08T10:11:52Z",
+      "metadata_url": "https://data.transportation.gov/api/views/5qik-smay",
+      "resource_url": "https://data.transportation.gov/resource/5qik-smay.json",
+      "download_url": "https://data.transportation.gov/api/views/5qik-smay/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "INSPECTION_ID",
+          "field_name": "inspection_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "INSP_STUDY_ID",
+          "field_name": "insp_study_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "STUDY",
+          "field_name": "study",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "SEQ_NO",
+          "field_name": "seq_no",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "fx4q-ay7w",
+      "name": "Vehicle Inspection File",
+      "family": "Inspection",
+      "rows_updated_at": "2026-09-08T12:17:33Z",
+      "metadata_url": "https://data.transportation.gov/api/views/fx4q-ay7w",
+      "resource_url": "https://data.transportation.gov/resource/fx4q-ay7w.json",
+      "download_url": "https://data.transportation.gov/api/views/fx4q-ay7w/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "INSPECTION_ID",
+          "field_name": "inspection_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "REPORT_STATE",
+          "field_name": "report_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "REPORT_NUMBER",
+          "field_name": "report_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "INSP_DATE",
+          "field_name": "insp_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "INSP_START_TIME",
+          "field_name": "insp_start_time",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 8,
+          "name": "INSP_END_TIME",
+          "field_name": "insp_end_time",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 9,
+          "name": "REGISTRATION_DATE",
+          "field_name": "registration_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 10,
+          "name": "REGION",
+          "field_name": "region",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 11,
+          "name": "CI_STATUS_CODE",
+          "field_name": "ci_status_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 12,
+          "name": "LOCATION",
+          "field_name": "location",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 13,
+          "name": "LOCATION_DESC",
+          "field_name": "location_desc",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 14,
+          "name": "COUNTY_CODE_STATE",
+          "field_name": "county_code_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 15,
+          "name": "COUNTY_CODE",
+          "field_name": "county_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 16,
+          "name": "INSP_LEVEL_ID",
+          "field_name": "insp_level_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 17,
+          "name": "SERVICE_CENTER",
+          "field_name": "service_center",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 18,
+          "name": "CENSUS_SOURCE_ID",
+          "field_name": "census_source_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 19,
+          "name": "INSP_FACILITY",
+          "field_name": "insp_facility",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 20,
+          "name": "SHIPPER_NAME",
+          "field_name": "shipper_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 21,
+          "name": "SHIPPING_PAPER_NUMBER",
+          "field_name": "shipping_paper_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 22,
+          "name": "CARGO_TANK",
+          "field_name": "cargo_tank",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 23,
+          "name": "HAZMAT_PLACARD_REQ",
+          "field_name": "hazmat_placard_req",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 24,
+          "name": "SNET_VERSION_NUMBER",
+          "field_name": "snet_version_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 25,
+          "name": "SNET_SEARCH_DATE",
+          "field_name": "snet_search_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 26,
+          "name": "ALCOHOL_CONTROL_SUB",
+          "field_name": "alcohol_control_sub",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 27,
+          "name": "DRUG_INTRDCTN_SEARCH",
+          "field_name": "drug_intrdctn_search",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 28,
+          "name": "DRUG_INTRDCTN_ARRESTS",
+          "field_name": "drug_intrdctn_arrests",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 29,
+          "name": "SIZE_WEIGHT_ENF",
+          "field_name": "size_weight_enf",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 30,
+          "name": "TRAFFIC_ENF",
+          "field_name": "traffic_enf",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 31,
+          "name": "LOCAL_ENF_JURISDICTION",
+          "field_name": "local_enf_jurisdiction",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 32,
+          "name": "PEN_CEN_MATCH",
+          "field_name": "pen_cen_match",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 33,
+          "name": "FINAL_STATUS_DATE",
+          "field_name": "final_status_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 34,
+          "name": "POST_ACC_IND",
+          "field_name": "post_acc_ind",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 35,
+          "name": "GROSS_COMB_VEH_WT",
+          "field_name": "gross_comb_veh_wt",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 36,
+          "name": "VIOL_TOTAL",
+          "field_name": "viol_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 37,
+          "name": "OOS_TOTAL",
+          "field_name": "oos_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 38,
+          "name": "DRIVER_VIOL_TOTAL",
+          "field_name": "driver_viol_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 39,
+          "name": "DRIVER_OOS_TOTAL",
+          "field_name": "driver_oos_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 40,
+          "name": "VEHICLE_VIOL_TOTAL",
+          "field_name": "vehicle_viol_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 41,
+          "name": "VEHICLE_OOS_TOTAL",
+          "field_name": "vehicle_oos_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 42,
+          "name": "HAZMAT_VIOL_TOTAL",
+          "field_name": "hazmat_viol_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 43,
+          "name": "HAZMAT_OOS_TOTAL",
+          "field_name": "hazmat_oos_total",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 44,
+          "name": "SNET_SEQUENCE_ID",
+          "field_name": "snet_sequence_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 45,
+          "name": "TRANSACTION_CODE",
+          "field_name": "transaction_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 46,
+          "name": "TRANSACTION_DATE",
+          "field_name": "transaction_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 47,
+          "name": "UPLOAD_DATE",
+          "field_name": "upload_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 48,
+          "name": "UPLOAD_FIRST_BYTE",
+          "field_name": "upload_first_byte",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 49,
+          "name": "UPLOAD_DOT_NUMBER",
+          "field_name": "upload_dot_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 50,
+          "name": "UPLOAD_SEARCH_INDICATOR",
+          "field_name": "upload_search_indicator",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 51,
+          "name": "CENSUS_SEARCH_DATE",
+          "field_name": "census_search_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 52,
+          "name": "SNET_INPUT_DATE",
+          "field_name": "snet_input_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 53,
+          "name": "SOURCE_OFFICE",
+          "field_name": "source_office",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 54,
+          "name": "MCMIS_ADD_DATE",
+          "field_name": "mcmis_add_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 55,
+          "name": "INSP_CARRIER_NAME",
+          "field_name": "insp_carrier_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 56,
+          "name": "INSP_CARRIER_STREET",
+          "field_name": "insp_carrier_street",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 57,
+          "name": "INSP_CARRIER_CITY",
+          "field_name": "insp_carrier_city",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 58,
+          "name": "INSP_CARRIER_STATE",
+          "field_name": "insp_carrier_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 59,
+          "name": "INSP_CARRIER_ZIP_CODE",
+          "field_name": "insp_carrier_zip_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 60,
+          "name": "INSP_COLONIA",
+          "field_name": "insp_colonia",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 61,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 62,
+          "name": "INSP_INTERSTATE",
+          "field_name": "insp_interstate",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 63,
+          "name": "INSP_CARRIER_STATE_ID",
+          "field_name": "insp_carrier_state_id",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "876r-jsdb",
+      "name": "Vehicle Inspections and Violations",
+      "family": "Inspection",
+      "rows_updated_at": "2026-09-08T11:26:14Z",
+      "metadata_url": "https://data.transportation.gov/api/views/876r-jsdb",
+      "resource_url": "https://data.transportation.gov/resource/876r-jsdb.json",
+      "download_url": "https://data.transportation.gov/api/views/876r-jsdb/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "INSPECTION_ID",
+          "field_name": "inspection_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "INSP_VIOLATION_ID",
+          "field_name": "insp_violation_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "SEQ_NO",
+          "field_name": "seq_no",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "PART_NO",
+          "field_name": "part_no",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "PART_NO_SECTION",
+          "field_name": "part_no_section",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "INSP_VIOL_UNIT",
+          "field_name": "insp_viol_unit",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 8,
+          "name": "INSP_UNIT_ID",
+          "field_name": "insp_unit_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 9,
+          "name": "INSP_VIOLATION_CATEGORY_ID",
+          "field_name": "insp_violation_category_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 10,
+          "name": "OUT_OF_SERVICE_INDICATOR",
+          "field_name": "out_of_service_indicator",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 11,
+          "name": "DEFECT_VERIFICATION_ID",
+          "field_name": "defect_verification_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 12,
+          "name": "CITATION_NUMBER",
+          "field_name": "citation_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 13,
+          "name": "VIOL_CODE",
+          "field_name": "viol_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 14,
+          "name": "VIOL_DESC",
+          "field_name": "viol_desc",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    },
+    {
+      "id": "yu5v-wbh6",
+      "name": "Motus AuthHist - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:58Z",
+      "metadata_url": "https://data.transportation.gov/api/views/yu5v-wbh6",
+      "resource_url": "https://data.transportation.gov/resource/yu5v-wbh6.json",
+      "download_url": "https://data.transportation.gov/api/views/yu5v-wbh6/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "Operating Authority Type"
+        },
+        {
+          "position": 4,
+          "name": "OP_AUTH_STATUS",
+          "field_name": "op_auth_status",
+          "data_type": "text",
+          "description": "Operating Authority Status"
+        },
+        {
+          "position": 5,
+          "name": "REASON",
+          "field_name": "reason",
+          "data_type": "text",
+          "description": "Operating Authority Status Change Reason"
+        },
+        {
+          "position": 6,
+          "name": "STATUS_CHANGE_DATE",
+          "field_name": "status_change_date",
+          "data_type": "text",
+          "description": "Date Operating Authority changed. (YYYYMMDD)"
+        }
+      ]
+    },
+    {
+      "id": "6snj-ed7q",
+      "name": "Motus BOC3 - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:45Z",
+      "metadata_url": "https://data.transportation.gov/api/views/6snj-ed7q",
+      "resource_url": "https://data.transportation.gov/resource/6snj-ed7q.json",
+      "download_url": "https://data.transportation.gov/api/views/6snj-ed7q/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers."
+        },
+        {
+          "position": 3,
+          "name": "CO_NAME",
+          "field_name": "co_name",
+          "data_type": "text",
+          "description": "Name of the Blanket Company that is hired by the business receiving the Operating Authority"
+        },
+        {
+          "position": 4,
+          "name": "STREET_PO",
+          "field_name": "street_po",
+          "data_type": "text",
+          "description": "Blanket Company address"
+        },
+        {
+          "position": 5,
+          "name": "CITY",
+          "field_name": "city",
+          "data_type": "text",
+          "description": "Blanket Company address"
+        },
+        {
+          "position": 6,
+          "name": "STATE_CODE",
+          "field_name": "state_code",
+          "data_type": "text",
+          "description": "Blanket Company address"
+        },
+        {
+          "position": 7,
+          "name": "ZIP_CODE",
+          "field_name": "zip_code",
+          "data_type": "text",
+          "description": "Blanket Company address"
+        },
+        {
+          "position": 8,
+          "name": "CTRY_CODE",
+          "field_name": "ctry_code",
+          "data_type": "text",
+          "description": "Blanket Company address"
+        }
+      ]
+    },
+    {
+      "id": "inys-ebih",
+      "name": "Motus Carrier - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:59Z",
+      "metadata_url": "https://data.transportation.gov/api/views/inys-ebih",
+      "resource_url": "https://data.transportation.gov/resource/inys-ebih.json",
+      "download_url": "https://data.transportation.gov/api/views/inys-ebih/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "\t Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "RFC_NUMBER",
+          "field_name": "rfc_number",
+          "data_type": "text",
+          "description": "\t Mexican Government registration code for Mexican carriers"
+        },
+        {
+          "position": 4,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "Operating Authority Type"
+        },
+        {
+          "position": 5,
+          "name": "OP_AUTH_STATUS",
+          "field_name": "op_auth_status",
+          "data_type": "text",
+          "description": "Operating Authority Status"
+        },
+        {
+          "position": 6,
+          "name": "MIN_COV_AMOUNT",
+          "field_name": "min_cov_amount",
+          "data_type": "number",
+          "description": "Amount of BI&PD insurance required (in thousands)"
+        },
+        {
+          "position": 7,
+          "name": "CARGO_REQ",
+          "field_name": "cargo_req",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 8,
+          "name": "BOND_REQ",
+          "field_name": "bond_req",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 9,
+          "name": "BIPD_FILE",
+          "field_name": "bipd_file",
+          "data_type": "number",
+          "description": "Amount of BI&PD insurance on file (in thousands)"
+        },
+        {
+          "position": 10,
+          "name": "CARGO_FILE",
+          "field_name": "cargo_file",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 11,
+          "name": "BOND_FILE",
+          "field_name": "bond_file",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 12,
+          "name": "BUS_UNDELIVERABLE_MAIL",
+          "field_name": "bus_undeliverable_mail",
+          "data_type": "text",
+          "description": "Y = Deliverable N = Undeliverable - Mail was returned \"undeliverable\" form USPS"
+        },
+        {
+          "position": 13,
+          "name": "MAIL_UNDELIVERABLE_MAIL",
+          "field_name": "mail_undeliverable_mail",
+          "data_type": "text",
+          "description": "Y = Deliverable N = Undeliverable - Mail was returned \"undeliverable\" form USPS"
+        },
+        {
+          "position": 14,
+          "name": "DBA_NAME",
+          "field_name": "dba_name",
+          "data_type": "text",
+          "description": "\u201cDoing Business As\u201d Name. Can be more than one DBA name"
+        },
+        {
+          "position": 15,
+          "name": "LEGAL_NAME",
+          "field_name": "legal_name",
+          "data_type": "text",
+          "description": "Company Legal Name"
+        },
+        {
+          "position": 16,
+          "name": "BUS_STREET_PO",
+          "field_name": "bus_street_po",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 17,
+          "name": "BUS_COLONIA",
+          "field_name": "bus_colonia",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 18,
+          "name": "BUS_CITY",
+          "field_name": "bus_city",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 19,
+          "name": "BUS_STATE_CODE",
+          "field_name": "bus_state_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 20,
+          "name": "BUS_CTRY_CODE",
+          "field_name": "bus_ctry_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 21,
+          "name": "BUS_ZIP_CODE",
+          "field_name": "bus_zip_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 22,
+          "name": "BUS_TELNO",
+          "field_name": "bus_telno",
+          "data_type": "text",
+          "description": "Company Business Telephone Number"
+        },
+        {
+          "position": 23,
+          "name": "MAIL_STREET_PO",
+          "field_name": "mail_street_po",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 24,
+          "name": "MAIL_COLONIA",
+          "field_name": "mail_colonia",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 25,
+          "name": "MAIL_CITY",
+          "field_name": "mail_city",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 26,
+          "name": "MAIL_STATE_CODE",
+          "field_name": "mail_state_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 27,
+          "name": "MAIL_CTRY_CODE",
+          "field_name": "mail_ctry_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 28,
+          "name": "MAIL_ZIP_CODE",
+          "field_name": "mail_zip_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        }
+      ]
+    },
+    {
+      "id": "3uet-3z4i",
+      "name": "Motus InsHist - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:43Z",
+      "metadata_url": "https://data.transportation.gov/api/views/3uet-3z4i",
+      "resource_url": "https://data.transportation.gov/resource/3uet-3z4i.json",
+      "download_url": "https://data.transportation.gov/api/views/3uet-3z4i/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "INS_FORM_CODE",
+          "field_name": "ins_form_code",
+          "data_type": "text",
+          "description": "34 = Cargo 82 = BI&PD 83 = Cargo 84 = Property Broker\u2019s Surety Bond 85 = Property Broker\u2019s Trust Fund Agreement 91, 91X = BI&PD, BI&PD/Primary, BI&PD/Excess"
+        },
+        {
+          "position": 4,
+          "name": "FILING_STATUS_REASON",
+          "field_name": "filing_status_reason",
+          "data_type": "text",
+          "description": "The status reason can be: \u201ccancelled\u201d, \u201creplaced\u201d, \u201cname change\u201d, or \u201ctransferred\u201d"
+        },
+        {
+          "position": 5,
+          "name": "INS_TYPE_CODE",
+          "field_name": "ins_type_code",
+          "data_type": "text",
+          "description": "1 = BI&PD 2 = Cargo 3 = Bond 4 = Trust Fund"
+        },
+        {
+          "position": 6,
+          "name": "INS_TYPE_IND",
+          "field_name": "ins_type_ind",
+          "data_type": "text",
+          "description": "\u201c \u201c = BIPD \u201c*\u201d = Not BIPD (Cargo, Surety, or Trust Fund)"
+        },
+        {
+          "position": 7,
+          "name": "POLICY_NO",
+          "field_name": "policy_no",
+          "data_type": "text",
+          "description": "Insurance policy specific identifier"
+        },
+        {
+          "position": 8,
+          "name": "INS_TYPE_DESC",
+          "field_name": "ins_type_desc",
+          "data_type": "text",
+          "description": "Description of insurance form/class"
+        },
+        {
+          "position": 9,
+          "name": "MIN_COV_AMOUNT",
+          "field_name": "min_cov_amount",
+          "data_type": "number",
+          "description": "The minimum insurance amount required for the entity (carrier, broker, etc.), in thousands"
+        },
+        {
+          "position": 10,
+          "name": "INS_CLASS_CODE",
+          "field_name": "ins_class_code",
+          "data_type": "text",
+          "description": "For BI&PD form codes; indicates whether the insurance policy is primary (\u201cP\u201d) or excess (\u201cE\u201d)"
+        },
+        {
+          "position": 11,
+          "name": "EFFECTIVE_DATE",
+          "field_name": "effective_date",
+          "data_type": "text",
+          "description": "Effective date of the insurance policy"
+        },
+        {
+          "position": 12,
+          "name": "UNDERL_LIM_AMOUNT",
+          "field_name": "underl_lim_amount",
+          "data_type": "number",
+          "description": "BI&PD Underlying Dollar Limit. When the insurance class code is \u201cE\u201d, the underlying limit amount is the value of the primary insurance"
+        },
+        {
+          "position": 13,
+          "name": "MAX_COV_AMOUNT",
+          "field_name": "max_cov_amount",
+          "data_type": "number",
+          "description": "The maximum dollar amount covered by the insurance policy (in thousands)"
+        },
+        {
+          "position": 14,
+          "name": "CANCL_EFFECTIVE_DATE",
+          "field_name": "cancl_effective_date",
+          "data_type": "text",
+          "description": "Date the policy is effectively cancelled"
+        },
+        {
+          "position": 15,
+          "name": "INSURANCE_COMPANY_NAME",
+          "field_name": "insurance_company_name",
+          "data_type": "text",
+          "description": "Insurance company name"
+        }
+      ]
+    },
+    {
+      "id": "c5y8-a4uz",
+      "name": "Motus Insur - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:52Z",
+      "metadata_url": "https://data.transportation.gov/api/views/c5y8-a4uz",
+      "resource_url": "https://data.transportation.gov/resource/c5y8-a4uz.json",
+      "download_url": "https://data.transportation.gov/api/views/c5y8-a4uz/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "INS_FORM_CODE",
+          "field_name": "ins_form_code",
+          "data_type": "text",
+          "description": "34 = Cargo 82 = BI&PD 83 = Cargo 84 = Property Broker\u2019s Surety Bond 85 = Property Broker\u2019s Trust Fund Agreement 91, 91X = BI&PD, BI&PD/Primary, BI&PD/Excess"
+        },
+        {
+          "position": 4,
+          "name": "INS_TYPE_CODE",
+          "field_name": "ins_type_code",
+          "data_type": "text",
+          "description": "1 = BI&PD 2 = Cargo 3 = Bond 4 = Trust Fund"
+        },
+        {
+          "position": 5,
+          "name": "INS_CLASS_CODE",
+          "field_name": "ins_class_code",
+          "data_type": "text",
+          "description": "P = Primary E = Excess 1 = Full Security Limits Under Section 1043.2(b)(1) 2 = Full Security Limits Under Section 1043.2(b)(2)"
+        },
+        {
+          "position": 6,
+          "name": "MAX_COV_AMOUNT",
+          "field_name": "max_cov_amount",
+          "data_type": "number",
+          "description": "BI&PD Maximum Dollar Limit (company shall not be liable for amounts in excess of). Amount (in thousands)"
+        },
+        {
+          "position": 7,
+          "name": "UNDERL_LIM_AMOUNT",
+          "field_name": "underl_lim_amount",
+          "data_type": "number",
+          "description": "BI&PD Underlying Dollar Limit. Amount (in thousands)"
+        },
+        {
+          "position": 8,
+          "name": "POLICY_NO",
+          "field_name": "policy_no",
+          "data_type": "text",
+          "description": "Insurance policy specific identifier"
+        },
+        {
+          "position": 9,
+          "name": "EFFECTIVE_DATE",
+          "field_name": "effective_date",
+          "data_type": "text",
+          "description": "Effective date of the policy"
+        },
+        {
+          "position": 10,
+          "name": "INSURANCE_COMPANY_NAME",
+          "field_name": "insurance_company_name",
+          "data_type": "text",
+          "description": "Insurance company name for policy (note: policy may be administered by a company branch with a different name)"
+        },
+        {
+          "position": 11,
+          "name": "TRANS_DATE",
+          "field_name": "trans_date",
+          "data_type": "text",
+          "description": "Date FMCSA received the policy"
+        }
+      ]
+    },
+    {
+      "id": "wb4f-neki",
+      "name": "Motus RevokeSuspend - All With History",
+      "family": "MOTUS",
+      "rows_updated_at": "2026-09-08T10:43:45Z",
+      "metadata_url": "https://data.transportation.gov/api/views/wb4f-neki",
+      "resource_url": "https://data.transportation.gov/resource/wb4f-neki.json",
+      "download_url": "https://data.transportation.gov/api/views/wb4f-neki/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "Operating Authority Type"
+        },
+        {
+          "position": 4,
+          "name": "ORDER1_SERVE_DATE",
+          "field_name": "order1_serve_date",
+          "data_type": "text",
+          "description": "Date the Suspension/Revocation is served (YYYYMMDD)"
+        },
+        {
+          "position": 5,
+          "name": "ORDER1_TYPE_DESC",
+          "field_name": "order1_type_desc",
+          "data_type": "text",
+          "description": "The type of Suspension/Revocation action"
+        },
+        {
+          "position": 6,
+          "name": "ORDER1_EFFECTIVE_DATE",
+          "field_name": "order1_effective_date",
+          "data_type": "text",
+          "description": "Date the suspension/revocation is effective"
+        }
+      ]
+    },
+    {
+      "id": "dm5j-zc6c",
+      "name": "Motus AuthHist - Daily Difference",
+      "family": "MOTUS Delta",
+      "rows_updated_at": "2026-09-08T11:41:28Z",
+      "metadata_url": "https://data.transportation.gov/api/views/dm5j-zc6c",
+      "resource_url": "https://data.transportation.gov/resource/dm5j-zc6c.json",
+      "download_url": "https://data.transportation.gov/api/views/dm5j-zc6c/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "DOCKET_NUMBER"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "USDOT_NUMBER"
+        },
+        {
+          "position": 3,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "OP_AUTH_TYPE"
+        },
+        {
+          "position": 4,
+          "name": "OP_AUTH_STATUS",
+          "field_name": "op_auth_status",
+          "data_type": "text",
+          "description": "OP_AUTH_STATUS"
+        },
+        {
+          "position": 5,
+          "name": "REASON",
+          "field_name": "reason",
+          "data_type": "text",
+          "description": "REASON"
+        },
+        {
+          "position": 6,
+          "name": "STATUS_CHANGE_DATE",
+          "field_name": "status_change_date",
+          "data_type": "text",
+          "description": "STATUS_CHANGE_DATE"
+        }
+      ]
+    },
+    {
+      "id": "nakq-58th",
+      "name": "Motus Carrier - Daily Difference",
+      "family": "MOTUS Delta",
+      "rows_updated_at": "2026-09-08T11:41:30Z",
+      "metadata_url": "https://data.transportation.gov/api/views/nakq-58th",
+      "resource_url": "https://data.transportation.gov/resource/nakq-58th.json",
+      "download_url": "https://data.transportation.gov/api/views/nakq-58th/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "RFC_NUMBER",
+          "field_name": "rfc_number",
+          "data_type": "text",
+          "description": "Mexican Government registration code for Mexican carriers"
+        },
+        {
+          "position": 4,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "Operating Authority Type"
+        },
+        {
+          "position": 5,
+          "name": "OP_AUTH_STATUS",
+          "field_name": "op_auth_status",
+          "data_type": "text",
+          "description": "Operating Authority Status"
+        },
+        {
+          "position": 6,
+          "name": "MIN_COV_AMOUNT",
+          "field_name": "min_cov_amount",
+          "data_type": "number",
+          "description": "Amount of BI&PD insurance required (in thousands)"
+        },
+        {
+          "position": 7,
+          "name": "CARGO_REQ",
+          "field_name": "cargo_req",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 8,
+          "name": "BOND_REQ",
+          "field_name": "bond_req",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 9,
+          "name": "BIPD_FILE",
+          "field_name": "bipd_file",
+          "data_type": "number",
+          "description": "Amount of BI&PD insurance on file (in thousands)"
+        },
+        {
+          "position": 10,
+          "name": "CARGO_FILE",
+          "field_name": "cargo_file",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 11,
+          "name": "BOND_FILE",
+          "field_name": "bond_file",
+          "data_type": "text",
+          "description": "Y = Yes N = No"
+        },
+        {
+          "position": 12,
+          "name": "BUS_UNDELIVERABLE_MAIL",
+          "field_name": "bus_undeliverable_mail",
+          "data_type": "text",
+          "description": "Y = Deliverable N = Undeliverable - Mail was returned \"undeliverable\" form USPS"
+        },
+        {
+          "position": 13,
+          "name": "MAIL_UNDELIVERABLE_MAIL",
+          "field_name": "mail_undeliverable_mail",
+          "data_type": "text",
+          "description": "Y = Deliverable N = Undeliverable - Mail was returned \"undeliverable\" form USPS"
+        },
+        {
+          "position": 14,
+          "name": "DBA_NAME",
+          "field_name": "dba_name",
+          "data_type": "text",
+          "description": "\u201cDoing Business As\u201d Name. Can be more than one DBA name"
+        },
+        {
+          "position": 15,
+          "name": "LEGAL_NAME",
+          "field_name": "legal_name",
+          "data_type": "text",
+          "description": "Company Legal Name"
+        },
+        {
+          "position": 16,
+          "name": "BUS_STREET_PO",
+          "field_name": "bus_street_po",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 17,
+          "name": "BUS_COLONIA",
+          "field_name": "bus_colonia",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 18,
+          "name": "BUS_CITY",
+          "field_name": "bus_city",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 19,
+          "name": "BUS_STATE_CODE",
+          "field_name": "bus_state_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 20,
+          "name": "BUS_CTRY_CODE",
+          "field_name": "bus_ctry_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 21,
+          "name": "BUS_ZIP_CODE",
+          "field_name": "bus_zip_code",
+          "data_type": "text",
+          "description": "Company Business Address"
+        },
+        {
+          "position": 22,
+          "name": "BUS_TELNO",
+          "field_name": "bus_telno",
+          "data_type": "text",
+          "description": "Company Business Telephone Number"
+        },
+        {
+          "position": 23,
+          "name": "MAIL_STREET_PO",
+          "field_name": "mail_street_po",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 24,
+          "name": "MAIL_COLONIA",
+          "field_name": "mail_colonia",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 25,
+          "name": "MAIL_CITY",
+          "field_name": "mail_city",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 26,
+          "name": "MAIL_STATE_CODE",
+          "field_name": "mail_state_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 27,
+          "name": "MAIL_CTRY_CODE",
+          "field_name": "mail_ctry_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        },
+        {
+          "position": 28,
+          "name": "MAIL_ZIP_CODE",
+          "field_name": "mail_zip_code",
+          "data_type": "text",
+          "description": "Company Mailing Address"
+        }
+      ]
+    },
+    {
+      "id": "xe5s-wca7",
+      "name": "Motus InsHist - Daily Difference",
+      "family": "MOTUS Delta",
+      "rows_updated_at": "2026-09-08T11:41:29Z",
+      "metadata_url": "https://data.transportation.gov/api/views/xe5s-wca7",
+      "resource_url": "https://data.transportation.gov/resource/xe5s-wca7.json",
+      "download_url": "https://data.transportation.gov/api/views/xe5s-wca7/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "INS_FORM_CODE",
+          "field_name": "ins_form_code",
+          "data_type": "text",
+          "description": "34 = Cargo 82 = BI&PD 83 = Cargo 84 = Property Broker\u2019s Surety Bond 85 = Property Broker\u2019s Trust Fund Agreement 91, 91X = BI&PD, BI&PD/Primary, BI&PD/Excess"
+        },
+        {
+          "position": 4,
+          "name": "FILING_STATUS_REASON",
+          "field_name": "filing_status_reason",
+          "data_type": "text",
+          "description": "The status reason can be: \u201ccancelled\u201d, \u201creplaced\u201d, \u201cname change\u201d, or \u201ctransferred\u201d"
+        },
+        {
+          "position": 5,
+          "name": "INS_TYPE_CODE",
+          "field_name": "ins_type_code",
+          "data_type": "text",
+          "description": "1 = BI&PD 2 = Cargo 3 = Bond 4 = Trust Fund"
+        },
+        {
+          "position": 6,
+          "name": "INS_TYPE_IND",
+          "field_name": "ins_type_ind",
+          "data_type": "text",
+          "description": "\u201c \u201c = BIPD \u201c*\u201d = Not BIPD (Cargo, Surety, or Trust Fund)"
+        },
+        {
+          "position": 7,
+          "name": "POLICY_NO",
+          "field_name": "policy_no",
+          "data_type": "text",
+          "description": "Insurance policy specific identifier"
+        },
+        {
+          "position": 8,
+          "name": "INS_TYPE_DESC",
+          "field_name": "ins_type_desc",
+          "data_type": "text",
+          "description": "Description of insurance form/class"
+        },
+        {
+          "position": 9,
+          "name": "MIN_COV_AMOUNT",
+          "field_name": "min_cov_amount",
+          "data_type": "number",
+          "description": "The minimum insurance amount required for the entity (carrier, broker, etc.), in thousands"
+        },
+        {
+          "position": 10,
+          "name": "INS_CLASS_CODE",
+          "field_name": "ins_class_code",
+          "data_type": "text",
+          "description": "For BI&PD form codes; indicates whether the insurance policy is primary (\u201cP\u201d) or excess (\u201cE\u201d)"
+        },
+        {
+          "position": 11,
+          "name": "EFFECTIVE_DATE",
+          "field_name": "effective_date",
+          "data_type": "text",
+          "description": "Effective date of the insurance policy"
+        },
+        {
+          "position": 12,
+          "name": "UNDERL_LIM_AMOUNT",
+          "field_name": "underl_lim_amount",
+          "data_type": "number",
+          "description": "BI&PD Underlying Dollar Limit. When the insurance class code is \u201cE\u201d, the underlying limit amount is the value of the primary insurance"
+        },
+        {
+          "position": 13,
+          "name": "MAX_COV_AMOUNT",
+          "field_name": "max_cov_amount",
+          "data_type": "number",
+          "description": "The maximum dollar amount covered by the insurance policy (in thousands)"
+        },
+        {
+          "position": 14,
+          "name": "CANCL_EFFECTIVE_DATE",
+          "field_name": "cancl_effective_date",
+          "data_type": "text",
+          "description": "Date the policy is effectively cancelled"
+        },
+        {
+          "position": 15,
+          "name": "INSURANCE_COMPANY_NAME",
+          "field_name": "insurance_company_name",
+          "data_type": "text",
+          "description": "Insurance company name"
+        }
+      ]
+    },
+    {
+      "id": "x96h-evps",
+      "name": "Motus Insur - Daily Difference",
+      "family": "MOTUS Delta",
+      "rows_updated_at": "2026-09-08T11:41:29Z",
+      "metadata_url": "https://data.transportation.gov/api/views/x96h-evps",
+      "resource_url": "https://data.transportation.gov/resource/x96h-evps.json",
+      "download_url": "https://data.transportation.gov/api/views/x96h-evps/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "INS_FORM_CODE",
+          "field_name": "ins_form_code",
+          "data_type": "text",
+          "description": "34 = Cargo 82 = BI&PD 83 = Cargo 84 = Property Broker\u2019s Surety Bond 85 = Property Broker\u2019s Trust Fund Agreement 91, 91X = BI&PD, BI&PD/Primary, BI&PD/Excess"
+        },
+        {
+          "position": 4,
+          "name": "INS_TYPE_CODE",
+          "field_name": "ins_type_code",
+          "data_type": "text",
+          "description": "1 = BI&PD 2 = Cargo 3 = Bond 4 = Trust Fund"
+        },
+        {
+          "position": 5,
+          "name": "INS_CLASS_CODE",
+          "field_name": "ins_class_code",
+          "data_type": "text",
+          "description": "P = Primary E = Excess 1 = Full Security Limits Under Section 1043.2(b)(1) 2 = Full Security Limits Under Section 1043.2(b)(2)"
+        },
+        {
+          "position": 6,
+          "name": "MAX_COV_AMOUNT",
+          "field_name": "max_cov_amount",
+          "data_type": "number",
+          "description": "BI&PD Maximum Dollar Limit (company shall not be liable for amounts in excess of). Amount (in thousands)"
+        },
+        {
+          "position": 7,
+          "name": "UNDERL_LIM_AMOUNT",
+          "field_name": "underl_lim_amount",
+          "data_type": "number",
+          "description": "BI&PD Underlying Dollar Limit. Amount (in thousands)"
+        },
+        {
+          "position": 8,
+          "name": "POLICY_NO",
+          "field_name": "policy_no",
+          "data_type": "text",
+          "description": "Insurance policy specific identifier"
+        },
+        {
+          "position": 9,
+          "name": "EFFECTIVE_DATE",
+          "field_name": "effective_date",
+          "data_type": "text",
+          "description": "Effective date of the policy"
+        },
+        {
+          "position": 10,
+          "name": "INSURANCE_COMPANY_NAME",
+          "field_name": "insurance_company_name",
+          "data_type": "text",
+          "description": "Insurance company name for policy (note: policy may be administered by a company branch with a different name)"
+        },
+        {
+          "position": 11,
+          "name": "TRANS_DATE",
+          "field_name": "trans_date",
+          "data_type": "text",
+          "description": "Date FMCSA received the policy"
+        }
+      ]
+    },
+    {
+      "id": "e67p-xyd5",
+      "name": "Motus RevokeSuspend - Daily Difference",
+      "family": "MOTUS Delta",
+      "rows_updated_at": "2026-09-08T11:41:28Z",
+      "metadata_url": "https://data.transportation.gov/api/views/e67p-xyd5",
+      "resource_url": "https://data.transportation.gov/resource/e67p-xyd5.json",
+      "download_url": "https://data.transportation.gov/api/views/e67p-xyd5/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": "Unique FMCSA alpha-numeric identifying for-hire motor carriers (MC0000000000, FF0000000000, MX0000000000)"
+        },
+        {
+          "position": 2,
+          "name": "USDOT_NUMBER",
+          "field_name": "usdot_number",
+          "data_type": "text",
+          "description": "Official FMCSA registration number for all interstate motor carriers"
+        },
+        {
+          "position": 3,
+          "name": "OP_AUTH_TYPE",
+          "field_name": "op_auth_type",
+          "data_type": "text",
+          "description": "Operating Authority Type"
+        },
+        {
+          "position": 4,
+          "name": "ORDER1_SERVE_DATE",
+          "field_name": "order1_serve_date",
+          "data_type": "text",
+          "description": "Date the Suspension/Revocation is served (YYYYMMDD)"
+        },
+        {
+          "position": 5,
+          "name": "ORDER1_TYPE_DESC",
+          "field_name": "order1_type_desc",
+          "data_type": "text",
+          "description": "The type of Suspension/Revocation action"
+        },
+        {
+          "position": 6,
+          "name": "ORDER1_EFFECTIVE_DATE",
+          "field_name": "order1_effective_date",
+          "data_type": "text",
+          "description": "Date the suspension/revocation is effective"
+        }
+      ]
+    },
+    {
+      "id": "4wxs-vbns",
+      "name": "SMS Input - Crash Data",
+      "family": "SMS Input",
+      "rows_updated_at": "2026-08-13T07:02:39Z",
+      "metadata_url": "https://data.transportation.gov/api/views/4wxs-vbns",
+      "resource_url": "https://data.transportation.gov/resource/4wxs-vbns.json",
+      "download_url": "https://data.transportation.gov/api/views/4wxs-vbns/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "Report_number",
+          "field_name": "report_number",
+          "data_type": "text",
+          "description": "Unique state report number for the incident"
+        },
+        {
+          "position": 2,
+          "name": "Report_seq_no",
+          "field_name": "report_seq_no",
+          "data_type": "text",
+          "description": "Sequence number for each vehicle involved in a crash"
+        },
+        {
+          "position": 3,
+          "name": "DOT_Number",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "Unique number assigned to a company by the DOT"
+        },
+        {
+          "position": 4,
+          "name": "Report_Date",
+          "field_name": "report_date",
+          "data_type": "text",
+          "description": "The date an incident occurred"
+        },
+        {
+          "position": 5,
+          "name": "Report_State",
+          "field_name": "report_state",
+          "data_type": "text",
+          "description": "State abbreviation"
+        },
+        {
+          "position": 6,
+          "name": "Fatalities",
+          "field_name": "fatalities",
+          "data_type": "text",
+          "description": "Total number of fatalities reported in the crash"
+        },
+        {
+          "position": 7,
+          "name": "Injuries",
+          "field_name": "injuries",
+          "data_type": "text",
+          "description": "Total number of injuries reported in the crash"
+        },
+        {
+          "position": 8,
+          "name": "Tow_Away",
+          "field_name": "tow_away",
+          "data_type": "text",
+          "description": "'Y' indicates that a vehicle involved in the crash was towed from the scene."
+        },
+        {
+          "position": 9,
+          "name": "Hazmat_Released",
+          "field_name": "hazmat_released",
+          "data_type": "text",
+          "description": "'Y' indicates that hazardous materials were released at the time of a crash"
+        },
+        {
+          "position": 10,
+          "name": "Trafficway_Desc",
+          "field_name": "trafficway_desc",
+          "data_type": "text",
+          "description": "Description of the trafficway"
+        },
+        {
+          "position": 11,
+          "name": "Access_Control_Desc",
+          "field_name": "access_control_desc",
+          "data_type": "text",
+          "description": "Description of the access control"
+        },
+        {
+          "position": 12,
+          "name": "Road_Surface_Condition_Desc",
+          "field_name": "road_surface_condition_desc",
+          "data_type": "text",
+          "description": "Description of the road surface condition"
+        },
+        {
+          "position": 13,
+          "name": "Weather_Condition_Desc",
+          "field_name": "weather_condition_desc",
+          "data_type": "text",
+          "description": "Description of the weather condition"
+        },
+        {
+          "position": 14,
+          "name": "Light_Condition_Desc",
+          "field_name": "light_condition_desc",
+          "data_type": "text",
+          "description": "Description of the light condition"
+        },
+        {
+          "position": 15,
+          "name": "Vehicle_ID_Number",
+          "field_name": "vehicle_id_number",
+          "data_type": "text",
+          "description": "Vehicle Identification number (VIN)"
+        },
+        {
+          "position": 16,
+          "name": "Vehicle_License_number",
+          "field_name": "vehicle_license_number",
+          "data_type": "text",
+          "description": "Vehicle license number"
+        },
+        {
+          "position": 17,
+          "name": "Vehicle_License_State",
+          "field_name": "vehicle_license_state",
+          "data_type": "text",
+          "description": "vehicle license state"
+        },
+        {
+          "position": 18,
+          "name": "Severity_Weight",
+          "field_name": "severity_weight",
+          "data_type": "text",
+          "description": "The severity weight that is assigned to the incident"
+        },
+        {
+          "position": 19,
+          "name": "Time_Weight",
+          "field_name": "time_weight",
+          "data_type": "text",
+          "description": "the time weight that is assigned to the incident"
+        },
+        {
+          "position": 20,
+          "name": "Citation_Issued_Desc",
+          "field_name": "citation_issued_desc",
+          "data_type": "text",
+          "description": "Description of the citation issue"
+        },
+        {
+          "position": 21,
+          "name": "Seq_Num",
+          "field_name": "seq_num",
+          "data_type": "text",
+          "description": "Sequence number"
+        },
+        {
+          "position": 22,
+          "name": "Not_Preventable",
+          "field_name": "not_preventable",
+          "data_type": "text",
+          "description": "Crashes with a \u201cY\u201d in the Not Preventable Flag column are excluded from SMS"
+        }
+      ]
+    },
+    {
+      "id": "rbkj-cgst",
+      "name": "SMS Input - Inspection Data",
+      "family": "SMS Input",
+      "rows_updated_at": "2026-08-13T07:42:53Z",
+      "metadata_url": "https://data.transportation.gov/api/views/rbkj-cgst",
+      "resource_url": "https://data.transportation.gov/resource/rbkj-cgst.json",
+      "download_url": "https://data.transportation.gov/api/views/rbkj-cgst/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "Unique_ID",
+          "field_name": "unique_id",
+          "data_type": "text",
+          "description": "Unique identification number for each inspection"
+        },
+        {
+          "position": 2,
+          "name": "Report_Number",
+          "field_name": "report_number",
+          "data_type": "text",
+          "description": "Unique report number of the inspection"
+        },
+        {
+          "position": 3,
+          "name": "Report_State",
+          "field_name": "report_state",
+          "data_type": "text",
+          "description": "State abbreviation that indicates the state the inspector is from.  'US' mean federal inspectors."
+        },
+        {
+          "position": 4,
+          "name": "DOT_Number",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "Unique number assigned to a company by the DOT"
+        },
+        {
+          "position": 5,
+          "name": "Insp_Date",
+          "field_name": "insp_date",
+          "data_type": "text",
+          "description": "The date of the inspection"
+        },
+        {
+          "position": 6,
+          "name": "Insp_level_ID",
+          "field_name": "insp_level_id",
+          "data_type": "text",
+          "description": "ID that indicates the level of inspection: 1 - Full, 2 - Walk-around, 3 - Driver-Only, 4 - special study, 5 - Terminal, 6 - Radioactive Materials"
+        },
+        {
+          "position": 7,
+          "name": "County_code_State",
+          "field_name": "county_code_state",
+          "data_type": "text",
+          "description": "State abbreviation that indicates where the inspection occurred"
+        },
+        {
+          "position": 8,
+          "name": "Time_Weight",
+          "field_name": "time_weight",
+          "data_type": "text",
+          "description": "Time weight of the inspection"
+        },
+        {
+          "position": 9,
+          "name": "Driver_OOS_Total",
+          "field_name": "driver_oos_total",
+          "data_type": "text",
+          "description": "Number of Out-Of-Service violations related to Driver"
+        },
+        {
+          "position": 10,
+          "name": "Vehicle_OOS_Total",
+          "field_name": "vehicle_oos_total",
+          "data_type": "text",
+          "description": "Number of Out-Of-Service violations related to Vehicle"
+        },
+        {
+          "position": 11,
+          "name": "Total_Hazmat_Sent",
+          "field_name": "total_hazmat_sent",
+          "data_type": "text",
+          "description": "Number of violations related to Hazardous Materials"
+        },
+        {
+          "position": 12,
+          "name": "OOS_Total",
+          "field_name": "oos_total",
+          "data_type": "text",
+          "description": "Total number of Out-Of-Service violations"
+        },
+        {
+          "position": 13,
+          "name": "Hazmat_OOS_Total",
+          "field_name": "hazmat_oos_total",
+          "data_type": "text",
+          "description": "Total number of Out-Of-Service violations related to Hazardous Materials"
+        },
+        {
+          "position": 14,
+          "name": "Hazmat_Placard_req",
+          "field_name": "hazmat_placard_req",
+          "data_type": "text",
+          "description": "'Y' mean the hazmat placard required"
+        },
+        {
+          "position": 15,
+          "name": "Unit_Type_Desc",
+          "field_name": "unit_type_desc",
+          "data_type": "text",
+          "description": "Description of the type of the main unit"
+        },
+        {
+          "position": 16,
+          "name": "Unit_Make",
+          "field_name": "unit_make",
+          "data_type": "text",
+          "description": "Description of the make of the main unit"
+        },
+        {
+          "position": 17,
+          "name": "Unit_License",
+          "field_name": "unit_license",
+          "data_type": "text",
+          "description": "License plate of the main unit"
+        },
+        {
+          "position": 18,
+          "name": "Unit_License_State",
+          "field_name": "unit_license_state",
+          "data_type": "text",
+          "description": "License state of the main unit"
+        },
+        {
+          "position": 19,
+          "name": "VIN",
+          "field_name": "vin",
+          "data_type": "text",
+          "description": "Vehicle Identification Number of the main unit"
+        },
+        {
+          "position": 20,
+          "name": "Unit_Decal_Number",
+          "field_name": "unit_decal_number",
+          "data_type": "text",
+          "description": "Decal number of the main unit"
+        },
+        {
+          "position": 21,
+          "name": "Unit_Type_Desc2",
+          "field_name": "unit_type_desc2",
+          "data_type": "text",
+          "description": "Description of the type of the secondary unit"
+        },
+        {
+          "position": 22,
+          "name": "Unit_Make2",
+          "field_name": "unit_make2",
+          "data_type": "text",
+          "description": "Description of the make of the secondary unit"
+        },
+        {
+          "position": 23,
+          "name": "Unit_License2",
+          "field_name": "unit_license2",
+          "data_type": "text",
+          "description": "License plate of the secondary unit"
+        },
+        {
+          "position": 24,
+          "name": "Unit_License_State2",
+          "field_name": "unit_license_state2",
+          "data_type": "text",
+          "description": "License state of the secondary unit"
+        },
+        {
+          "position": 25,
+          "name": "VIN2",
+          "field_name": "vin2",
+          "data_type": "text",
+          "description": "Vehicle Identification Number of the secondary unit"
+        },
+        {
+          "position": 26,
+          "name": "Unit_Decal_Number2",
+          "field_name": "unit_decal_number2",
+          "data_type": "text",
+          "description": "Decal number of the secondary unit"
+        },
+        {
+          "position": 27,
+          "name": "Unsafe_Insp",
+          "field_name": "unsafe_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Unsafe Driving BASIC inspection "
+        },
+        {
+          "position": 28,
+          "name": "Fatigued_Insp",
+          "field_name": "fatigued_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Hours-of-Service Compliance BASIC inspection"
+        },
+        {
+          "position": 29,
+          "name": "Dr_Fitness_Insp",
+          "field_name": "dr_fitness_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Driver Fitness BASIC inspection"
+        },
+        {
+          "position": 30,
+          "name": "Subt_Alcohol_Insp",
+          "field_name": "subt_alcohol_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Controlled Substances/Alcohol BASIC inspection"
+        },
+        {
+          "position": 31,
+          "name": "Vh_Maint_Insp",
+          "field_name": "vh_maint_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Vehicle Maintenance BASIC inspection"
+        },
+        {
+          "position": 32,
+          "name": "HM_Insp",
+          "field_name": "hm_insp",
+          "data_type": "text",
+          "description": "Y' means the inspection identified as relevent Hazardous Materials Compliance BASIC inspection"
+        },
+        {
+          "position": 33,
+          "name": "BASIC_Viol",
+          "field_name": "basic_viol",
+          "data_type": "text",
+          "description": "Total number of BASIC violations"
+        },
+        {
+          "position": 34,
+          "name": "Unsafe_Viol",
+          "field_name": "unsafe_viol",
+          "data_type": "text",
+          "description": "Number of Unsafe Driving BASIC violations"
+        },
+        {
+          "position": 35,
+          "name": "Fatigued_Viol",
+          "field_name": "fatigued_viol",
+          "data_type": "text",
+          "description": "Number of Hours-of-Service Compliance BASIC violations"
+        },
+        {
+          "position": 36,
+          "name": "Dr_Fitness_Viol",
+          "field_name": "dr_fitness_viol",
+          "data_type": "text",
+          "description": "Number of Driver Fitness BASIC violations"
+        },
+        {
+          "position": 37,
+          "name": "Subt_Alcohol_Viol",
+          "field_name": "subt_alcohol_viol",
+          "data_type": "text",
+          "description": "Number of Controlled Substances/Alcohol BASIC violations"
+        },
+        {
+          "position": 38,
+          "name": "Vh_Maint_Viol",
+          "field_name": "vh_maint_viol",
+          "data_type": "text",
+          "description": "Number of Vehicle Maintenance BASIC violations"
+        },
+        {
+          "position": 39,
+          "name": "HM_Viol",
+          "field_name": "hm_viol",
+          "data_type": "text",
+          "description": "Number of Hazardous Materials Compliance BASIC violations"
+        }
+      ]
+    },
+    {
+      "id": "kjg3-diqy",
+      "name": "SMS Input - Motor Carrier Census Information",
+      "family": "SMS Input",
+      "rows_updated_at": "2026-08-13T07:10:35Z",
+      "metadata_url": "https://data.transportation.gov/api/views/kjg3-diqy",
+      "resource_url": "https://data.transportation.gov/resource/kjg3-diqy.json",
+      "download_url": "https://data.transportation.gov/api/views/kjg3-diqy/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "Unique USDOT Number of the Motor Carrier"
+        },
+        {
+          "position": 2,
+          "name": "LEGAL_NAME",
+          "field_name": "legal_name",
+          "data_type": "text",
+          "description": "Legal name of a carrier"
+        },
+        {
+          "position": 3,
+          "name": "DBA_NAME",
+          "field_name": "dba_name",
+          "data_type": "text",
+          "description": "Carrier's Doing-Business-As name"
+        },
+        {
+          "position": 4,
+          "name": "CARRIER_OPERATION",
+          "field_name": "carrier_operation",
+          "data_type": "text",
+          "description": "Codes identifying carriers' type of Operation; A = Interstate, B = Intrastate Hazmat, C = Intrastate Non-Hazmat"
+        },
+        {
+          "position": 5,
+          "name": "HM_FLAG",
+          "field_name": "hm_flag",
+          "data_type": "text",
+          "description": "Carrier is subject to placardable HM threshold ( Y = Yes, N = No)"
+        },
+        {
+          "position": 6,
+          "name": "PC_FLAG",
+          "field_name": "pc_flag",
+          "data_type": "text",
+          "description": "Carrier is subject to passenger carrier Threshold (Y = Yes, N = No)"
+        },
+        {
+          "position": 7,
+          "name": "PHY_STREET",
+          "field_name": "phy_street",
+          "data_type": "text",
+          "description": "Physical street address of a carrier"
+        },
+        {
+          "position": 8,
+          "name": "PHY_CITY",
+          "field_name": "phy_city",
+          "data_type": "text",
+          "description": "Physical city of a carrier "
+        },
+        {
+          "position": 9,
+          "name": "PHY_STATE",
+          "field_name": "phy_state",
+          "data_type": "text",
+          "description": "Physical state of a carrier"
+        },
+        {
+          "position": 10,
+          "name": "PHY_ZIP",
+          "field_name": "phy_zip",
+          "data_type": "text",
+          "description": "Physical zip code of a carrier"
+        },
+        {
+          "position": 11,
+          "name": "PHY_COUNTRY",
+          "field_name": "phy_country",
+          "data_type": "text",
+          "description": "Physical country of a carrier"
+        },
+        {
+          "position": 12,
+          "name": "MAILING_STREET",
+          "field_name": "mailing_street",
+          "data_type": "text",
+          "description": "Mail street address of a carrier"
+        },
+        {
+          "position": 13,
+          "name": "MAILING_CITY",
+          "field_name": "mailing_city",
+          "data_type": "text",
+          "description": "Mail city of a carrier"
+        },
+        {
+          "position": 14,
+          "name": "MAILING_STATE",
+          "field_name": "mailing_state",
+          "data_type": "text",
+          "description": "Mail state of a carrier"
+        },
+        {
+          "position": 15,
+          "name": "MAILING_ZIP",
+          "field_name": "mailing_zip",
+          "data_type": "text",
+          "description": "Mail zip code of a carrier"
+        },
+        {
+          "position": 16,
+          "name": "MAILING_COUNTRY",
+          "field_name": "mailing_country",
+          "data_type": "text",
+          "description": "Mail country of a carrier"
+        },
+        {
+          "position": 17,
+          "name": "TELEPHONE",
+          "field_name": "telephone",
+          "data_type": "text",
+          "description": "Contact telephone number"
+        },
+        {
+          "position": 18,
+          "name": "FAX",
+          "field_name": "fax",
+          "data_type": "text",
+          "description": "Fax Number"
+        },
+        {
+          "position": 19,
+          "name": "EMAIL_ADDRESS",
+          "field_name": "email_address",
+          "data_type": "text",
+          "description": "Contact email address"
+        },
+        {
+          "position": 20,
+          "name": "MCS150_DATE",
+          "field_name": "mcs150_date",
+          "data_type": "text",
+          "description": "Latest date MCS-150 was filed"
+        },
+        {
+          "position": 21,
+          "name": "MCS150_MILEAGE",
+          "field_name": "mcs150_mileage",
+          "data_type": "text",
+          "description": "Vehicle Mileage Traveled (VMT) reported on the carrier's MCS-150 form"
+        },
+        {
+          "position": 22,
+          "name": "MCS150_MILEAGE_YEAR",
+          "field_name": "mcs150_mileage_year",
+          "data_type": "text",
+          "description": "Year for which VMT was reported"
+        },
+        {
+          "position": 23,
+          "name": "ADD_DATE",
+          "field_name": "add_date",
+          "data_type": "text",
+          "description": "Date when carrier information was added to MCMIS Database System"
+        },
+        {
+          "position": 24,
+          "name": "OIC_STATE",
+          "field_name": "oic_state",
+          "data_type": "text",
+          "description": "FMCSA State office with oversight for this carrier"
+        },
+        {
+          "position": 25,
+          "name": "NBR_POWER_UNIT",
+          "field_name": "nbr_power_unit",
+          "data_type": "text",
+          "description": "Number of power units reported"
+        },
+        {
+          "position": 26,
+          "name": "DRIVER_TOTAL",
+          "field_name": "driver_total",
+          "data_type": "text",
+          "description": "Number of drivers reported"
+        },
+        {
+          "position": 27,
+          "name": "RECENT_MILEAGE",
+          "field_name": "recent_mileage",
+          "data_type": "text",
+          "description": "Carrier's recent Vehicle Mileage Traveled (VMT) based on the most recent data"
+        },
+        {
+          "position": 28,
+          "name": "RECENT_MILEAGE_YEAR",
+          "field_name": "recent_mileage_year",
+          "data_type": "text",
+          "description": "Year for which Recent VMT was reported"
+        },
+        {
+          "position": 29,
+          "name": "VMT_SOURCE_ID",
+          "field_name": "vmt_source_id",
+          "data_type": "text",
+          "description": " 1 - Census; 2 - Safety Audit;  3 - Investigation"
+        },
+        {
+          "position": 30,
+          "name": "PRIVATE_ONLY",
+          "field_name": "private_only",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as private property, private passenger business, and private passenger nonbusiness but not authorized or exempt for hire"
+        },
+        {
+          "position": 31,
+          "name": "AUTHORIZED_FOR_HIRE",
+          "field_name": "authorized_for_hire",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Authorized For Hire"
+        },
+        {
+          "position": 32,
+          "name": "EXEMPT_FOR_HIRE",
+          "field_name": "exempt_for_hire",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Exempt For Hire"
+        },
+        {
+          "position": 33,
+          "name": "PRIVATE_PROPERTY",
+          "field_name": "private_property",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Private Property"
+        },
+        {
+          "position": 34,
+          "name": "PRIVATE_PASSENGER_BUSINESS",
+          "field_name": "private_passenger_business",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Private Passenger Business"
+        },
+        {
+          "position": 35,
+          "name": "PRIVATE_PASSENGER_NONBUSINESS",
+          "field_name": "private_passenger_nonbusiness",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Private Passenger Non-Business"
+        },
+        {
+          "position": 36,
+          "name": "MIGRANT",
+          "field_name": "migrant",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Migrant"
+        },
+        {
+          "position": 37,
+          "name": "US_MAIL",
+          "field_name": "us_mail",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as U.S. Mail"
+        },
+        {
+          "position": 38,
+          "name": "FEDERAL_GOVERNMENT",
+          "field_name": "federal_government",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Federal Government"
+        },
+        {
+          "position": 39,
+          "name": "STATE_GOVERNMENT",
+          "field_name": "state_government",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as State Government "
+        },
+        {
+          "position": 40,
+          "name": "LOCAL_GOVERNMENT",
+          "field_name": "local_government",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Local Government"
+        },
+        {
+          "position": 41,
+          "name": "INDIAN_TRIBE",
+          "field_name": "indian_tribe",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as Indian Tribe"
+        },
+        {
+          "position": 42,
+          "name": "OP_OTHER",
+          "field_name": "op_other",
+          "data_type": "text",
+          "description": "Y - Carrier's operation classified as other than listed above"
+        }
+      ]
+    },
+    {
+      "id": "8mt8-2mdr",
+      "name": "SMS Input - Violation Data",
+      "family": "SMS Input",
+      "rows_updated_at": "2026-08-13T07:17:36Z",
+      "metadata_url": "https://data.transportation.gov/api/views/8mt8-2mdr",
+      "resource_url": "https://data.transportation.gov/resource/8mt8-2mdr.json",
+      "download_url": "https://data.transportation.gov/api/views/8mt8-2mdr/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "Unique_ID",
+          "field_name": "unique_id",
+          "data_type": "text",
+          "description": "unique identification number for each inspection"
+        },
+        {
+          "position": 2,
+          "name": "Insp_Date",
+          "field_name": "insp_date",
+          "data_type": "text",
+          "description": "the date of the inspection"
+        },
+        {
+          "position": 3,
+          "name": "DOT_Number",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "Unique number assigned to a company by the DOT"
+        },
+        {
+          "position": 4,
+          "name": "Viol_Code",
+          "field_name": "viol_code",
+          "data_type": "text",
+          "description": "Code of the violation"
+        },
+        {
+          "position": 5,
+          "name": "BASIC_Desc",
+          "field_name": "basic_desc",
+          "data_type": "text",
+          "description": "Name of the BASIC"
+        },
+        {
+          "position": 6,
+          "name": "OOS_Indicator",
+          "field_name": "oos_indicator",
+          "data_type": "text",
+          "description": "'Y' mean the violation is identified as Out-Of-Service violation"
+        },
+        {
+          "position": 7,
+          "name": "OOS_Weight",
+          "field_name": "oos_weight",
+          "data_type": "text",
+          "description": "The weight that is assigned to a violation if it's identified as an Out-Of-Service violation"
+        },
+        {
+          "position": 8,
+          "name": "Severity_Weight",
+          "field_name": "severity_weight",
+          "data_type": "text",
+          "description": "The severity weight that is assigned to a violation"
+        },
+        {
+          "position": 9,
+          "name": "Time_Weight",
+          "field_name": "time_weight",
+          "data_type": "text",
+          "description": "The time weight that is assigned to a violation"
+        },
+        {
+          "position": 10,
+          "name": "Total_Severity_Wght",
+          "field_name": "total_severity_wght",
+          "data_type": "text",
+          "description": "Total severity weight of a violation"
+        },
+        {
+          "position": 11,
+          "name": "Section_Desc",
+          "field_name": "section_desc",
+          "data_type": "text",
+          "description": "The description of a violation"
+        },
+        {
+          "position": 12,
+          "name": "Group_Desc",
+          "field_name": "group_desc",
+          "data_type": "text",
+          "description": "The description of the violation group"
+        },
+        {
+          "position": 13,
+          "name": "Viol_Unit",
+          "field_name": "viol_unit",
+          "data_type": "text",
+          "description": "The unit a violation is cited against: vehicle main unit (1), vehicle secondary unit (2), Driver (D), Co-driver (C)"
+        }
+      ]
+    },
+    {
+      "id": "m3ry-qcip",
+      "name": "SMS AB Pass",
+      "family": "SMS Output",
+      "rows_updated_at": "2026-08-13T07:01:57Z",
+      "metadata_url": "https://data.transportation.gov/api/views/m3ry-qcip",
+      "resource_url": "https://data.transportation.gov/resource/m3ry-qcip.json",
+      "download_url": "https://data.transportation.gov/api/views/m3ry-qcip/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "US DOT Number of the Motor Carrier (Interstate and Intrastate Hazmat only)"
+        },
+        {
+          "position": 2,
+          "name": "INSP_TOTAL",
+          "field_name": "insp_total",
+          "data_type": "text",
+          "description": "Total Number of Inspections for the measurement period (24 months)"
+        },
+        {
+          "position": 3,
+          "name": "DRIVER_INSP_TOTAL",
+          "field_name": "driver_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections for the measurement period"
+        },
+        {
+          "position": 4,
+          "name": "DRIVER_OOS_INSP_TOTAL",
+          "field_name": "driver_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections containing at least one Driver Out-of-Service Violation"
+        },
+        {
+          "position": 5,
+          "name": "VEHICLE_INSP_TOTAL",
+          "field_name": "vehicle_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections for the measurement period"
+        },
+        {
+          "position": 6,
+          "name": "VEHICLE_OOS_INSP_TOTAL",
+          "field_name": "vehicle_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections containing at least one Vehicle Out-of-Service violation"
+        },
+        {
+          "position": 7,
+          "name": "UNSAFE_DRIV_INSP_W_VIOL",
+          "field_name": "unsafe_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Unsafe Driving BASIC violation"
+        },
+        {
+          "position": 8,
+          "name": "UNSAFE_DRIV_MEASURE",
+          "field_name": "unsafe_driv_measure",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Measure Value"
+        },
+        {
+          "position": 9,
+          "name": "UNSAFE_DRIV_PCT",
+          "field_name": "unsafe_driv_pct",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 10,
+          "name": "UNSAFE_DRIV_RD_ALERT",
+          "field_name": "unsafe_driv_rd_alert",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 11,
+          "name": "UNSAFE_DRIV_AC",
+          "field_name": "unsafe_driv_ac",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 12,
+          "name": "UNSAFE_DRIV_BASIC_ALERT",
+          "field_name": "unsafe_driv_basic_alert",
+          "data_type": "text",
+          "description": "Unsafe Driving Overall BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 13,
+          "name": "HOS_DRIV_INSP_W_VIOL",
+          "field_name": "hos_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Hours-of-Service BASIC violation"
+        },
+        {
+          "position": 14,
+          "name": "HOS_DRIV_MEASURE",
+          "field_name": "hos_driv_measure",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 15,
+          "name": "HOS_DRIV_PCT",
+          "field_name": "hos_driv_pct",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 16,
+          "name": "HOS_DRIV_RD_ALERT",
+          "field_name": "hos_driv_rd_alert",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 17,
+          "name": "HOS_DRIV_AC",
+          "field_name": "hos_driv_ac",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 18,
+          "name": "HOS_DRIV_BASIC_ALERT",
+          "field_name": "hos_driv_basic_alert",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 19,
+          "name": "DRIV_FIT_INSP_W_VIOL",
+          "field_name": "driv_fit_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Driver Fitness BASIC violation"
+        },
+        {
+          "position": 20,
+          "name": "DRIV_FIT_MEASURE",
+          "field_name": "driv_fit_measure",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 21,
+          "name": "DRIV_FIT_PCT",
+          "field_name": "driv_fit_pct",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 22,
+          "name": "DRIV_FIT_RD_ALERT",
+          "field_name": "driv_fit_rd_alert",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 23,
+          "name": "DRIV_FIT_AC",
+          "field_name": "driv_fit_ac",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 24,
+          "name": "DRIV_FIT_BASIC_ALERT",
+          "field_name": "driv_fit_basic_alert",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 25,
+          "name": "CONTR_SUBST_INSP_W_VIOL",
+          "field_name": "contr_subst_insp_w_viol",
+          "data_type": "number",
+          "description": "Number of inspections with at least one Controlled Substances and Alcohol BASIC violation"
+        },
+        {
+          "position": 26,
+          "name": "CONTR_SUBST_MEASURE",
+          "field_name": "contr_subst_measure",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 27,
+          "name": "CONTR_SUBST_PCT",
+          "field_name": "contr_subst_pct",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 28,
+          "name": "CONTR_SUBST_RD_ALERT",
+          "field_name": "contr_subst_rd_alert",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 29,
+          "name": "CONTR_SUBST_AC",
+          "field_name": "contr_subst_ac",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 30,
+          "name": "CONTR_SUBST_BASIC_ALERT",
+          "field_name": "contr_subst_basic_alert",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 31,
+          "name": "VEH_MAINT_INSP_W_VIOL",
+          "field_name": "veh_maint_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Vehicle Maintenance BASIC violation"
+        },
+        {
+          "position": 32,
+          "name": "VEH_MAINT_MEASURE",
+          "field_name": "veh_maint_measure",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 33,
+          "name": "VEH_MAINT_PCT",
+          "field_name": "veh_maint_pct",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 34,
+          "name": "VEH_MAINT_RD_ALERT",
+          "field_name": "veh_maint_rd_alert",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 35,
+          "name": "VEH_MAINT_AC",
+          "field_name": "veh_maint_ac",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 36,
+          "name": "VEH_MAINT_BASIC_ALERT",
+          "field_name": "veh_maint_basic_alert",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        }
+      ]
+    },
+    {
+      "id": "4y6x-dmck",
+      "name": "SMS AB PassProperty",
+      "family": "SMS Output",
+      "rows_updated_at": "2026-08-13T07:08:14Z",
+      "metadata_url": "https://data.transportation.gov/api/views/4y6x-dmck",
+      "resource_url": "https://data.transportation.gov/resource/4y6x-dmck.json",
+      "download_url": "https://data.transportation.gov/api/views/4y6x-dmck/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "US DOT Number of the Motor Carrier (Interstate and Intrastate Hazmat only)"
+        },
+        {
+          "position": 2,
+          "name": "INSP_TOTAL",
+          "field_name": "insp_total",
+          "data_type": "text",
+          "description": "Total Number of Inspections for the measurement period (24 months)"
+        },
+        {
+          "position": 3,
+          "name": "DRIVER_INSP_TOTAL",
+          "field_name": "driver_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections for the measurement period"
+        },
+        {
+          "position": 4,
+          "name": "DRIVER_OOS_INSP_TOTAL",
+          "field_name": "driver_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections containing at least one Driver Out-of-Service Violation"
+        },
+        {
+          "position": 5,
+          "name": "VEHICLE_INSP_TOTAL",
+          "field_name": "vehicle_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections for the measurement period"
+        },
+        {
+          "position": 6,
+          "name": "VEHICLE_OOS_INSP_TOTAL",
+          "field_name": "vehicle_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections containing at least one Vehicle Out-of-Service violation"
+        },
+        {
+          "position": 7,
+          "name": "UNSAFE_DRIV_INSP_W_VIOL",
+          "field_name": "unsafe_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Unsafe Driving BASIC violation"
+        },
+        {
+          "position": 8,
+          "name": "UNSAFE_DRIV_MEASURE",
+          "field_name": "unsafe_driv_measure",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Measure Value"
+        },
+        {
+          "position": 9,
+          "name": "UNSAFE_DRIV_AC",
+          "field_name": "unsafe_driv_ac",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 10,
+          "name": "HOS_DRIV_INSP_W_VIOL",
+          "field_name": "hos_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Hours-of-Service BASIC violation"
+        },
+        {
+          "position": 11,
+          "name": "HOS_DRIV_MEASURE",
+          "field_name": "hos_driv_measure",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 12,
+          "name": "HOS_DRIV_AC",
+          "field_name": "hos_driv_ac",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 13,
+          "name": "DRIV_FIT_INSP_W_VIOL",
+          "field_name": "driv_fit_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Driver Fitness BASIC violation"
+        },
+        {
+          "position": 14,
+          "name": "DRIV_FIT_MEASURE",
+          "field_name": "driv_fit_measure",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 15,
+          "name": "DRIV_FIT_AC",
+          "field_name": "driv_fit_ac",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 16,
+          "name": "CONTR_SUBST_INSP_W_VIOL",
+          "field_name": "contr_subst_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Controlled Substances and Alcohol BASIC violation"
+        },
+        {
+          "position": 17,
+          "name": "CONTR_SUBST_MEASURE",
+          "field_name": "contr_subst_measure",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 18,
+          "name": "CONTR_SUBST_AC",
+          "field_name": "contr_subst_ac",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Acute/Critical Indicator (Y = Acute/Critical from investigation within previous 12 months) "
+        },
+        {
+          "position": 19,
+          "name": "VEH_MAINT_INSP_W_VIOL",
+          "field_name": "veh_maint_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Vehicle Maintenance BASIC violation"
+        },
+        {
+          "position": 20,
+          "name": "VEH_MAINT_MEASURE",
+          "field_name": "veh_maint_measure",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 21,
+          "name": "VEH_MAINT_AC",
+          "field_name": "veh_maint_ac",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        }
+      ]
+    },
+    {
+      "id": "h3zn-uid9",
+      "name": "SMS C Pass",
+      "family": "SMS Output",
+      "rows_updated_at": "2026-08-13T07:02:08Z",
+      "metadata_url": "https://data.transportation.gov/api/views/h3zn-uid9",
+      "resource_url": "https://data.transportation.gov/resource/h3zn-uid9.json",
+      "download_url": "https://data.transportation.gov/api/views/h3zn-uid9/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "US DOT Number of the Motor Carrier (Intrastate Non-Hazmat only)"
+        },
+        {
+          "position": 2,
+          "name": "INSP_TOTAL",
+          "field_name": "insp_total",
+          "data_type": "text",
+          "description": "Total Number of Inspections for the measurement period (24 months)"
+        },
+        {
+          "position": 3,
+          "name": "DRIVER_INSP_TOTAL",
+          "field_name": "driver_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections for the measurement period"
+        },
+        {
+          "position": 4,
+          "name": "DRIVER_OOS_INSP_TOTAL",
+          "field_name": "driver_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections containing at least one Driver Out-of-Service Violation"
+        },
+        {
+          "position": 5,
+          "name": "VEHICLE_INSP_TOTAL",
+          "field_name": "vehicle_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections for the measurement period"
+        },
+        {
+          "position": 6,
+          "name": "VEHICLE_OOS_INSP_TOTAL",
+          "field_name": "vehicle_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections containing at least one Vehicle Out-of-Service violation"
+        },
+        {
+          "position": 7,
+          "name": "UNSAFE_DRIV_INSP_W_VIOL",
+          "field_name": "unsafe_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Unsafe Driving BASIC violation"
+        },
+        {
+          "position": 8,
+          "name": "UNSAFE_DRIV_MEASURE",
+          "field_name": "unsafe_driv_measure",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Measure Value"
+        },
+        {
+          "position": 9,
+          "name": "UNSAFE_DRIV_PCT",
+          "field_name": "unsafe_driv_pct",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 10,
+          "name": "UNSAFE_DRIV_RD_ALERT",
+          "field_name": "unsafe_driv_rd_alert",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 11,
+          "name": "UNSAFE_DRIV_AC",
+          "field_name": "unsafe_driv_ac",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 12,
+          "name": "UNSAFE_DRIV_BASIC_ALERT",
+          "field_name": "unsafe_driv_basic_alert",
+          "data_type": "text",
+          "description": "Unsafe Driving Overall BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 13,
+          "name": "HOS_DRIV_INSP_W_VIOL",
+          "field_name": "hos_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Hours-of-Service BASIC violation"
+        },
+        {
+          "position": 14,
+          "name": "HOS_DRIV_MEASURE",
+          "field_name": "hos_driv_measure",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 15,
+          "name": "HOS_DRIV_PCT",
+          "field_name": "hos_driv_pct",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 16,
+          "name": "HOS_DRIV_RD_ALERT",
+          "field_name": "hos_driv_rd_alert",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 17,
+          "name": "HOS_DRIV_AC",
+          "field_name": "hos_driv_ac",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 18,
+          "name": "HOS_DRIV_BASIC_ALERT",
+          "field_name": "hos_driv_basic_alert",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 19,
+          "name": "DRIV_FIT_INSP_W_VIOL",
+          "field_name": "driv_fit_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Driver Fitness BASIC violation"
+        },
+        {
+          "position": 20,
+          "name": "DRIV_FIT_MEASURE",
+          "field_name": "driv_fit_measure",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 21,
+          "name": "DRIV_FIT_PCT",
+          "field_name": "driv_fit_pct",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 22,
+          "name": "DRIV_FIT_RD_ALERT",
+          "field_name": "driv_fit_rd_alert",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 23,
+          "name": "DRIV_FIT_AC",
+          "field_name": "driv_fit_ac",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 24,
+          "name": "DRIV_FIT_BASIC_ALERT",
+          "field_name": "driv_fit_basic_alert",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 25,
+          "name": "CONTR_SUBST_INSP_W_VIOL",
+          "field_name": "contr_subst_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Controlled Substances and Alcohol BASIC violation"
+        },
+        {
+          "position": 26,
+          "name": "CONTR_SUBST_MEASURE",
+          "field_name": "contr_subst_measure",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 27,
+          "name": "CONTR_SUBST_PCT",
+          "field_name": "contr_subst_pct",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 28,
+          "name": "CONTR_SUBST_RD_ALERT",
+          "field_name": "contr_subst_rd_alert",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 29,
+          "name": "CONTR_SUBST_AC",
+          "field_name": "contr_subst_ac",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 30,
+          "name": "CONTR_SUBST_BASIC_ALERT",
+          "field_name": "contr_subst_basic_alert",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        },
+        {
+          "position": 31,
+          "name": "VEH_MAINT_INSP_W_VIOL",
+          "field_name": "veh_maint_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Vehicle Maintenance BASIC violation"
+        },
+        {
+          "position": 32,
+          "name": "VEH_MAINT_MEASURE",
+          "field_name": "veh_maint_measure",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 33,
+          "name": "VEH_MAINT_PCT",
+          "field_name": "veh_maint_pct",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance Percentile"
+        },
+        {
+          "position": 34,
+          "name": "VEH_MAINT_RD_ALERT",
+          "field_name": "veh_maint_rd_alert",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance Over Threshold Indicator (Y = Over Intervention Threshold)"
+        },
+        {
+          "position": 35,
+          "name": "VEH_MAINT_AC",
+          "field_name": "veh_maint_ac",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 36,
+          "name": "VEH_MAINT_BASIC_ALERT",
+          "field_name": "veh_maint_basic_alert",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Indicator (Y - Roadside Performance Percentile over threshold and/or Serious Violation within previous 12 months)"
+        }
+      ]
+    },
+    {
+      "id": "h9zy-gjn8",
+      "name": "SMS C PassProperty",
+      "family": "SMS Output",
+      "rows_updated_at": "2026-08-13T07:13:58Z",
+      "metadata_url": "https://data.transportation.gov/api/views/h9zy-gjn8",
+      "resource_url": "https://data.transportation.gov/resource/h9zy-gjn8.json",
+      "download_url": "https://data.transportation.gov/api/views/h9zy-gjn8/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": "US DOT Number of the Motor Carrier (Intrastate Non-Hazmat only)"
+        },
+        {
+          "position": 2,
+          "name": "INSP_TOTAL",
+          "field_name": "insp_total",
+          "data_type": "text",
+          "description": "Total Number of Inspections for the measurement period (24 months)"
+        },
+        {
+          "position": 3,
+          "name": "DRIVER_INSP_TOTAL",
+          "field_name": "driver_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections for the measurement period"
+        },
+        {
+          "position": 4,
+          "name": "DRIVER_OOS_INSP_TOTAL",
+          "field_name": "driver_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Driver Inspections containing at least one Driver Out-of-Service Violation"
+        },
+        {
+          "position": 5,
+          "name": "VEHICLE_INSP_TOTAL",
+          "field_name": "vehicle_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections for the measurement period"
+        },
+        {
+          "position": 6,
+          "name": "VEHICLE_OOS_INSP_TOTAL",
+          "field_name": "vehicle_oos_insp_total",
+          "data_type": "text",
+          "description": "Total Number of Vehicle Inspections containing at least one Vehicle Out-of-Service violation"
+        },
+        {
+          "position": 7,
+          "name": "UNSAFE_DRIV_INSP_W_VIOL",
+          "field_name": "unsafe_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Unsafe Driving BASIC violation"
+        },
+        {
+          "position": 8,
+          "name": "UNSAFE_DRIV_MEASURE",
+          "field_name": "unsafe_driv_measure",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Roadside Performance Measure Value"
+        },
+        {
+          "position": 9,
+          "name": "UNSAFE_DRIV_AC",
+          "field_name": "unsafe_driv_ac",
+          "data_type": "text",
+          "description": "Unsafe Driving BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 10,
+          "name": "HOS_DRIV_INSP_W_VIOL",
+          "field_name": "hos_driv_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Hours-of-Service BASIC violation"
+        },
+        {
+          "position": 11,
+          "name": "HOS_DRIV_MEASURE",
+          "field_name": "hos_driv_measure",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 12,
+          "name": "HOS_DRIV_AC",
+          "field_name": "hos_driv_ac",
+          "data_type": "text",
+          "description": "Hours-of-Service (HOS) Compliance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 13,
+          "name": "DRIV_FIT_INSP_W_VIOL",
+          "field_name": "driv_fit_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Driver Fitness BASIC violation"
+        },
+        {
+          "position": 14,
+          "name": "DRIV_FIT_MEASURE",
+          "field_name": "driv_fit_measure",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 15,
+          "name": "DRIV_FIT_AC",
+          "field_name": "driv_fit_ac",
+          "data_type": "text",
+          "description": "Driver Fitness BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 16,
+          "name": "CONTR_SUBST_INSP_W_VIOL",
+          "field_name": "contr_subst_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Controlled Substances and Alcohol BASIC violation"
+        },
+        {
+          "position": 17,
+          "name": "CONTR_SUBST_MEASURE",
+          "field_name": "contr_subst_measure",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 18,
+          "name": "CONTR_SUBST_AC",
+          "field_name": "contr_subst_ac",
+          "data_type": "text",
+          "description": "Controlled Substances and Alcohol BASIC Acute/Critical Indicator (Y = Acute/Critical from investigation within previous 12 months)"
+        },
+        {
+          "position": 19,
+          "name": "VEH_MAINT_INSP_W_VIOL",
+          "field_name": "veh_maint_insp_w_viol",
+          "data_type": "text",
+          "description": "Number of inspections with at least one Vehicle Maintenance BASIC violation"
+        },
+        {
+          "position": 20,
+          "name": "VEH_MAINT_MEASURE",
+          "field_name": "veh_maint_measure",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Roadside Performance measure value"
+        },
+        {
+          "position": 21,
+          "name": "VEH_MAINT_AC",
+          "field_name": "veh_maint_ac",
+          "data_type": "text",
+          "description": "Vehicle Maintenance BASIC Acute/Critical Indicator (Y = Active/Critical from investigation within previous 12 months)"
+        }
+      ]
+    },
+    {
+      "id": "aayw-vxb3",
+      "name": "Crash File",
+      "family": "Safety",
+      "rows_updated_at": "2026-09-08T10:43:54Z",
+      "metadata_url": "https://data.transportation.gov/api/views/aayw-vxb3",
+      "resource_url": "https://data.transportation.gov/resource/aayw-vxb3.json",
+      "download_url": "https://data.transportation.gov/api/views/aayw-vxb3/rows.csv?accessType=DOWNLOAD",
+      "columns": [
+        {
+          "position": 1,
+          "name": "CHANGE_DATE",
+          "field_name": "change_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 2,
+          "name": "CRASH_ID",
+          "field_name": "crash_id",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 3,
+          "name": "REPORT_STATE",
+          "field_name": "report_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 4,
+          "name": "REPORT_NUMBER",
+          "field_name": "report_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 5,
+          "name": "REPORT_DATE",
+          "field_name": "report_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 6,
+          "name": "REPORT_TIME",
+          "field_name": "report_time",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 7,
+          "name": "REPORT_SEQ_NO",
+          "field_name": "report_seq_no",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 8,
+          "name": "DOT_NUMBER",
+          "field_name": "dot_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 9,
+          "name": "CI_STATUS_CODE",
+          "field_name": "ci_status_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 10,
+          "name": "FINAL_STATUS_DATE",
+          "field_name": "final_status_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 11,
+          "name": "LOCATION",
+          "field_name": "location",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 12,
+          "name": "CITY_CODE",
+          "field_name": "city_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 13,
+          "name": "CITY",
+          "field_name": "city",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 14,
+          "name": "STATE",
+          "field_name": "state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 15,
+          "name": "COUNTY_CODE",
+          "field_name": "county_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 16,
+          "name": "TRUCK_BUS_IND",
+          "field_name": "truck_bus_ind",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 17,
+          "name": "TRAFFICWAY_ID",
+          "field_name": "trafficway_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 18,
+          "name": "ACCESS_CONTROL_ID",
+          "field_name": "access_control_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 19,
+          "name": "ROAD_SURFACE_CONDITION_ID",
+          "field_name": "road_surface_condition_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 20,
+          "name": "CARGO_BODY_TYPE_ID",
+          "field_name": "cargo_body_type_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 21,
+          "name": "GVW_RATING_ID",
+          "field_name": "gvw_rating_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 22,
+          "name": "VEHICLE_IDENTIFICATION_NUMBER",
+          "field_name": "vehicle_identification_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 23,
+          "name": "VEHICLE_LICENSE_NUMBER",
+          "field_name": "vehicle_license_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 24,
+          "name": "VEHICLE_LIC_STATE",
+          "field_name": "vehicle_lic_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 25,
+          "name": "VEHICLE_HAZMAT_PLACARD",
+          "field_name": "vehicle_hazmat_placard",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 26,
+          "name": "WEATHER_CONDITION_ID",
+          "field_name": "weather_condition_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 27,
+          "name": "VEHICLE_CONFIGURATION_ID",
+          "field_name": "vehicle_configuration_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 28,
+          "name": "LIGHT_CONDITION_ID",
+          "field_name": "light_condition_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 29,
+          "name": "HAZMAT_RELEASED",
+          "field_name": "hazmat_released",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 30,
+          "name": "AGENCY",
+          "field_name": "agency",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 31,
+          "name": "VEHICLES_IN_ACCIDENT",
+          "field_name": "vehicles_in_accident",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 32,
+          "name": "FATALITIES",
+          "field_name": "fatalities",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 33,
+          "name": "INJURIES",
+          "field_name": "injuries",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 34,
+          "name": "TOW_AWAY",
+          "field_name": "tow_away",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 35,
+          "name": "FEDERAL_RECORDABLE",
+          "field_name": "federal_recordable",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 36,
+          "name": "STATE_RECORDABLE",
+          "field_name": "state_recordable",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 37,
+          "name": "SNET_VERSION_NUMBER",
+          "field_name": "snet_version_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 38,
+          "name": "SNET_SEQUENCE_ID",
+          "field_name": "snet_sequence_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 39,
+          "name": "TRANSACTION_CODE",
+          "field_name": "transaction_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 40,
+          "name": "TRANSACTION_DATE",
+          "field_name": "transaction_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 41,
+          "name": "UPLOAD_FIRST_BYTE",
+          "field_name": "upload_first_byte",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 42,
+          "name": "UPLOAD_DOT_NUMBER",
+          "field_name": "upload_dot_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 43,
+          "name": "UPLOAD_SEARCH_INDICATOR",
+          "field_name": "upload_search_indicator",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 44,
+          "name": "UPLOAD_DATE",
+          "field_name": "upload_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 45,
+          "name": "ADD_DATE",
+          "field_name": "add_date",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 46,
+          "name": "CRASH_CARRIER_ID",
+          "field_name": "crash_carrier_id",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 47,
+          "name": "CRASH_CARRIER_NAME",
+          "field_name": "crash_carrier_name",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 48,
+          "name": "CRASH_CARRIER_STREET",
+          "field_name": "crash_carrier_street",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 49,
+          "name": "CRASH_CARRIER_CITY",
+          "field_name": "crash_carrier_city",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 50,
+          "name": "CRASH_CARRIER_CITY_CODE",
+          "field_name": "crash_carrier_city_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 51,
+          "name": "CRASH_CARRIER_STATE",
+          "field_name": "crash_carrier_state",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 52,
+          "name": "CRASH_CARRIER_ZIP_CODE",
+          "field_name": "crash_carrier_zip_code",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 53,
+          "name": "CRASH_COLONIA",
+          "field_name": "crash_colonia",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 54,
+          "name": "DOCKET_NUMBER",
+          "field_name": "docket_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 55,
+          "name": "CRASH_CARRIER_INTERSTATE",
+          "field_name": "crash_carrier_interstate",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 56,
+          "name": "NO_ID_FLAG",
+          "field_name": "no_id_flag",
+          "data_type": "number",
+          "description": ""
+        },
+        {
+          "position": 57,
+          "name": "STATE_NUMBER",
+          "field_name": "state_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 58,
+          "name": "STATE_ISSUING_NUMBER",
+          "field_name": "state_issuing_number",
+          "data_type": "text",
+          "description": ""
+        },
+        {
+          "position": 59,
+          "name": "CRASH_EVENT_SEQ_ID_DESC",
+          "field_name": "crash_event_seq_id_desc",
+          "data_type": "text",
+          "description": ""
+        }
+      ]
+    }
+  ]
+}
