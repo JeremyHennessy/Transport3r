@@ -7,7 +7,9 @@ to return zero rows for that carrier; malformed joins, missing required join col
 HTTP failures and non-array payloads fail the smoke test.
 
 The fleet contract is checked explicitly because the Inspection Per Unit file uses
-INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names.
+INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names. The carrier
+directory query is also checked because its fleet filter/sort uses FMCSA's published
+single-letter FLEETSIZE code rather than treating the text POWER_UNITS field as numeric.
 """
 
 from __future__ import annotations
@@ -102,8 +104,11 @@ def literal(column: dict[str, Any], value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def query(source_id: str, where: str, limit: int = 1) -> list[dict[str, Any]]:
-    params = urllib.parse.urlencode({"$where": where, "$limit": str(limit)})
+def query(source_id: str, where: str, limit: int = 1, order: str | None = None) -> list[dict[str, Any]]:
+    values = {"$where": where, "$limit": str(limit)}
+    if order:
+        values["$order"] = order
+    params = urllib.parse.urlencode(values)
     payload = fetch_json(f"{BASE}/{source_id}.json?{params}")
     if not isinstance(payload, list):
         raise RuntimeError(f"{source_id} returned non-array JSON")
@@ -168,7 +173,31 @@ def main() -> int:
             result["sample_vin"] = next((str(row.get("insp_unit_vehicle_id_number")) for row in rows if row.get("insp_unit_vehicle_id_number")), None)
         results.append(result)
 
-    print(json.dumps({"status": "ok", "dot_number": dot_number, "inspection_id": inspection_id, "queries": results}, indent=2))
+    directory_rows = query(
+        "az4n-8mr2",
+        "phy_state='TX' AND carrier_operation='A' AND fleetsize>='A'",
+        limit=2,
+        order="fleetsize DESC, dot_number DESC",
+    )
+    if not directory_rows:
+        raise RuntimeError("Carrier directory fleet-size filter returned no representative Texas interstate carriers")
+    directory_sample = directory_rows[0]
+    if not str(directory_sample.get("dot_number") or "").strip() or not str(directory_sample.get("legal_name") or "").strip():
+        raise RuntimeError("Carrier directory query returned a row without USDOT/legal name identity")
+
+    print(json.dumps({
+        "status": "ok",
+        "dot_number": dot_number,
+        "inspection_id": inspection_id,
+        "directory_query": {
+            "rows": len(directory_rows),
+            "sample_dot_number": directory_sample.get("dot_number"),
+            "sample_legal_name": directory_sample.get("legal_name"),
+            "sample_power_units": directory_sample.get("power_units"),
+            "sample_fleet_size_code": directory_sample.get("fleetsize"),
+        },
+        "queries": results,
+    }, indent=2))
     return 0
 
 
