@@ -109,3 +109,72 @@ jobs:
           PY
 
           echo "Hosted Pages release verified: ${PAGE_URL}"
+
+      - name: Verify rendered live routes
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/transport3r-ui
+
+          CHROME="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || true)"
+          if [[ -z "${CHROME}" ]]; then
+            echo "No Chrome/Chromium executable available on runner" >&2
+            exit 1
+          fi
+
+          render_route() {
+            local label="$1"
+            local hash="$2"
+            local expected="$3"
+            local url="${PAGE_URL%/}/${hash}"
+            local dom="/tmp/transport3r-ui/${label}.html"
+            local png="/tmp/transport3r-ui/${label}.png"
+
+            echo "Rendering ${label}: ${url}"
+            timeout 45s "${CHROME}" \
+              --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --hide-scrollbars --window-size=1440,1200 --virtual-time-budget=18000 \
+              --dump-dom "${url}" > "${dom}" 2> "/tmp/transport3r-ui/${label}.log"
+
+            grep -Fq "${expected}" "${dom}"
+            if grep -Fq 'Transport3r could not render this view.' "${dom}"; then
+              echo "${label} hit the React runtime recovery boundary" >&2
+              exit 1
+            fi
+            if grep -Fq 'Carrier identity could not load.' "${dom}"; then
+              echo "${label} could not resolve carrier identity" >&2
+              exit 1
+            fi
+            if grep -Fq 'This evidence tab could not load.' "${dom}"; then
+              echo "${label} evidence load failed" >&2
+              exit 1
+            fi
+
+            timeout 45s "${CHROME}" \
+              --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+              --hide-scrollbars --window-size=1440,1200 --virtual-time-budget=18000 \
+              --screenshot="${png}" "${url}" >/dev/null 2>> "/tmp/transport3r-ui/${label}.log"
+          }
+
+          render_route overview '#/overview' 'Know the carrier before you price the risk.'
+          render_route carriers '#/carriers' 'Nationwide carrier intelligence'
+          render_route summary '#/carrier/3938496/summary' 'Underwriting evidence at a glance'
+          render_route fleet '#/carrier/3938496/fleet' 'Fleet evidence'
+          grep -Fq '3C63RRGLXNG286232' /tmp/transport3r-ui/fleet.html
+          render_route insurance '#/carrier/3938496/insurance' 'Coverage continuity'
+          render_route sms '#/carrier/3938496/sms' 'Official output and Transport replay'
+          render_route sources '#/sources' 'All 27 configured FMCSA/DOT datasets'
+
+          echo "Rendered route smoke passed for overview, carriers, carrier summary, fleet, insurance, SMS and data sources."
+
+      - name: Upload live UI screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-ui-smoke-${{ github.sha }}
+          path: |
+            /tmp/transport3r-ui/*.png
+            /tmp/transport3r-ui/*.html
+            /tmp/transport3r-ui/*.log
+          if-no-files-found: warn
