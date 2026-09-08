@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Infer current SMS percentile ranking mechanics from official FMCSA passenger pages.
+"""Validate current SMS percentile ranking mechanics from official FMCSA passenger pages.
 
-Bulk passenger output (`SMS AB Pass`, m3ry-qcip) exposes measures and safety-event
-counts but currently leaves percentile columns blank. FMCSA's live passenger BASIC
-pages publish official percentiles for data-sufficient carriers.
+The public passenger bulk output (`SMS AB Pass`, m3ry-qcip) exposes measures and
+safety-event counts but currently leaves percentile columns blank. FMCSA's v3.21
+methodology specifies the ranking population and sequence:
 
-This diagnostic tests one specific hypothesis supported by FMCSA's Help Center: the
-percentile comparison population consists of carriers that meet the BASIC's minimum
-violation-inspection data-sufficiency threshold, rather than every carrier that has a
-measure. It builds those eligible safety-event groups from bulk output, samples live
-passenger BASIC pages, and compares ranking/tie transforms.
+1. Remove carriers with too few relevant inspections for the BASIC or with no
+   inspection containing a BASIC violation.
+2. Place the remaining non-zero-measure carriers into the applicable safety-event
+   group and rank measures in ascending order.
+3. Transform ranked values to 0-100 percentiles.
+4. After ranking, suppress carriers failing recency/display data-sufficiency rules.
 
-Diagnostic-only: this script does not bless a production percentile formula.
+The live passenger BASIC page is used only as the official percentile observation for
+carriers that actually receive one. The script compares tie/rank transforms but does
+not promote one into production until the evidence is strong enough for a strict gate.
 """
 
 from __future__ import annotations
@@ -43,7 +46,7 @@ BASICS = {
         "event_total": "driver_insp_total",
         "path": "HOSCompliance.aspx",
         "groups": [(1, 3, 10), (2, 11, 20), (3, 21, 100), (4, 101, 500), (5, 501, math.inf)],
-        "min_violation_inspections": 3,
+        "display_min_violation_inspections": 3,
     },
     "driver_fitness": {
         "label": "Driver Fitness",
@@ -52,7 +55,7 @@ BASICS = {
         "event_total": "driver_insp_total",
         "path": "DriverFitness.aspx",
         "groups": [(1, 5, 10), (2, 11, 20), (3, 21, 100), (4, 101, 500), (5, 501, math.inf)],
-        "min_violation_inspections": 5,
+        "display_min_violation_inspections": 5,
     },
     "vehicle_maintenance": {
         "label": "Vehicle Maintenance",
@@ -61,7 +64,7 @@ BASICS = {
         "event_total": "vehicle_insp_total",
         "path": "VehicleMaint.aspx",
         "groups": [(1, 5, 10), (2, 11, 20), (3, 21, 100), (4, 101, 500), (5, 501, math.inf)],
-        "min_violation_inspections": 5,
+        "display_min_violation_inspections": 5,
     },
 }
 
@@ -192,8 +195,8 @@ def main() -> int:
 
     for basic_key, rule in BASICS.items():
         populations: dict[int, list[dict[str, Any]]] = defaultdict(list)
-        eligible_rows: list[dict[str, Any]] = []
-        excluded_for_sufficiency = 0
+        display_candidates: list[dict[str, Any]] = []
+        zero_measure_excluded = 0
 
         for row in rows:
             measure = number(row.get(rule["measure"]))
@@ -203,14 +206,20 @@ def main() -> int:
             if group is None:
                 continue
 
-            violation_inspections = integer(row.get(rule["violation_inspections"]))
-            if violation_inspections < rule["min_violation_inspections"] or measure <= 0:
-                excluded_for_sufficiency += 1
+            # FMCSA v3.21 ranks carriers after removing those with no inspection
+            # containing a BASIC violation. A non-zero measure is the bulk-output
+            # evidence that at least one weighted BASIC violation remains.
+            if measure <= 0:
+                zero_measure_excluded += 1
                 continue
 
             enriched = {**row, "_measure": measure, "_group": group}
             populations[group].append(enriched)
-            eligible_rows.append(enriched)
+
+            # The higher violation-inspection minimum is a display/assignment gate,
+            # not the peer-population gate used to calculate the percentile mapping.
+            if integer(row.get(rule["violation_inspections"])) >= rule["display_min_violation_inspections"]:
+                display_candidates.append(enriched)
 
         rank_maps: dict[tuple[int, str], dict[str, float]] = {}
         for group, population in populations.items():
@@ -220,8 +229,8 @@ def main() -> int:
                 pct_values = scaled_percentiles(measures, method)
                 rank_maps[(group, method)] = {str(row["dot_number"]): pct for row, pct in zip(population, pct_values, strict=True)}
 
-        eligible_rows.sort(key=lambda row: (row["_group"], row["_measure"], str(row["dot_number"])))
-        sample = quantile_sample(eligible_rows, PAGE_SAMPLE_PER_BASIC)
+        display_candidates.sort(key=lambda row: (row["_group"], row["_measure"], str(row["dot_number"])))
+        sample = quantile_sample(display_candidates, PAGE_SAMPLE_PER_BASIC)
         observations: list[dict[str, Any]] = []
         fetch_errors: list[dict[str, str]] = []
 
@@ -274,10 +283,10 @@ def main() -> int:
         scored_methods.sort(key=lambda item: (item["mae"], item["max_error"], item["method"]))
         reports[basic_key] = {
             "label": rule["label"],
-            "population_rule": f"measure > 0 and {rule['violation_inspections']} >= {rule['min_violation_inspections']}",
+            "population_rule": "minimum relevant-inspection safety-event group and non-zero BASIC measure; display minimum applied only to sampled official percentile carriers",
             "ranking_population": {str(group): len(population) for group, population in populations.items()},
-            "excluded_for_sufficiency": excluded_for_sufficiency,
-            "eligible_candidate_count": len(eligible_rows),
+            "zero_measure_excluded": zero_measure_excluded,
+            "display_candidate_count": len(display_candidates),
             "official_observations": len(observations),
             "best_methods": scored_methods[:10],
             "observations": observations[:12],
