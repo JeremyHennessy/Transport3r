@@ -38,4 +38,6 @@ jobs:
       - name: Smoke live FMCSA Carrier 360 query joins
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 measure replay against FMCSA
-        run: python scripts/validate_sms_v321_replay.py
+        run: python scripts/validate_sms_v321_replay.py --runtime-sample /tmp/transport3r-sms-runtime.json
+      - name: Validate application TypeScript SMS replay against the same FMCSA inputs
+        run: node scripts/validate-sms-runtime.mjs /tmp/transport3r-sms-runtime.json
