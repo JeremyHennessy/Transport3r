@@ -17,15 +17,21 @@ PR #18 restored GitHub Actions as the sole Pages publishing source. Production c
 
 Carrier markup structure, navigation, labels, stylesheet imports, and all CSS remain unchanged. The component edits are data bindings and a date-helper call. The compiled CSS retains `index-Bm4xuMs8.css`. The supplied approved visual checkpoint `25157fb` still cannot be resolved; it has not been replaced with another purported approval. Presentation/design work on the scoring branch remains blocked by that missing checkpoint.
 
-## Remaining gates
+## Evidence lifecycle and acquisition repairs
+
+PR #20 preserves unknown/partial evidence in Summary, Fleet and SMS, loads all six MOTUS change sources, distinguishes rescinded order history from orders without a recorded rescission, and separates previous-filing event reasons from current coverage claims. MOTUS maximum amounts are shown as raw source values with unresolved units; no scaling or underlying-limit substitution is applied. See [normalization rules](evidence-normalization.md).
+
+The append-only raw acquisition writer and offline verifier now establish a current-source baseline with artifact hashes and acquisition-time lineage. The initial live check covered two sources, not the full catalog. See [snapshot acquisition and limits](snapshot-acquisition.md). Historical carrier-month features and forecasts remain unimplemented and unvalidated.
+
+## Outstanding release gates
 
 This initial repair does not certify Phase 1 complete or make TRI releasable. Browser requests remain bounded (500 inspections, 350 crashes, bounded child batches); their returned history is not a standardized current-risk observation window. Live paging is not a transactional historical snapshot and upstream changes during paging remain possible. [Socrata paging guidance](https://dev.socrata.com/docs/paging.html).
 
 1. Resolve the approved visual SHA and approval record before scoring presentation work.
-2. Normalize current effect versus historical orders, rescission, and filing event direction from documented source semantics; retain uncertainty.
+2. Resolve remaining filing-code mappings and contradictory MOTUS amount units using authoritative clarification. Preserve uncertainty for unknown dates/codes and do not infer current coverage from historical filings.
 3. Freeze TRI v0.1 and implement any material scoring changes under a new version. Set eligibility, comparable component masks, observation windows and source-cut requirements. Public property SMS percentile availability and passenger/property selection need explicit treatment.
 4. Audit remaining missing-source/partial-data renderers across carrier modes. A successful empty result describes returned rows, not a clean carrier. No current-risk score is introduced in this repair.
-5. Establish immutable raw snapshots and a small knowledge-time-aware carrier-month panel. Do not backdate current Census/SMS values.
+5. Extend verified raw acquisition to the required modeling sources and construct a small knowledge-time-aware carrier-month panel. Do not backdate current Census/SMS values.
 6. Evaluate score distributions and subgroups only with correct features; train and calibrate event-specific temporal baselines only after historical integrity passes. No insurance-loss model without actual insurance outcomes.
 
 No forecast, peer percentile, statistical confidence or actuarial validation is claimed by these changes.
