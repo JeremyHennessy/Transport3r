@@ -1,14 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { DataRow, readValue } from './datahub';
 
-type SortMode = 'fleet_desc' | 'drivers_desc' | 'dot_desc' | 'name_asc';
+type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc';
 
 type DirectoryFilters = {
   q: string;
   state: string;
   operation: string;
   hazmat: string;
-  minPowerUnits: string;
+  minFleetCode: string;
   sort: SortMode;
 };
 
@@ -24,6 +24,7 @@ type Carrier = {
   mileage?: string;
   mileageYear?: string;
   hazmat?: string;
+  fleetSizeCode?: string;
 };
 
 const DATAHUB = 'https://data.transportation.gov/resource';
@@ -33,7 +34,7 @@ const DEFAULT_FILTERS: DirectoryFilters = {
   state: '',
   operation: '',
   hazmat: '',
-  minPowerUnits: '',
+  minFleetCode: '',
   sort: 'fleet_desc',
 };
 
@@ -49,18 +50,35 @@ const OPERATION_LABELS: Record<string, string> = {
   C: 'Intrastate non-hazmat',
 };
 
+const FLEET_THRESHOLDS = [
+  { code: '', label: 'Any fleet size' },
+  { code: 'A', label: '1+ power units' },
+  { code: 'D', label: '7+ power units' },
+  { code: 'G', label: '15+ power units' },
+  { code: 'J', label: '24+ power units' },
+  { code: 'N', label: '45+ power units' },
+  { code: 'P', label: '76+ power units' },
+  { code: 'Q', label: '101+ power units' },
+  { code: 'R', label: '201+ power units' },
+  { code: 'U', label: '551+ power units' },
+  { code: 'V', label: '1,000+ power units' },
+  { code: 'W', label: '2,001+ power units' },
+  { code: 'Z', label: 'Over 5,000 power units' },
+];
+
 function parseFilters(): DirectoryFilters {
   const queryIndex = window.location.hash.indexOf('?');
   if (queryIndex < 0) return { ...DEFAULT_FILTERS };
   const params = new URLSearchParams(window.location.hash.slice(queryIndex + 1));
   const sort = params.get('sort') as SortMode | null;
+  const minFleetCode = (params.get('minFleet') ?? '').toUpperCase();
   return {
     q: params.get('q') ?? '',
     state: (params.get('state') ?? '').toUpperCase(),
     operation: (params.get('operation') ?? '').toUpperCase(),
     hazmat: (params.get('hazmat') ?? '').toUpperCase(),
-    minPowerUnits: params.get('minFleet') ?? '',
-    sort: sort && ['fleet_desc', 'drivers_desc', 'dot_desc', 'name_asc'].includes(sort) ? sort : DEFAULT_FILTERS.sort,
+    minFleetCode: FLEET_THRESHOLDS.some((option) => option.code === minFleetCode) ? minFleetCode : '',
+    sort: sort && ['fleet_desc', 'dot_desc', 'name_asc'].includes(sort) ? sort : DEFAULT_FILTERS.sort,
   };
 }
 
@@ -71,7 +89,7 @@ function filtersHash(filters: DirectoryFilters): string {
   if (filters.state) params.set('state', filters.state);
   if (filters.operation) params.set('operation', filters.operation);
   if (filters.hazmat) params.set('hazmat', filters.hazmat);
-  if (filters.minPowerUnits) params.set('minFleet', filters.minPowerUnits);
+  if (filters.minFleetCode) params.set('minFleet', filters.minFleetCode);
   if (filters.sort !== DEFAULT_FILTERS.sort) params.set('sort', filters.sort);
   const query = params.toString();
   return `#/carriers${query ? `?${query}` : ''}`;
@@ -94,6 +112,7 @@ function carrierFromRow(row: DataRow): Carrier {
     mileage: readValue(row, ['MCS150_MILEAGE', 'MILEAGE', 'VMT']),
     mileageYear: readValue(row, ['MCS150_MILEAGE_YEAR', 'MILEAGE_YEAR', 'VMT_YEAR']),
     hazmat: readValue(row, ['HM_IND', 'HAZMAT_IND', 'HAZMAT_FLAG']),
+    fleetSizeCode: readValue(row, ['FLEETSIZE', 'FLEET_SIZE_CODE']),
   };
 }
 
@@ -109,10 +128,9 @@ function operationLabel(value?: string): string {
 }
 
 function sortExpression(sort: SortMode): string {
-  if (sort === 'drivers_desc') return 'to_number(total_drivers) DESC, dot_number DESC';
   if (sort === 'dot_desc') return 'dot_number DESC';
   if (sort === 'name_asc') return 'legal_name ASC, dot_number DESC';
-  return 'to_number(power_units) DESC, dot_number DESC';
+  return 'fleetsize DESC, dot_number DESC';
 }
 
 async function loadCarriers(filters: DirectoryFilters, signal: AbortSignal): Promise<Carrier[]> {
@@ -126,11 +144,7 @@ async function loadCarriers(filters: DirectoryFilters, signal: AbortSignal): Pro
   if (filters.state) where.push(`phy_state='${escapeSoqlText(filters.state)}'`);
   if (filters.operation) where.push(`carrier_operation='${escapeSoqlText(filters.operation)}'`);
   if (filters.hazmat === 'Y' || filters.hazmat === 'N') where.push(`hm_ind='${filters.hazmat}'`);
-
-  const minimumFleet = Number(filters.minPowerUnits);
-  if (filters.minPowerUnits && Number.isFinite(minimumFleet) && minimumFleet >= 0) {
-    where.push(`to_number(power_units)>=${minimumFleet}`);
-  }
+  if (filters.minFleetCode) where.push(`fleetsize>='${filters.minFleetCode}'`);
 
   if (where.length) params.set('$where', where.join(' AND '));
 
@@ -200,7 +214,7 @@ export default function CarrierDirectoryApp() {
 
   const statesInSlice = useMemo(() => new Set(rows.map((carrier) => carrier.state).filter(Boolean)).size, [rows]);
   const powerUnitsInSlice = useMemo(() => rows.reduce((sum, carrier) => sum + (Number(carrier.powerUnits) || 0), 0), [rows]);
-  const activeFilterCount = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minPowerUnits].filter(Boolean).length;
+  const activeFilterCount = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode].filter(Boolean).length;
 
   function applyFilters(event: FormEvent) {
     event.preventDefault();
@@ -288,14 +302,15 @@ export default function CarrierDirectoryApp() {
                 </select>
               </label>
               <label className="directory-filter">
-                <span>Min. power units</span>
-                <input type="number" min="0" step="1" value={draft.minPowerUnits} onChange={(event) => setDraft({ ...draft, minPowerUnits: event.target.value })} placeholder="0" />
+                <span>Minimum fleet</span>
+                <select value={draft.minFleetCode} onChange={(event) => setDraft({ ...draft, minFleetCode: event.target.value })}>
+                  {FLEET_THRESHOLDS.map((option) => <option key={option.code || 'all'} value={option.code}>{option.label}</option>)}
+                </select>
               </label>
               <label className="directory-filter">
                 <span>Sort</span>
                 <select value={draft.sort} onChange={(event) => setDraft({ ...draft, sort: event.target.value as SortMode })}>
                   <option value="fleet_desc">Fleet size · largest</option>
-                  <option value="drivers_desc">Drivers · most</option>
                   <option value="dot_desc">USDOT · newest/highest</option>
                   <option value="name_asc">Carrier name · A–Z</option>
                 </select>
