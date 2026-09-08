@@ -23,8 +23,10 @@ jobs:
         with:
           python-version: '3.12'
       - name: Validate Python entrypoints compile
-        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py
+        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/diagnose_sms_percentile.py
       - name: Smoke live FMCSA Carrier 360 query joins
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 measure replay against FMCSA
         run: python scripts/validate_sms_v321_replay.py
+      - name: Diagnose SMS percentile ranking transform
+        run: python scripts/diagnose_sms_percentile.py
