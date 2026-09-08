@@ -26,6 +26,7 @@ export const SOURCE_IDS = {
   motusRevokeSuspend: 'wb4f-neki',
   motusCarrierDelta: 'nakq-58th',
   motusAuthDelta: 'dm5j-zc6c',
+  motusBoc3Delta: 'mhr5-hjyc',
   motusInsuranceDelta: 'x96h-evps',
   motusInsuranceHistoryDelta: 'xe5s-wca7',
   motusRevokeSuspendDelta: 'e67p-xyd5',
@@ -77,7 +78,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   fleet: ['inspections', 'units'],
   authority: [
     'motusCarrier', 'motusAuthHistory', 'motusBoc3', 'motusRevokeSuspend',
-    'motusCarrierDelta', 'motusAuthDelta', 'motusRevokeSuspendDelta', 'newEntrantOos',
+    'motusCarrierDelta', 'motusAuthDelta', 'motusBoc3Delta', 'motusRevokeSuspendDelta', 'newEntrantOos',
   ],
   insurance: ['motusInsurance', 'motusInsuranceHistory', 'motusInsuranceDelta', 'motusInsuranceHistoryDelta'],
   sms: ['smsCensus', 'smsInspection', 'smsCrash', 'smsViolation', 'smsABPass', 'smsCPass', 'smsABProperty', 'smsCProperty'],
@@ -122,6 +123,7 @@ function sourceTask(
     motusRevokeSuspend: 300,
     motusCarrierDelta: 50,
     motusAuthDelta: 50,
+    motusBoc3Delta: 50,
     motusInsuranceDelta: 50,
     motusInsuranceHistoryDelta: 50,
     motusRevokeSuspendDelta: 50,
@@ -284,6 +286,7 @@ export function recentChangeCount(evidence: CarrierEvidence | null): number {
   return [
     evidence?.slices.motusCarrierDelta,
     evidence?.slices.motusAuthDelta,
+    evidence?.slices.motusBoc3Delta,
     evidence?.slices.motusInsuranceDelta,
     evidence?.slices.motusInsuranceHistoryDelta,
     evidence?.slices.motusRevokeSuspendDelta,
