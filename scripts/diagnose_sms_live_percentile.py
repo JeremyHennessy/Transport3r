@@ -12,6 +12,7 @@ Diagnostic-only: this script does not bless a production percentile formula.
 
 from __future__ import annotations
 
+import concurrent.futures
 import html
 import json
 import math
@@ -27,6 +28,8 @@ SMS_SITE = "https://ai.fmcsa.dot.gov/SMS/Carrier"
 USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 PASSENGER_OUTPUT_ID = "m3ry-qcip"
 EXPECTED_SNAPSHOT = "July 31, 2026"
+PAGE_WORKERS = 6
+PAGE_SAMPLE_PER_BASIC = 18
 
 BASICS = {
     "hos": {
@@ -59,7 +62,7 @@ BASICS = {
 }
 
 
-def fetch_bytes(url: str, timeout: int = 35, attempts: int = 3) -> bytes:
+def fetch_bytes(url: str, timeout: int = 12, attempts: int = 2) -> bytes:
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
@@ -69,14 +72,14 @@ def fetch_bytes(url: str, timeout: int = 35, attempts: int = 3) -> bytes:
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             if attempt < attempts:
-                time.sleep(min(4.0, 0.75 * (2 ** (attempt - 1))))
+                time.sleep(0.5)
     assert last_error is not None
     raise last_error
 
 
 def fetch_json(source_id: str, params: dict[str, str]) -> list[dict[str, Any]]:
     query = urllib.parse.urlencode(params)
-    payload = json.loads(fetch_bytes(f"{DATAHUB}/{source_id}.json?{query}").decode("utf-8"))
+    payload = json.loads(fetch_bytes(f"{DATAHUB}/{source_id}.json?{query}", timeout=30, attempts=3).decode("utf-8"))
     if not isinstance(payload, list):
         raise RuntimeError(f"{source_id} returned non-array JSON")
     return payload
@@ -169,6 +172,15 @@ def quantile_sample(rows: list[dict[str, Any]], count: int) -> list[dict[str, An
     return list({str(row["dot_number"]): row for row in selected}.values())
 
 
+def fetch_candidate(rule: dict[str, Any], row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None, str | None]:
+    dot_number = str(row["dot_number"])
+    url = f"{SMS_SITE}/{dot_number}/BASIC/{rule['path']}"
+    try:
+        return row, parse_basic_page(fetch_bytes(url)), None
+    except Exception as exc:  # noqa: BLE001
+        return row, None, f"{type(exc).__name__}: {exc}"
+
+
 def main() -> int:
     rows = fetch_json(PASSENGER_OUTPUT_ID, {"$limit": "50000"})
     reports: dict[str, Any] = {}
@@ -198,36 +210,39 @@ def main() -> int:
                 rank_maps[(group, method)] = {str(row["dot_number"]): pct for row, pct in zip(population, pct_values, strict=True)}
 
         candidates.sort(key=lambda row: (row["_group"], row["_measure"], str(row["dot_number"])))
+        sample = quantile_sample(candidates, PAGE_SAMPLE_PER_BASIC)
         observations: list[dict[str, Any]] = []
         fetch_errors: list[dict[str, str]] = []
-        for row in quantile_sample(candidates, 28):
-            dot_number = str(row["dot_number"])
-            url = f"{SMS_SITE}/{dot_number}/BASIC/{rule['path']}"
-            try:
-                page = parse_basic_page(fetch_bytes(url))
-            except Exception as exc:  # noqa: BLE001
-                fetch_errors.append({"dot_number": dot_number, "error": f"{type(exc).__name__}: {exc}"})
-                continue
-            if page["snapshot"] != EXPECTED_SNAPSHOT or page["percentile"] is None or page["measure"] is None:
-                continue
-            if abs(page["measure"] - row["_measure"]) > 0.02:
-                continue
-            predictions: dict[str, float] = {}
-            for method in ("min", "max", "average", "dense"):
-                raw_pct = rank_maps[(row["_group"], method)][dot_number]
-                for transform_name, transformed in transforms(raw_pct).items():
-                    predictions[f"{method}:{transform_name}"] = transformed
-            observations.append({
-                "dot_number": dot_number,
-                "group": row["_group"],
-                "bulk_measure": row["_measure"],
-                "official_measure": page["measure"],
-                "official_percentile": page["percentile"],
-                "official_group_text": page["group_text"],
-                "predictions": predictions,
-            })
-            time.sleep(0.08)
 
+        with concurrent.futures.ThreadPoolExecutor(max_workers=PAGE_WORKERS) as pool:
+            futures = [pool.submit(fetch_candidate, rule, row) for row in sample]
+            for future in concurrent.futures.as_completed(futures):
+                row, page, error = future.result()
+                dot_number = str(row["dot_number"])
+                if error:
+                    fetch_errors.append({"dot_number": dot_number, "error": error})
+                    continue
+                assert page is not None
+                if page["snapshot"] != EXPECTED_SNAPSHOT or page["percentile"] is None or page["measure"] is None:
+                    continue
+                if abs(page["measure"] - row["_measure"]) > 0.02:
+                    continue
+                predictions: dict[str, float] = {}
+                for method in ("min", "max", "average", "dense"):
+                    raw_pct = rank_maps[(row["_group"], method)][dot_number]
+                    for transform_name, transformed in transforms(raw_pct).items():
+                        predictions[f"{method}:{transform_name}"] = transformed
+                observations.append({
+                    "dot_number": dot_number,
+                    "group": row["_group"],
+                    "bulk_measure": row["_measure"],
+                    "official_measure": page["measure"],
+                    "official_percentile": page["percentile"],
+                    "official_group_text": page["group_text"],
+                    "predictions": predictions,
+                })
+
+        observations.sort(key=lambda row: (row["group"], row["bulk_measure"], row["dot_number"]))
         method_errors: dict[str, list[float]] = defaultdict(list)
         for observation in observations:
             for name, predicted in observation["predictions"].items():
