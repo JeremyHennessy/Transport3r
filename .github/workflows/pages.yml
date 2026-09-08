@@ -26,6 +26,17 @@ jobs:
         with:
           node-version: 22
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Refresh official FMCSA source contract
+        run: python scripts/refresh_fmcsa.py --workers 6
+
+      - name: Validate source registry alignment
+        run: python scripts/validate_source_contract.py
+
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
@@ -98,8 +109,8 @@ jobs:
 
           health = json.loads(Path('/tmp/source-health.json').read_text())
           schemas = json.loads(Path('/tmp/source-schemas.json').read_text())
-          assert len(health.get('sources', [])) == 27, health
-          assert schemas.get('source_count') == 27, schemas.get('source_count')
+          assert len(health.get('sources', [])) == 36, health
+          assert schemas.get('source_count') == 36, schemas.get('source_count')
           assert schemas.get('field_count', 0) > 0, schemas.get('field_count')
           print({
               'hosted_source_count': len(health.get('sources', [])),
@@ -160,11 +171,11 @@ jobs:
           render_route overview '#/overview' 'Know the carrier before you price the risk.'
           render_route carriers '#/carriers' 'Nationwide carrier intelligence'
           render_route summary '#/carrier/3938496/summary' 'Underwriting evidence at a glance'
-          render_route fleet '#/carrier/3938496/fleet' 'Fleet evidence'
+          render_route fleet '#/carrier/3938496/fleet' 'Reported fleet exposure'
           grep -Fq '3C63RRGLXNG286232' /tmp/transport3r-ui/fleet.html
           render_route insurance '#/carrier/3938496/insurance' 'Coverage continuity'
           render_route sms '#/carrier/3938496/sms' 'Official output and Transport replay'
-          render_route sources '#/sources' 'All 27 configured FMCSA/DOT datasets'
+          render_route sources '#/sources' 'All 36 configured FMCSA/DOT datasets'
 
           echo "Rendered route smoke passed for overview, carriers, carrier summary, fleet, insurance, SMS and data sources."
 
