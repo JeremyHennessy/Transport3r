@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-"""Reconstruct exact Vehicle Maintenance measures for the full SMS population.
+"""Reconstruct Vehicle Maintenance percentile populations from current SMS inputs.
 
-This diagnostic streams the current monthly FMCSA SMS input rows through SODA3 CSV
-exports, performs the already validated v3.21 arithmetic locally at full precision,
-then compares candidate percentile rank transforms to live Public Passenger Carrier
-Vehicle Maintenance pages from the same SMS snapshot.
+The exact Vehicle Maintenance measure replay is already validated. This diagnostic now
+tests one documented population-membership hypothesis at a time. FMCSA's current Help
+Center states that a Vehicle Maintenance percentile requires at least five relevant
+vehicle inspections AND at least five inspections with Vehicle Maintenance violations.
 
-Nothing from this script is presented as a calculated property percentile until the
-rank transform is demonstrated against official live percentiles.
+Accordingly this run compares:
+1. the previously rejected broad population: every carrier with a valid VM measure/group;
+2. the documented data-sufficient population: carriers with 5+ VM violation inspections.
+
+It does not yet add the separate "recent violation within 1 year / latest inspection"
+condition. That remains the next isolated hypothesis if the 5+ violation filter alone
+does not reproduce official live percentiles.
 """
 
 from __future__ import annotations
@@ -36,16 +41,14 @@ VIOLATION_ID = "8mt8-2mdr"
 
 EXPECTED_RELEVANT_INSPECTIONS = 3_784_585
 EXPECTED_VM_VIOLATIONS = 5_130_333
+MIN_VM_VIOLATION_INSPECTIONS_FOR_PERCENTILE = 5
 
-# Carriers previously confirmed to expose current numeric Vehicle Maintenance
-# percentiles across safety-event groups. Pages are re-read on every diagnostic run;
-# no percentile/measure values are hard-coded.
 VERIFY_DOTS = [
-    "1868971", "2797021", "3739959", "4024810",  # 5-10 vehicle inspections
-    "787669", "2785715", "240318", "1322119",  # 11-20
-    "825084", "276423", "4092902", "2822783",  # 21-100
-    "1848503", "665732",                          # 101-500
-    "1002211",                                     # 501+
+    "1868971", "2797021", "3739959", "4024810",
+    "787669", "2785715", "240318", "1322119",
+    "825084", "276423", "4092902", "2822783",
+    "1848503", "665732",
+    "1002211",
 ]
 
 GROUPS = [
@@ -116,7 +119,13 @@ def safety_event_group(relevant_inspections: int) -> int | None:
     return None
 
 
-def build_exact_population() -> tuple[dict[str, float], dict[str, int], dict[str, int], dict[str, Any]]:
+def build_exact_population() -> tuple[
+    dict[str, float],
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    dict[str, Any],
+]:
     denominator_by_dot: dict[str, float] = defaultdict(float)
     relevant_count_by_dot: dict[str, int] = defaultdict(int)
 
@@ -141,8 +150,6 @@ def build_exact_population() -> tuple[dict[str, float], dict[str, int], dict[str
             f"expected {EXPECTED_RELEVANT_INSPECTIONS:,}, streamed {inspection_rows:,}"
         )
 
-    # Store one compact mutable pair per inspection that has one or more VM violations:
-    # [severity sum, time weight]. This avoids retaining all 5.1M source rows.
     violation_by_inspection: dict[tuple[str, str], list[float]] = {}
     violation_rows = 0
     missing_identity = 0
@@ -197,7 +204,8 @@ def build_exact_population() -> tuple[dict[str, float], dict[str, int], dict[str
 
     exact_measure_by_dot: dict[str, float] = {}
     group_by_dot: dict[str, int] = {}
-    group_population: dict[int, int] = defaultdict(int)
+    broad_group_population: dict[int, int] = defaultdict(int)
+    sufficient_group_population: dict[int, int] = defaultdict(int)
     for dot, denominator in denominator_by_dot.items():
         relevant_count = relevant_count_by_dot[dot]
         group = safety_event_group(relevant_count)
@@ -206,7 +214,9 @@ def build_exact_population() -> tuple[dict[str, float], dict[str, int], dict[str
         measure = numerator_by_dot.get(dot, 0.0) / denominator
         exact_measure_by_dot[dot] = measure
         group_by_dot[dot] = group
-        group_population[group] += 1
+        broad_group_population[group] += 1
+        if violation_inspection_count_by_dot.get(dot, 0) >= MIN_VM_VIOLATION_INSPECTIONS_FOR_PERCENTILE:
+            sufficient_group_population[group] += 1
 
     diagnostics = {
         "streamed_relevant_inspection_rows": inspection_rows,
@@ -214,9 +224,11 @@ def build_exact_population() -> tuple[dict[str, float], dict[str, int], dict[str
         "unique_vm_violation_inspections": len(violation_by_inspection),
         "capped_vm_inspections": capped_inspections,
         "carrier_measures": len(exact_measure_by_dot),
-        "group_population": dict(sorted(group_population.items())),
+        "broad_group_population": dict(sorted(broad_group_population.items())),
+        "data_sufficient_group_population": dict(sorted(sufficient_group_population.items())),
+        "data_sufficiency_rule": f"{MIN_VM_VIOLATION_INSPECTIONS_FOR_PERCENTILE}+ Vehicle Maintenance violation inspections",
     }
-    return exact_measure_by_dot, group_by_dot, violation_inspection_count_by_dot, diagnostics
+    return exact_measure_by_dot, group_by_dot, relevant_count_by_dot, violation_inspection_count_by_dot, diagnostics
 
 
 def fetch_page(dot_number: str) -> dict[str, Any] | None:
@@ -283,18 +295,52 @@ def summarize(errors: list[float]) -> dict[str, Any]:
     }
 
 
+def candidate_methods(exact_measure: float, group: int, maps: dict[tuple[str, int, str], dict[float, float]], population_name: str) -> dict[str, float]:
+    candidates: dict[str, float] = {}
+    for mode in ("min", "max", "average"):
+        raw = maps[(population_name, group, mode)][exact_measure]
+        for transform, value in {
+            "raw": raw,
+            "round": float(round(raw)),
+            "floor": float(math.floor(raw + 1e-12)),
+            "ceil": float(math.ceil(raw - 1e-12)),
+        }.items():
+            candidates[f"{mode}_{transform}"] = value
+    return candidates
+
+
+def rank_methods(comparisons: list[dict[str, Any]], population_key: str) -> list[dict[str, Any]]:
+    errors: dict[str, list[float]] = defaultdict(list)
+    for comparison in comparisons:
+        official = float(comparison["percentile"])
+        for method, candidate in comparison[population_key].items():
+            errors[method].append(candidate - official)
+    return sorted(
+        ({"method": method, **summarize(values)} for method, values in errors.items()),
+        key=lambda item: (item["mae"] if item["mae"] is not None else math.inf, item["max_abs"] if item["max_abs"] is not None else math.inf),
+    )
+
+
 def main() -> int:
     started = time.monotonic()
-    exact_measure_by_dot, group_by_dot, violation_count_by_dot, population_diag = build_exact_population()
+    exact_measure_by_dot, group_by_dot, relevant_count_by_dot, violation_count_by_dot, population_diag = build_exact_population()
 
-    measures_by_group: dict[int, list[float]] = defaultdict(list)
+    broad_measures_by_group: dict[int, list[float]] = defaultdict(list)
+    sufficient_measures_by_group: dict[int, list[float]] = defaultdict(list)
     for dot, measure in exact_measure_by_dot.items():
-        measures_by_group[group_by_dot[dot]].append(measure)
+        group = group_by_dot[dot]
+        broad_measures_by_group[group].append(measure)
+        if violation_count_by_dot.get(dot, 0) >= MIN_VM_VIOLATION_INSPECTIONS_FOR_PERCENTILE:
+            sufficient_measures_by_group[group].append(measure)
 
-    maps: dict[tuple[int, str], dict[float, float]] = {}
-    for group, measures in measures_by_group.items():
-        for mode in ("min", "max", "average"):
-            maps[(group, mode)] = percentile_map(measures, mode)
+    maps: dict[tuple[str, int, str], dict[float, float]] = {}
+    for population_name, by_group in (
+        ("broad", broad_measures_by_group),
+        ("data_sufficient", sufficient_measures_by_group),
+    ):
+        for group, measures in by_group.items():
+            for mode in ("min", "max", "average"):
+                maps[(population_name, group, mode)] = percentile_map(measures, mode)
 
     live_results: list[dict[str, Any]] = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
@@ -302,7 +348,6 @@ def main() -> int:
             if result:
                 live_results.append(result)
 
-    method_errors: dict[str, list[float]] = defaultdict(list)
     comparisons: list[dict[str, Any]] = []
     snapshots: set[str] = set()
     fetch_errors: list[dict[str, Any]] = []
@@ -317,50 +362,41 @@ def main() -> int:
         group = group_by_dot.get(dot)
         if exact_measure is None or group is None:
             continue
-        candidates: dict[str, float] = {}
-        for mode in ("min", "max", "average"):
-            raw = maps[(group, mode)][exact_measure]
-            for transform, value in {
-                "raw": raw,
-                "round": float(round(raw)),
-                "floor": float(math.floor(raw + 1e-12)),
-                "ceil": float(math.ceil(raw - 1e-12)),
-            }.items():
-                key = f"{mode}_{transform}"
-                candidates[key] = value
-                method_errors[key].append(value - float(live["percentile"]))
+        violation_count = violation_count_by_dot.get(dot, 0)
+        if violation_count < MIN_VM_VIOLATION_INSPECTIONS_FOR_PERCENTILE:
+            raise RuntimeError(f"Live numeric percentile target USDOT {dot} has only {violation_count} VM violation inspections in replay")
         comparisons.append({
             **live,
             "exact_measure": exact_measure,
             "display_measure_delta": exact_measure - float(live["measure"]),
             "group": group,
-            "relevant_inspections": next((count for d, count in [] if d == dot), None),
-            "violation_inspections": violation_count_by_dot.get(dot, 0),
-            "candidates": candidates,
+            "relevant_inspections": relevant_count_by_dot.get(dot, 0),
+            "violation_inspections": violation_count,
+            "broad_candidates": candidate_methods(exact_measure, group, maps, "broad"),
+            "data_sufficient_candidates": candidate_methods(exact_measure, group, maps, "data_sufficient"),
         })
 
-    ranking = sorted(
-        ({"method": method, **summarize(errors)} for method, errors in method_errors.items()),
-        key=lambda item: (item["mae"] if item["mae"] is not None else math.inf, item["max_abs"] if item["max_abs"] is not None else math.inf),
-    )
-
-    best = ranking[0] if ranking else None
+    broad_ranking = rank_methods(comparisons, "broad_candidates")
+    sufficient_ranking = rank_methods(comparisons, "data_sufficient_candidates")
     payload = {
         "status": "diagnostic_only",
         "elapsed_seconds": round(time.monotonic() - started, 2),
+        "hypothesis": "Vehicle Maintenance percentile ranking includes only carriers with 5+ inspections containing VM violations",
         "population": population_diag,
         "live_snapshots": sorted(snapshots),
         "verification_targets": len(VERIFY_DOTS),
         "numeric_live_comparisons": len(comparisons),
         "fetch_errors": fetch_errors,
-        "best_methods": ranking[:12],
-        "best_method": best,
+        "broad_population_best_methods": broad_ranking[:8],
+        "data_sufficient_population_best_methods": sufficient_ranking[:8],
+        "broad_best_method": broad_ranking[0] if broad_ranking else None,
+        "data_sufficient_best_method": sufficient_ranking[0] if sufficient_ranking else None,
         "comparisons": comparisons,
     }
     print(json.dumps(payload, indent=2), flush=True)
 
     if len(comparisons) < 8:
-        print("Insufficient live percentile comparisons to interpret the full-population rank.", file=sys.stderr)
+        print("Insufficient live percentile comparisons.", file=sys.stderr)
         return 2
     return 0
 
