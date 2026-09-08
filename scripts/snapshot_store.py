@@ -42,7 +42,7 @@ def source_state(dataset_id):
             'schema_sha256': digest(schema), 'rows_updated_at': metadata.get('rowsUpdatedAt'),
             'table_id': metadata.get('tableId')}
 
-def create_cut(root: pathlib.Path, date_label=None, snapshot_id=None, clean=False):
+def create_cut(root: pathlib.Path, date_label=None, snapshot_id=None, clean=False, *, schema_version=2, acquisition_kind='CURRENT_PUBLIC_SOURCE'):
     started = now()
     if clean:
         raise ValueError('--clean is disabled: existing cuts are retained. Start a new snapshot ID.')
@@ -57,8 +57,8 @@ def create_cut(root: pathlib.Path, date_label=None, snapshot_id=None, clean=Fals
     if output.parent != root:
         raise ValueError('Snapshot path escaped its root')
     output.mkdir(exist_ok=False)
-    run = {'schema_version': 2, 'snapshot_id': identifier, 'snapshot_date': started[:10],
-           'started_at': started, 'acquisition_kind': 'CURRENT_PUBLIC_SOURCE',
+    run = {'schema_version': schema_version, 'snapshot_id': identifier, 'snapshot_date': started[:10],
+           'started_at': started, 'acquisition_kind': acquisition_kind,
            'historical_reconstruction': False}
     write_once(output / 'run.json', run)
     return output, run

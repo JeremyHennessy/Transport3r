@@ -1,0 +1,537 @@
+{
+  "note": "Synthetic diagnostic fixtures only; liveOos is separately labelled public FMCSA evidence. Neither is model outcome validation.",
+  "results": [
+    {
+      "name": "no sources",
+      "score": null,
+      "band": "Insufficient data",
+      "confidence": 15,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "empty successful MOTUS query alone",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "empty crash query alone",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 0,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "real-schema OOS flag with one OOS inspection",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 0,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "recognized alias control: one OOS inspection",
+      "score": 45,
+      "band": "Elevated signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 45,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "250 child inspections against 500 parent inspections",
+      "score": 22.5,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 22.5,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "rescinded historical OOS order only",
+      "score": 95,
+      "band": "Severe signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 95,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "New Entrant OOS order history is present and requires current-effect review."
+      ]
+    },
+    {
+      "name": "active historical OOS order only",
+      "score": 95,
+      "band": "Severe signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 95,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "New Entrant OOS order history is present and requires current-effect review."
+      ]
+    },
+    {
+      "name": "old fatal crash",
+      "score": 10,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 10,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "1 loaded crash record reports one or more fatalities."
+      ]
+    },
+    {
+      "name": "recent fatal crash",
+      "score": 10,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 10,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "1 loaded crash record reports one or more fatalities."
+      ]
+    },
+    {
+      "name": "truncated fatal crash slice",
+      "score": 10,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 10,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": null,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "1 loaded crash record reports one or more fatalities."
+      ]
+    },
+    {
+      "name": "stale compact MCS150 date",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "stale ISO MCS150 date",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 30,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": null,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": [
+        "MCS-150 carrier report is approximately 80 months old; exposure values may be stale."
+      ]
+    },
+    {
+      "name": "complete passenger SMS fixture",
+      "score": 30,
+      "band": "Moderate signal",
+      "confidence": 100,
+      "components": [
+        {
+          "id": "sms",
+          "score": 50,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 0,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": 0,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "property output masks available passenger output",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 55,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 0,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": 0,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "missing SMS with unchanged other components",
+      "score": 0,
+      "band": "Lower signal",
+      "confidence": 55,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": 0,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": 0,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    },
+    {
+      "name": "coverage history delta only",
+      "score": 6.3,
+      "band": "Lower signal",
+      "confidence": 40,
+      "components": [
+        {
+          "id": "sms",
+          "score": null,
+          "configured_weight": 0.6
+        },
+        {
+          "id": "events",
+          "score": null,
+          "configured_weight": 0.2
+        },
+        {
+          "id": "enforcement",
+          "score": 0,
+          "configured_weight": 0.15
+        },
+        {
+          "id": "coverage",
+          "score": 25,
+          "configured_weight": 0.05
+        }
+      ],
+      "hardFlags": []
+    }
+  ],
+  "liveOos": {
+    "dot_number": "3938496",
+    "inspection_count": 3,
+    "violation_rows": 15,
+    "source_oos_rows": 4,
+    "source_oos_inspections": 2,
+    "application_oos_count": 0,
+    "inspection_dates": [
+      "20240830",
+      "20240418",
+      "20231003"
+    ]
+  },
+  "dateParser": [
+    {
+      "input": "20240830",
+      "result": null
+    },
+    {
+      "input": "08302024",
+      "result": "2024-08-30T00:00:00.000Z"
+    },
+    {
+      "input": "20-OCT-23",
+      "result": "2023-10-20T03:00:00.000Z"
+    }
+  ]
+}

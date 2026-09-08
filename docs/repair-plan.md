@@ -25,6 +25,8 @@ The append-only raw acquisition writer and offline verifier now establish a curr
 
 ## Outstanding release gates
 
+The next offline repair adds a seven-source cohort acquisition and acquisition-time feature builder, with a 62-carrier live engineering pilot. It rejects backdated month ends, preserves unknown rates/labels and retains each SMS population separately. The frozen v0.1 model card, diagnostic results and exact source identities now live under `research/`. See [as-of pipeline and remaining temporal gates](asof-research-panel.md). This is not completion of historical training data or model validation.
+
 This initial repair does not certify Phase 1 complete or make TRI releasable. Browser requests remain bounded (500 inspections, 350 crashes, bounded child batches); their returned history is not a standardized current-risk observation window. Live paging is not a transactional historical snapshot and upstream changes during paging remain possible. [Socrata paging guidance](https://dev.socrata.com/docs/paging.html).
 
 1. Resolve the approved visual SHA and approval record before scoring presentation work.

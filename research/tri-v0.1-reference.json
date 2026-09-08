@@ -1,0 +1,39 @@
+{
+  "model_id": "TRI_0_1_RESEARCH",
+  "version": "0.1",
+  "status": "FROZEN_UNRELEASED_RESEARCH_REFERENCE",
+  "reference_commit": "7d61b32268e089fb0da090628641ef2b5f6bad0a",
+  "reference_pr": 17,
+  "production_model": false,
+  "formula_changed": false,
+  "files": {
+    "src/transportScore.ts": {
+      "git_blob": "68fa1c8c8ff179f4c211df8a8ddb3cbe8da380cc",
+      "sha256": "18f98d55c8612309c036c4ef62c8d3847d1644854b24a5a9d53fcdb40c609b17"
+    },
+    "src/carrierEvidence.ts": {
+      "git_blob": "701cb17341b00fb8fa1123a82570a68d7db83fd6",
+      "sha256": "6eee1b4e59f659d0557c0c53d3632970129adb181068c1beb198a3b8a9b8069d"
+    },
+    "src/datahub.ts": {
+      "git_blob": "3e955483c2884f99d6057511e8d31b712339778b",
+      "sha256": "060f99a6fd0599aaa4c488c567c55294052c2d4917799931d9cf58d5a27f701a"
+    },
+    "src/fleetIntegrity.ts": {
+      "git_blob": "d21ff7bf4fa40600df3b4c3c283d40ab45ffa9e1",
+      "sha256": "c6383598a35193e7ea6b3a90f30cd2dc03a092937d95e2fbf7dc83e6748cebd6"
+    }
+  },
+  "evaluation_status": {
+    "deterministic_diagnostics": "CAPTURED_17_CASES",
+    "large_sample_distribution": "NOT_ESTABLISHED",
+    "subgroup_outcomes": "NOT_ESTABLISHED",
+    "out_of_time_validation": "NOT_ESTABLISHED"
+  },
+  "release_blockers": [
+    "Known field and lifecycle defects in frozen implementation",
+    "Missing-component reweighting changes score semantics",
+    "No aligned historical panel or mature outcome labels",
+    "Unresolved approved UI checkpoint 25157fb"
+  ]
+}
