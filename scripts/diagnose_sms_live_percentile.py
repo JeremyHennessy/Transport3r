@@ -3,14 +3,15 @@
 
 The public bulk passenger file exposes measures and safety-event counts but currently
 leaves percentile values blank. This diagnostic uses that bulk file as the ranking
-population and scrapes a bounded sample of official live passenger BASIC pages for
-numeric July 31, 2026 percentile values.
+population and fetches a bounded, stratified sample of official live passenger BASIC
+pages for numeric July 31, 2026 percentile values.
 
 Diagnostic only: exits zero and never promotes a percentile formula by itself.
 """
 
 from __future__ import annotations
 
+import concurrent.futures
 import html.parser
 import json
 import math
@@ -52,7 +53,7 @@ class TextExtractor(html.parser.HTMLParser):
         return " ".join(self.parts)
 
 
-def fetch(url: str, timeout: int = 45, attempts: int = 3) -> bytes:
+def fetch(url: str, timeout: int = 30, attempts: int = 3) -> bytes:
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
@@ -62,7 +63,7 @@ def fetch(url: str, timeout: int = 45, attempts: int = 3) -> bytes:
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             if attempt < attempts:
-                time.sleep(min(4.0, 0.75 * (2 ** (attempt - 1))))
+                time.sleep(min(2.0, 0.5 * (2 ** (attempt - 1))))
     assert last_error is not None
     raise last_error
 
@@ -80,7 +81,7 @@ def number(value: Any) -> float | None:
 def passenger_rows() -> list[dict[str, Any]]:
     fields = ["dot_number", RULE["measure"], RULE["event_count"], RULE["violation_inspections"]]
     params = urllib.parse.urlencode({"$select": ",".join(fields), "$limit": "50000"})
-    payload = json.loads(fetch(f"{DATAHUB}/{PASSENGER_OUTPUT_ID}.json?{params}").decode("utf-8"))
+    payload = json.loads(fetch(f"{DATAHUB}/{PASSENGER_OUTPUT_ID}.json?{params}", timeout=45, attempts=3).decode("utf-8"))
     if not isinstance(payload, list):
         raise RuntimeError("Passenger bulk output returned non-array JSON")
     return payload
@@ -98,7 +99,7 @@ def event_group(row: dict[str, Any]) -> int | None:
 
 def page_result(dot_number: str) -> dict[str, Any] | None:
     url = f"{SMS}/{dot_number}/BASIC/{RULE['page']}"
-    raw = fetch(url).decode("utf-8", errors="replace")
+    raw = fetch(url, timeout=12, attempts=2).decode("utf-8", errors="replace")
     parser = TextExtractor()
     parser.feed(raw)
     text = re.sub(r"\s+", " ", parser.text())
@@ -118,7 +119,7 @@ def page_result(dot_number: str) -> dict[str, Any] | None:
     }
 
 
-def quantile_sample(rows: list[dict[str, Any]], per_group: int = 8) -> list[dict[str, Any]]:
+def quantile_sample(rows: list[dict[str, Any]], per_group: int = 4) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
     by_group: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
@@ -175,6 +176,16 @@ def summarize(errors: list[float]) -> dict[str, Any]:
     }
 
 
+def fetch_sample(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | None, str | None]:
+    dot_number = str(row.get("dot_number") or "").strip()
+    if not dot_number:
+        return row, None, "missing dot number"
+    try:
+        return row, page_result(dot_number), None
+    except Exception as exc:  # noqa: BLE001
+        return row, None, f"{type(exc).__name__}: {exc}"
+
+
 def main() -> int:
     rows = passenger_rows()
     population: dict[int, list[float]] = defaultdict(list)
@@ -187,25 +198,28 @@ def main() -> int:
     samples = quantile_sample(rows)
     live: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
-    for row in samples:
-        dot_number = str(row.get("dot_number") or "").strip()
-        if not dot_number:
-            continue
-        try:
-            result = page_result(dot_number)
-        except Exception as exc:  # noqa: BLE001
-            failures.append({"dot_number": dot_number, "error": f"{type(exc).__name__}: {exc}"})
-            continue
-        if result is None:
-            continue
-        bulk_measure = number(row.get(RULE["measure"]))
-        group = event_group(row)
-        if bulk_measure is None or group is None:
-            continue
-        result["bulk_measure"] = bulk_measure
-        result["group"] = group
-        result["measure_delta"] = result["measure"] - bulk_measure
-        live.append(result)
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        futures = [pool.submit(fetch_sample, row) for row in samples]
+        for future in concurrent.futures.as_completed(futures):
+            row, result, error = future.result()
+            dot_number = str(row.get("dot_number") or "").strip()
+            if error:
+                failures.append({"dot_number": dot_number, "error": error})
+                continue
+            if result is None:
+                continue
+            bulk_measure = number(row.get(RULE["measure"]))
+            group = event_group(row)
+            if bulk_measure is None or group is None:
+                continue
+            result["bulk_measure"] = bulk_measure
+            result["group"] = group
+            result["measure_delta"] = result["measure"] - bulk_measure
+            live.append(result)
+
+    live.sort(key=lambda row: (row["group"], row["bulk_measure"], row["dot_number"]))
+    failures.sort(key=lambda row: row["dot_number"])
 
     method_errors: dict[str, list[float]] = defaultdict(list)
     comparisons: list[dict[str, Any]] = []
