@@ -5,7 +5,9 @@ on:
     branches: [fix/fleet-exposure-20260908]
     paths:
       - 'data/fmcsa_sources.json'
+      - 'src/carrierEvidence.ts'
       - 'scripts/refresh_fmcsa.py'
+      - 'scripts/validate_fmcsa_data_contract.py'
       - '.github/workflows/probe-fmcsa-branch.yml'
   workflow_dispatch:
 
@@ -22,6 +24,8 @@ jobs:
           python-version: '3.12'
       - name: Probe official DOT DataHub metadata and one-row availability
         run: python scripts/refresh_fmcsa.py --workers 6
+      - name: Validate source joins, lineage and normalization
+        run: python scripts/validate_fmcsa_data_contract.py | tee public/data/fmcsa-data-contract-audit.json
       - name: Show BOC3 daily difference schema
         run: |
           python - <<'PY'
@@ -37,3 +41,4 @@ jobs:
           path: |
             public/data/source-health.json
             public/data/source-schemas.json
+            public/data/fmcsa-data-contract-audit.json
