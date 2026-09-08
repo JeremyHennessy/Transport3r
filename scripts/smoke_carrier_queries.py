@@ -10,6 +10,10 @@ The fleet contract is checked explicitly because the Inspection Per Unit file us
 INSP_UNIT_* field names rather than generic VIN/MAKE/LICENSE names. The carrier
 directory query is also checked because its fleet filter/sort uses FMCSA's published
 single-letter FLEETSIZE code rather than treating the text POWER_UNITS field as numeric.
+
+All 27 configured source families are covered: current census/safety, inspection
+children, MOTUS full/history, MOTUS daily differences, monthly SMS inputs/outputs,
+and New Entrant OOS. This guards the broader Data Sources and lazy Carrier 360 UI.
 """
 
 from __future__ import annotations
@@ -45,11 +49,19 @@ DIRECT_DOT_SOURCES = {
     "yu5v-wbh6": "MOTUS AuthHist",
     "c5y8-a4uz": "MOTUS Insurance",
     "3uet-3z4i": "MOTUS Insurance History",
+    "6snj-ed7q": "MOTUS BOC3",
     "wb4f-neki": "MOTUS RevokeSuspend",
+    "nakq-58th": "MOTUS Carrier Daily Difference",
+    "dm5j-zc6c": "MOTUS AuthHist Daily Difference",
+    "x96h-evps": "MOTUS Insurance Daily Difference",
+    "xe5s-wca7": "MOTUS Insurance History Daily Difference",
+    "e67p-xyd5": "MOTUS RevokeSuspend Daily Difference",
     "kjg3-diqy": "SMS Input Census",
     "rbkj-cgst": "SMS Input Inspection",
     "4wxs-vbns": "SMS Input Crash",
     "8mt8-2mdr": "SMS Input Violation",
+    "m3ry-qcip": "SMS AB Pass",
+    "h3zn-uid9": "SMS C Pass",
     "4y6x-dmck": "SMS AB PassProperty",
     "h9zy-gjn8": "SMS C PassProperty",
     "p2mt-9ige": "New Entrant OOS",
@@ -58,6 +70,7 @@ DIRECT_DOT_SOURCES = {
 INSPECTION_CHILD_SOURCES = {
     "wt8s-2hbx": "Inspection Units",
     "876r-jsdb": "Inspection Violations",
+    "5qik-smay": "Inspection Special Studies",
     "qbt8-7vic": "Inspection Citations",
 }
 
@@ -119,9 +132,12 @@ def main() -> int:
     registry = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     schemas = {source["id"]: source for source in registry["sources"]}
 
-    missing_schemas = sorted((set(DIRECT_DOT_SOURCES) | set(INSPECTION_CHILD_SOURCES)) - set(schemas))
+    expected_sources = set(DIRECT_DOT_SOURCES) | set(INSPECTION_CHILD_SOURCES)
+    missing_schemas = sorted(expected_sources - set(schemas))
     if missing_schemas:
         raise RuntimeError(f"Missing schema registry entries: {', '.join(missing_schemas)}")
+    if len(expected_sources) != 27:
+        raise RuntimeError(f"Smoke source registry expected 27 configured datasets, found {len(expected_sources)}")
 
     fleet_schema_fields = {str(column.get("field_name") or "") for column in schemas["wt8s-2hbx"].get("columns", [])}
     missing_fleet_fields = sorted(FLEET_FIELDS - fleet_schema_fields)
@@ -187,6 +203,7 @@ def main() -> int:
 
     print(json.dumps({
         "status": "ok",
+        "source_contract_count": len(expected_sources),
         "dot_number": dot_number,
         "inspection_id": inspection_id,
         "directory_query": {

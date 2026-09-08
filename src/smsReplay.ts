@@ -48,10 +48,16 @@ function violationMatchesBasic(row: DataRow, basic: InspectionMeasureBasicKey): 
 }
 
 function officialOutputRow(evidence: CarrierEvidence): DataRow | null {
-  const ab = evidence.slices.smsABProperty?.rows ?? [];
-  if (ab.length) return ab[0];
-  const c = evidence.slices.smsCProperty?.rows ?? [];
-  return c[0] ?? null;
+  const candidates = [
+    evidence.slices.smsABProperty?.rows ?? [],
+    evidence.slices.smsCProperty?.rows ?? [],
+    evidence.slices.smsABPass?.rows ?? [],
+    evidence.slices.smsCPass?.rows ?? [],
+  ];
+  for (const rows of candidates) {
+    if (rows.length) return rows[0];
+  }
+  return null;
 }
 
 function officialMeasure(evidence: CarrierEvidence, basic: InspectionMeasureBasicKey): number | null {
