@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Compare candidate SMS percentile rank transforms to live FMCSA passenger pages.
 
-The public bulk passenger file exposes measures and safety-event counts but currently
-leaves percentile values blank. This diagnostic uses that bulk file as the ranking
-population and fetches a bounded, stratified sample of official live passenger BASIC
-pages for numeric July 31, 2026 percentile values.
+The public passenger bulk file exposes measures and safety-event counts but currently
+leaves percentile values blank. We therefore use passenger rows only to select public
+carriers whose live SMS pages expose percentiles. The ranking population is built from
+the two PassProperty output files (AB + C), which together cover the current active
+property/passenger SMS carrier universe. This matters because FMCSA safety-event groups
+are not separate industry/commodity ranking universes.
 
 Diagnostic only: exits zero and never promotes a percentile formula by itself.
 """
@@ -27,6 +29,7 @@ DATAHUB = "https://data.transportation.gov/resource"
 SMS = "https://ai.fmcsa.dot.gov/SMS/Carrier"
 USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 PASSENGER_OUTPUT_ID = "m3ry-qcip"
+RANKING_OUTPUT_IDS = ("4y6x-dmck", "h9zy-gjn8")
 EXPECTED_SNAPSHOT = "July 31, 2026"
 
 RULE = {
@@ -78,13 +81,40 @@ def number(value: Any) -> float | None:
         return None
 
 
-def passenger_rows() -> list[dict[str, Any]]:
-    fields = ["dot_number", RULE["measure"], RULE["event_count"], RULE["violation_inspections"]]
+def datahub_rows(source_id: str, fields: list[str]) -> list[dict[str, Any]]:
     params = urllib.parse.urlencode({"$select": ",".join(fields), "$limit": "50000"})
-    payload = json.loads(fetch(f"{DATAHUB}/{PASSENGER_OUTPUT_ID}.json?{params}", timeout=45, attempts=3).decode("utf-8"))
+    payload = json.loads(fetch(f"{DATAHUB}/{source_id}.json?{params}", timeout=45, attempts=3).decode("utf-8"))
     if not isinstance(payload, list):
-        raise RuntimeError("Passenger bulk output returned non-array JSON")
+        raise RuntimeError(f"{source_id} returned non-array JSON")
+    if len(payload) >= 50_000:
+        raise RuntimeError(f"{source_id} hit the 50,000-row diagnostic limit; paginate before trusting ranks")
     return payload
+
+
+def passenger_rows() -> list[dict[str, Any]]:
+    return datahub_rows(PASSENGER_OUTPUT_ID, ["dot_number", RULE["measure"], RULE["event_count"], RULE["violation_inspections"]])
+
+
+def ranking_rows() -> list[dict[str, Any]]:
+    fields = ["dot_number", RULE["measure"], RULE["event_count"]]
+    rows: list[dict[str, Any]] = []
+    for source_id in RANKING_OUTPUT_IDS:
+        rows.extend(datahub_rows(source_id, fields))
+
+    # Operation classes A/B and C are mutually exclusive, but fail loudly if the
+    # current output contract unexpectedly duplicates a carrier across files.
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for row in rows:
+        dot = str(row.get("dot_number") or "").strip()
+        if not dot:
+            continue
+        if dot in seen:
+            duplicates.append(dot)
+        seen.add(dot)
+    if duplicates:
+        raise RuntimeError(f"Unexpected duplicate USDOTs across ranking outputs: {duplicates[:10]}")
+    return rows
 
 
 def event_group(row: dict[str, Any]) -> int | None:
@@ -126,6 +156,9 @@ def quantile_sample(rows: list[dict[str, Any]], per_group: int = 4) -> list[dict
         measure = number(row.get(RULE["measure"]))
         violations = number(row.get(RULE["violation_inspections"]))
         group = event_group(row)
+        # FMCSA does not publish a Vehicle Maintenance percentile until at least
+        # five relevant inspections resulted in a VM violation. This filter is
+        # only for selecting verification pages; it is not applied to the rank population.
         if measure is None or group is None or violations is None or violations < 5:
             continue
         by_group[group].append(row)
@@ -187,15 +220,17 @@ def fetch_sample(row: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any] | 
 
 
 def main() -> int:
-    rows = passenger_rows()
+    candidates = passenger_rows()
+    all_rank_rows = ranking_rows()
+
     population: dict[int, list[float]] = defaultdict(list)
-    for row in rows:
+    for row in all_rank_rows:
         group = event_group(row)
         measure = number(row.get(RULE["measure"]))
         if group is not None and measure is not None:
             population[group].append(measure)
 
-    samples = quantile_sample(rows)
+    samples = quantile_sample(candidates)
     live: list[dict[str, Any]] = []
     failures: list[dict[str, Any]] = []
 
@@ -229,7 +264,7 @@ def main() -> int:
             maps[(group, mode)] = percentile_map(measures, mode)
 
     for row in live:
-        candidates: dict[str, float] = {}
+        candidates_by_method: dict[str, float] = {}
         for mode in ("min", "max", "average"):
             raw = maps[(row["group"], mode)].get(row["bulk_measure"])
             if raw is None:
@@ -241,9 +276,9 @@ def main() -> int:
                 "ceil": float(math.ceil(raw - 1e-12)),
             }.items():
                 key = f"{mode}_{transform}"
-                candidates[key] = value
+                candidates_by_method[key] = value
                 method_errors[key].append(value - row["percentile"])
-        comparisons.append({**row, "candidates": candidates})
+        comparisons.append({**row, "candidates": candidates_by_method})
 
     ranking = sorted(
         ({"method": method, **summarize(errors)} for method, errors in method_errors.items()),
@@ -252,7 +287,8 @@ def main() -> int:
     print(json.dumps({
         "status": "diagnostic_only",
         "snapshot": EXPECTED_SNAPSHOT,
-        "passenger_bulk_rows": len(rows),
+        "passenger_candidate_rows": len(candidates),
+        "ranking_rows": len(all_rank_rows),
         "sample_candidates": len(samples),
         "live_numeric_percentiles": len(live),
         "fetch_failures": failures,
