@@ -71,6 +71,8 @@ export type CarrierEvidenceMode = 'summary' | 'safety' | 'fleet' | 'authority' |
 
 export type CarrierEvidence = {
   dotNumber: string;
+  completeAll?: boolean;
+  completeAttempted?: boolean;
   inspectionId?: string;
   mode: CarrierEvidenceMode;
   loadedAt: string;

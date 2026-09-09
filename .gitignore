@@ -5,6 +5,7 @@ dist/
 
 # Full FMCSA raw snapshots are warehouse inputs, never repository history.
 warehouse/raw/
+warehouse/nationwide/
 warehouse/staging/
 warehouse/curated/
 warehouse/private/

@@ -9,26 +9,26 @@
  window.fetch=async(input,options)=>{
   const text=String(input);
   if(text.includes('vpic.nhtsa.dot.gov')){decoded++;return failDecode?new Response('{}',{status:503}):Response.json({Results:[{VIN:vin,ErrorCode:'1',ErrorText:'Check digit warning',Make:'RAM',ModelYear:'2023',GVWR:'Class 3'}]});}
-  if(text.includes('data.transportation.gov/api/views/')){const id=text.split('/').at(-1);return Response.json({id,rowsUpdatedAt:changing?stamp++:1,viewLastModified:1});}
+  if(text.includes('data.transportation.gov/api/views/')){const id=text.split('/').at(-1).replace('.json','');return Response.json({id,rowsUpdatedAt:changing?stamp++:1,viewLastModified:1,tableId:1,columns:[]});}
   if(!text.includes('data.transportation.gov/resource/'))return original(input,options);
   const url=new URL(text),sid=url.pathname.split('/').at(-1).replace('.json',''),where=url.searchParams.get('$where')??'';
   if(sid==='az4n-8mr2')return Response.json([window.__carrierFixtures.find(row=>row.dot_number==='80806')]);
   if(where.includes('between')){
    ranges.push(where);if(delay&&where.includes('20240101'))await sleep(500);
-   if(url.searchParams.has('$select'))return Response.json([{count:sid==='fx4q-ay7w'?'501':'0'}]);
-   return Response.json(sid==='fx4q-ay7w'?[{dot_number:'80806',inspection_id:'900001',insp_date:where.includes('20240301')?'20240315':'20240229',report_number:'WINDOW-REPORT'}]:[]);
+   if(url.searchParams.get('$select')?.includes('count'))return Response.json([{count:sid==='fx4q-ay7w'?'501':'0'}]);
+   return Response.json(sid==='fx4q-ay7w'?Array.from({length:501},(_,i)=>({transport_row_id:String(i),dot_number:'80806',inspection_id:String(900001+i),insp_date:where.includes('20240301')?'20240315':'20240229',report_number:'WINDOW-REPORT'})):[]);
   }
-  if(url.searchParams.has('$select'))return Response.json([{count:'1'}]);
+  if(url.searchParams.get('$select')?.includes('count'))return Response.json([{count:['fx4q-ay7w','wt8s-2hbx'].includes(sid)?'1':'0'}]);
   if(sid==='fx4q-ay7w')return Response.json([{dot_number:'80806',inspection_id:'900001',insp_date:'20240229',report_number:'PARENT'}]);
-  if(sid==='wt8s-2hbx')return Response.json([{inspection_id:'900001',insp_unit_vehicle_id_number:vin}]);
+  if(sid==='wt8s-2hbx')return Response.json([{transport_row_id:'unit1',inspection_id:'900001',insp_unit_vehicle_id_number:vin}]);
   return Response.json([]);
  };
  try{
   location.hash='#/carrier/80806/safety';await wait(()=>panel());setDate(0,'2024-01-01');setDate(1,'2024-03-31');apply();
   await wait(()=>panel().textContent.includes('501 source rows'));
-  check(ranges.length===4&&ranges.every(range=>range.includes("between '20240101' and '20240331'")),'Date controls send matching inclusive bounds to rows and counts');
+  check(ranges.length===3&&ranges.every(range=>range.includes("between '20240101' and '20240331'")),'Date controls send matching inclusive bounds to rows and counts');
   check(panel().querySelector('a[href*="/inspection/900001"]'),'Window records retain direct inspection links');
-  check(panel().textContent.includes('2024-01')&&panel().textContent.includes('0+')&&panel().textContent.includes('lower bounds'),'Partial monthly counts do not turn unloaded months into exact zeros');
+  check(panel().textContent.includes('2024-01')&&!panel().textContent.includes('0+')&&panel().textContent.includes('Counts cover returned records'),'Complete monthly counts cover all 501 source records');
   changing=true;apply();await wait(()=>panel().textContent.includes('Source changed'));check(!panel().textContent.includes('501 source rows'),'Changed publication suppresses mixed window results');
   changing=false;apply();await wait(()=>panel().textContent.includes('501 source rows'));check(true,'Repeated Apply refetches and recovers source results');
   delay=true;apply();await sleep(30);setDate(0,'2024-03-01');apply();await wait(()=>panel().textContent.includes('Applied window: 2024-03-01'));await sleep(600);check(!panel().textContent.includes('Applied window: 2024-01-01'),'Late window response cannot overwrite a newer selection');

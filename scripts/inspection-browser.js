@@ -6,17 +6,19 @@
  const check=(yes,label)=>{if(!yes)throw Error(label);result.checks.push(label);};
  const childRequests=[];let unitFailure=false;
  window.fetch=async(input,options)=>{
+  if(String(input).includes('/api/views/'))return Response.json({id:String(input).split('/').at(-1).replace('.json',''),rowsUpdatedAt:1,tableId:1,columns:[]});
   if(!String(input).includes('data.transportation.gov/resource/'))return original(input,options);
   const url=new URL(input),sid=url.pathname.split('/').at(-1).replace('.json',''),where=url.searchParams.get('$where')??'';
   if(sid==='az4n-8mr2')return Response.json([window.__carrierFixtures.find(r=>r.dot_number==='80806')]);
-  const id=where.match(/(?:in\s*\(\s*'?)(\d+)/)?.[1]??'900001';
+  const id=where.match(/(?:in\s*\(\s*'?|=')(\d+)/)?.[1]??'900001';
   if(sid==='fx4q-ay7w'){
    if(id==='900004')await sleep(500);
    return Response.json(id==='900003'?[]:[{inspection_id:id,dot_number:id==='900002'?'2':'80806',insp_date:'20230901',report_number:`REPORT-${id}`,report_state:'TX',insp_level_id:'1'}]);
   }
   childRequests.push({sid,id});
   if(sid==='wt8s-2hbx'&&unitFailure)return new Response('{}',{status:503});
-  if(sid==='wt8s-2hbx')return Response.json([{inspection_id:id,insp_unit_vehicle_id_number:'3C63RRGLXNG286232',insp_unit_make:'RAM'}]);
+  if(url.searchParams.get('$select')?.includes('count'))return Response.json([{count:sid==='wt8s-2hbx'?'1':'0'}]);
+  if(sid==='wt8s-2hbx')return Response.json([{transport_row_id:'unit1',inspection_id:id,insp_unit_vehicle_id_number:'3C63RRGLXNG286232',insp_unit_make:'RAM'}]);
   return Response.json([]);
  };
  try{

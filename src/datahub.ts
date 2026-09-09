@@ -29,6 +29,7 @@ export type SchemaRegistry = {
 
 export type DataSlice = {
   sourceId: string;
+  sourcePublication?: string;
   rows: DataRow[];
   total: number | null;
   truncated: boolean;
