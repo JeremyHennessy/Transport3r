@@ -143,6 +143,9 @@ jobs:
           render_route insurance '#/carrier/3938496/insurance' 'Coverage continuity'
           render_route sms '#/carrier/3938496/sms' 'Official output and Transport replay'
           render_route sources '#/sources' 'All 36 configured FMCSA/DOT datasets'
+          render_route inspection '#/carrier/3938496/inspection/82574029' 'Retrieved directly by inspection ID'
+          render_route vin '#/carrier/3938496/vin/3C63RRGLXPG628183?inspection=82574029' 'Observed vehicle evidence'
+          grep -Fq '#/carrier/3938496/inspection/82574029' /tmp/transport3r-ui/vin.html
 
           echo "Rendered route smoke passed for overview, carriers, carrier summary, fleet, insurance, SMS and data sources."
 

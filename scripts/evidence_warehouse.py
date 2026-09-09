@@ -8,6 +8,7 @@ import re
 import sqlite3
 
 from cohort_snapshot import PROFILES, ROOT, hash_file, load_verified, source_dot
+from inspection_children import PARENT, parent_index
 from snapshot_store import digest, now, write_once
 from verify_snapshot import timestamp
 
@@ -66,7 +67,7 @@ def connect(db, writable=False):
     return connection
 
 
-def insert_source(connection, folder, cut_id, source, rows):
+def insert_source(connection, folder, cut_id, source, rows, parents=None):
     sid = source['id']
     lineage_text = (folder/source['lineage']).read_bytes().decode('utf-8')
     if hashlib.sha256(lineage_text.encode()).hexdigest() != source['lineage_sha256']:
@@ -74,7 +75,7 @@ def insert_source(connection, folder, cut_id, source, rows):
     connection.execute('INSERT INTO sources VALUES (?,?,?,?,?,?)',
                        (cut_id,sid,len(rows),digest(rows),lineage_text,source['lineage_sha256']))
     connection.executemany('INSERT INTO records VALUES (?,?,?,?,?,?)',
-        ((cut_id,sid,i,row['source_row_id'],source_dot(sid,row),encode(row)) for i,row in enumerate(rows)))
+        ((cut_id,sid,i,row['source_row_id'],source_dot(sid,row,parents),encode(row)) for i,row in enumerate(rows)))
 
 
 def verify_cut(connection, cut_id):
@@ -99,6 +100,8 @@ def verify_cut(connection, cut_id):
     if {row['source_id'] for row in sources} != set(PROFILES[profile]):
         raise ValueError('Stored required sources are incomplete')
     expected = {row['id']: row for row in manifest['datasets']}
+    parents = parent_index([json.loads(r[0]) for r in connection.execute(
+        'SELECT payload FROM records WHERE cut_id=? AND source_id=? ORDER BY ordinal',(cut_id,PARENT))]) if profile=='underwriting_evidence_v2' else None
     counts = {}
     for source in sources:
         sid = source['source_id']
@@ -109,7 +112,7 @@ def verify_cut(connection, cut_id):
         if len(rows) != source['row_count'] or len(rows) != expected[sid]['row_count'] or digest(rows) != source['rows_sha256']:
             raise ValueError('Stored source row count/hash differs')
         for i,(record,row) in enumerate(zip(records,rows)):
-            if record['ordinal'] != i or record['dot'] != source_dot(sid,row) or record['dot'] not in members or record['source_row_id'] != row['source_row_id']:
+            if record['ordinal'] != i or record['dot'] != source_dot(sid,row,parents) or record['dot'] not in members or record['source_row_id'] != row['source_row_id']:
                 raise ValueError('Stored record index differs from raw identity')
         counts[sid] = len(rows)
     return {'status':'VERIFIED','cut_id':cut_id,'profile':profile,'carriers':len(members),
@@ -142,8 +145,9 @@ def promote(folder, db=DEFAULT_DB):
             (cut_id,manifest_hash,manifest_text,cohort_text,manifest['cohort_sha256'],manifest.get('source_profile','baseline'),
              manifest['completed_at'],time_us(manifest['completed_at']),now()))
         connection.executemany('INSERT INTO members VALUES (?,?)',((cut_id,dot) for dot in cohort['dots']))
+        parents = parent_index(data[PARENT]) if manifest.get('source_profile')=='underwriting_evidence_v2' else None
         for source in manifest['datasets']:
-            insert_source(connection,folder,cut_id,source,data[source['id']])
+            insert_source(connection,folder,cut_id,source,data[source['id']],parents)
         result = verify_cut(connection,cut_id)
         connection.commit()
         return {**result,'promotion':'INSERTED'}

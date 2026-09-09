@@ -102,10 +102,10 @@ class WarehouseTests(unittest.TestCase):
 
     def test_partial_import_rolls_back_every_source(self):
         cut = self.fixture(); original = warehouse.insert_source; calls = []
-        def fail(connection,folder,cut_id,source,rows):
+        def fail(connection,folder,cut_id,source,rows,parents=None):
             calls.append(source['id'])
             if len(calls)==2: raise RuntimeError('Simulated interrupted import')
-            return original(connection,folder,cut_id,source,rows)
+            return original(connection,folder,cut_id,source,rows,parents)
         with patch.object(warehouse,'insert_source',side_effect=fail):
             with self.assertRaisesRegex(RuntimeError,'interrupted'):
                 warehouse.promote(cut,self.db)

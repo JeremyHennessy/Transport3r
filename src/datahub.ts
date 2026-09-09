@@ -31,7 +31,7 @@ export type DataSlice = {
   rows: DataRow[];
   total: number | null;
   truncated: boolean;
-  scope?: 'carrier' | 'loaded_inspections' | 'dockets';
+  scope?: 'carrier' | 'loaded_inspections' | 'dockets' | 'inspection';
   acquiredAt?: string;
 };
 

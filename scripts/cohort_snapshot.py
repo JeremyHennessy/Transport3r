@@ -8,6 +8,7 @@ import urllib.parse
 
 from snapshot_store import create_cut, fetch_json, now, write_once, digest
 from verify_snapshot import timestamp
+from inspection_children import CHILDREN, PARENT, parent_index, child_dot, collect_children, verify_children
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BASE = 'https://data.transportation.gov'
@@ -18,9 +19,12 @@ PROFILES = {
                                          'inys-ebih', 'c5y8-a4uz', 'p2mt-9ige'],
 }
 DOT_FIELDS = {'inys-ebih': 'usdot_number', 'c5y8-a4uz': 'usdot_number'}
+PROFILES['underwriting_evidence_v2'] = PROFILES['underwriting_evidence_v1'] + list(CHILDREN)
 
 
-def source_dot(sid, row):
+def source_dot(sid, row, parents=None):
+    if sid in CHILDREN:
+        return child_dot(row, parents or {})
     return str(row.get(DOT_FIELDS.get(sid, 'dot_number')))
 
 
@@ -114,7 +118,7 @@ def collect(sid, dots, folder, page_size=1000, max_rows=100000):
 def acquire(root, per_stratum=10, cohort_path=None, profile='baseline', max_rows=100000):
     if profile not in PROFILES or not 1 <= max_rows <= 1000000:
         raise ValueError('Unknown source profile or invalid row ceiling')
-    folder, manifest = create_cut(pathlib.Path(root), schema_version=3 if profile == 'baseline' else 4, acquisition_kind='CURRENT_COHORT_PUBLIC_SOURCE')
+    folder, manifest = create_cut(pathlib.Path(root), schema_version=3 if profile == 'baseline' else 5 if profile == 'underwriting_evidence_v2' else 4, acquisition_kind='CURRENT_COHORT_PUBLIC_SOURCE')
     manifest['scope'] = 'EXPLICIT_USDOT_COHORT'
     if profile != 'baseline':
         manifest.update({'source_profile': profile, 'max_rows_per_source': max_rows})
@@ -126,10 +130,18 @@ def acquire(root, per_stratum=10, cohort_path=None, profile='baseline', max_rows
         if timestamp(cohort['selected_at']) > timestamp(now()):
             raise ValueError('Cohort selection is in the future')
         write_once(folder/'cohort.json', cohort)
-        results = []
+        results, parents, parent_lineage = [], None, None
         for sid in PROFILES[profile]:
             try:
-                result = collect(sid, dots, folder, max_rows=max_rows)
+                if sid in CHILDREN:
+                    if parents is None:
+                        raise ValueError('Verified inspection parent acquisition unavailable')
+                    result = collect_children(sid,parents,folder,parent_lineage,max_rows=max_rows)
+                else:
+                    result = collect(sid, dots, folder, max_rows=max_rows)
+                    if sid == PARENT and profile == 'underwriting_evidence_v2':
+                        parents = parent_index([r for page in result['pages'] for r in json.loads((folder/page['path']).read_text(encoding='utf-8'))])
+                        parent_lineage = json.loads((folder/result['lineage']).read_text(encoding='utf-8'))
             except Exception as error:
                 result = {'id':sid, 'status':'FAILED', 'failed_at':now(), 'error':f'{type(error).__name__}: {error}'}
             results.append(result)
@@ -147,10 +159,10 @@ def load_verified(folder, as_of=None):
     root = pathlib.Path(folder).resolve()
     m = json.loads((root/'manifest.json').read_text(encoding='utf-8'))
     version = m.get('schema_version')
-    if version not in (3,4) or (m.get('status'),m.get('acquisition_kind'),m.get('historical_reconstruction')) != ('COMPLETE','CURRENT_COHORT_PUBLIC_SOURCE',False):
-        raise ValueError('Only complete cohort v3/v4 cuts are eligible')
+    if version not in (3,4,5) or (m.get('status'),m.get('acquisition_kind'),m.get('historical_reconstruction')) != ('COMPLETE','CURRENT_COHORT_PUBLIC_SOURCE',False):
+        raise ValueError('Only complete cohort v3/v4/v5 cuts are eligible')
     profile = 'baseline' if version == 3 else m.get('source_profile')
-    if profile not in PROFILES or (version == 4 and profile == 'baseline'):
+    if profile not in PROFILES or {'baseline':3,'underwriting_evidence_v1':4,'underwriting_evidence_v2':5}[profile] != version:
         raise ValueError('Unknown or incompatible source profile')
     required = PROFILES[profile]
     started, completed = timestamp(m['started_at']), timestamp(m['completed_at'])
@@ -174,7 +186,16 @@ def load_verified(folder, as_of=None):
             raise ValueError('Invalid source availability')
         lineage = read(source['lineage'],source['lineage_sha256'])
         stable(lineage['before'],lineage['after'])
-        if version == 4:
+        if source['id'] in CHILDREN:
+            if PARENT not in data:
+                raise ValueError('Verified parents must precede inspection children')
+            parent_source = next(s for s in m['datasets'] if s['id']==PARENT)
+            if timestamp(parent_source['available_at']) > timestamp(source['started_at']):
+                raise ValueError('Child acquisition preceded verified parent availability')
+            parent_lineage = read(parent_source['lineage'],parent_source['lineage_sha256'])
+            data[source['id']] = verify_children(source,lineage,parent_index(data[PARENT]),parent_lineage,read,m['max_rows_per_source'])
+            continue
+        if version >= 4:
             if lineage.get('where') != cohort_where(source['id'],cohort['dots']) or lineage.get('order') != ':id' or lineage.get('select') != '*, :id as source_row_id':
                 raise ValueError('Query scope differs from the preserved cohort contract')
             if not timestamp(cohort['selected_at']) <= timestamp(source['started_at']) <= timestamp(lineage['before']['observed_at']) <= timestamp(lineage['after']['observed_at']) <= timestamp(source['available_at']):
