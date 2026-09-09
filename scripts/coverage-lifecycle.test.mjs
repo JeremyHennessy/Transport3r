@@ -4,13 +4,50 @@ import { readFile } from 'node:fs/promises';
 import { build } from 'esbuild';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
-const compiled = await build({ stdin: { contents: "export * from './src/carrierEvidence'; export * from './src/evidenceLifecycle'; export * from './src/EvidenceStatus'; export * from './src/CarrierRouteApp'; export * from './src/smsReplay';", resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'esm', platform: 'node', define: { 'import.meta.env.BASE_URL': '"/Transport3r/"' } });
+const require = createRequire(import.meta.url);
+// Hook-using components and the renderer must share the same React instance.
+const sharedReact = {name:'shared-react',setup(build){build.onResolve({filter:/^react(?:\/|$)/},args=>({path:pathToFileURL(require.resolve(args.path)).href,external:true}));}};
+const compiled = await build({ stdin: { contents: "export * from './src/carrierEvidence'; export * from './src/evidenceLifecycle'; export * from './src/EvidenceStatus'; export * from './src/CarrierRouteApp'; export * from './src/smsReplay';", resolveDir: process.cwd(), loader: 'tsx' }, bundle: true, write: false, format: 'esm', platform: 'node', plugins:[sharedReact], define: { 'import.meta.env.BASE_URL': '"/Transport3r/"' } });
 const r = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 const slice = (rows = [], truncated = false) => ({ sourceId: 'test', rows, total: null, truncated });
 const evidence = (slices = {}, mode = 'summary', errors = {}) => ({ slices, mode, errors, dotNumber: '1', loadedAt: '2026-09-08T22:00:00Z', registry: { sources: [] } });
 const allSlices = Object.fromEntries(Object.keys(r.SOURCE_IDS).map((key) => [key, slice()]));
 const render = (Component, props) => renderToStaticMarkup(createElement(Component, props));
+
+test('large-carrier driver exposure preserves Census totals and report date',async()=>{
+  const carriers=JSON.parse(await readFile('scripts/fixtures/large-carrier-census.json','utf8'));
+  for(const row of carriers) {
+    const carrier=r.carrierFromRow(row);
+    assert.equal(carrier.drivers,row.total_drivers);
+    assert.equal(carrier.powerUnits,row.power_units);
+    const html=render(r.CarrierHeader,{carrier,route:{kind:'section',dotNumber:carrier.dotNumber,section:'safety'}});
+    assert.ok(html.includes(Number(row.total_drivers).toLocaleString()));
+    assert.ok(html.includes('Company Census · MCS-150'));
+    assert.equal(carrier.mcs150Date,row.mcs150_date);
+    if(row.status_code==='I') assert.ok(html.includes('Inactive registration'));
+  }
+});
+
+test('Safety uses the full source count while Summary preserves its loaded-inspection label',()=>{
+  const inspections={...slice(Array.from({length:500},(_,i)=>({inspection_id:String(i)})),true),total:30685};
+  const carrier=r.carrierFromRow({dot_number:'80806',legal_name:'J B HUNT TRANSPORT INC',total_drivers:'24116'});
+  const ev=evidence({...allSlices,inspections},'safety');
+  const safety=render(r.Safety,{carrier,evidence:ev});
+  assert.ok(safety.includes('30,685'));
+  assert.ok(safety.includes('Full available history · 500 recent rows loaded'));
+  const summary=render(r.Summary,{carrier,evidence:{...ev,mode:'summary'}});
+  assert.ok(summary.includes('Loaded inspections</span><strong>500</strong>'));
+  assert.ok(!summary.includes('30,685'));
+});
+
+test('empty inspection source is not presented as proof of no carrier inspections',()=>{
+  const carrier=r.carrierFromRow({dot_number:'265752',legal_name:'FEDEX GROUND PACKAGE SYSTEM INC',status_code:'I'});
+  const html=render(r.Safety,{carrier,evidence:evidence({...allSlices,inspections:{...slice(),total:0}},'safety')});
+  assert.ok(html.includes('No rows returned for this USDOT; not proof of no inspections'));
+});
 
 test('captured rescinded orders remain historical even when USDOT status is ACTIVE', async () => {
   const fixture = JSON.parse(await readFile('scripts/fixtures/rescinded-orders.json', 'utf8'));

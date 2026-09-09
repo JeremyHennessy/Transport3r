@@ -18,9 +18,11 @@ import {
   observedVinCountLabel,
   rowCount,
   rowCountLabel,
+  loadedRowCountLabel,
+  inspectionCountDetail,
   severeCrashCounts,
 } from './carrierEvidence';
-import { DataRow, formatDateValue, readNumber, readValue, schemaLabel } from './datahub';
+import { DataRow, formatDateValue, censusStatusLabel, driverReportDetail, readNumber, readValue, schemaLabel } from './datahub';
 import { EvidenceStatus } from './EvidenceStatus';
 import { orderSummary, filingChangeSummary, motusMaximumCoverageLabel, MOTUS_COVERAGE_UNIT_NOTE } from './evidenceLifecycle';
 import { replayCarrierInspectionMeasures, replaySummary } from './smsReplay';
@@ -40,6 +42,7 @@ type Carrier = {
   operation?: string;
   powerUnits?: string;
   drivers?: string;
+  mcs150Date?: string;
   mileage?: string;
   mileageYear?: string;
   hazmat?: string;
@@ -77,7 +80,7 @@ function routeMode(route: ParsedRoute): CarrierEvidenceMode {
   return route.kind === 'inspection' ? 'inspection' : route.section;
 }
 
-function carrierFromRow(row: DataRow): Carrier {
+export function carrierFromRow(row: DataRow): Carrier {
   return {
     dotNumber: readValue(row, ['DOT_NUMBER', 'USDOT_NUMBER', 'USDOT_NUM', 'DOT_NO']) ?? 'Unknown',
     legalName: readValue(row, ['LEGAL_NAME', 'CARRIER_NAME', 'NAME']) ?? 'Unnamed carrier',
@@ -87,6 +90,7 @@ function carrierFromRow(row: DataRow): Carrier {
     operation: readValue(row, ['CARRIER_OPERATION', 'CARRIER_OPERATION_DESC', 'OPERATION']),
     powerUnits: readValue(row, ['POWER_UNITS', 'NBR_POWER_UNIT', 'TOTAL_POWER_UNITS']),
     drivers: readValue(row, ['TOTAL_DRIVERS', 'DRIVER_TOTAL', 'DRIVERS']),
+    mcs150Date: readValue(row, ['MCS150_DATE']),
     mileage: readValue(row, ['MCS150_MILEAGE', 'MILEAGE', 'VMT']),
     mileageYear: readValue(row, ['MCS150_MILEAGE_YEAR', 'MILEAGE_YEAR', 'VMT_YEAR']),
     hazmat: readValue(row, ['HM_IND', 'HAZMAT_IND', 'HAZMAT_FLAG']),
@@ -157,7 +161,7 @@ function RawRecords({ rows, empty = 'No rows returned.' }: { rows: DataRow[]; em
   return <div className="c360-raw-list">{rows.map((row, index) => <details key={index}><summary>Record {index + 1}</summary><pre>{JSON.stringify(row, null, 2)}</pre></details>)}</div>;
 }
 
-function CarrierHeader({ carrier, route }: { carrier: Carrier; route: ParsedRoute }) {
+export function CarrierHeader({ carrier, route }: { carrier: Carrier; route: ParsedRoute }) {
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   async function copyLink() {
     try {
@@ -170,10 +174,10 @@ function CarrierHeader({ carrier, route }: { carrier: Carrier; route: ParsedRout
   }
   return <>
     <section className="c360-identity">
-      <div className="c360-title-block"><div className="t3-eyebrow">Carrier 360 · USDOT {carrier.dotNumber}</div><h1>{carrier.legalName}</h1>{carrier.dbaName && <p>DBA {carrier.dbaName}</p>}<div className="c360-meta"><span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || 'Location unavailable'}</span><span>{formatOperation(carrier.operation)}</span><span>HM {carrier.hazmat || '—'}</span><span>Status {carrier.statusCode || '—'}</span></div></div>
+      <div className="c360-title-block"><div className="t3-eyebrow">Carrier 360 · USDOT {carrier.dotNumber}</div><h1>{carrier.legalName}</h1>{carrier.dbaName && <p>DBA {carrier.dbaName}</p>}<div className="c360-meta"><span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || 'Location unavailable'}</span><span>{formatOperation(carrier.operation)}</span><span>HM {carrier.hazmat || '—'}</span><span>Status {censusStatusLabel(carrier.statusCode)}</span></div></div>
       <div className="c360-title-actions"><Badge>Official FMCSA spine</Badge><button className="t3-button secondary" onClick={copyLink}>{copyState === 'copied' ? 'Link copied' : 'Copy carrier link'}</button><a className="t3-button text" href="#/carriers">Back to carriers</a></div>
     </section>
-    <section className="c360-exposure-strip"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} /><Metric label="Drivers" value={formatNumber(carrier.drivers)} /><Metric label="Reported VMT" value={formatNumber(carrier.mileage)} detail={carrier.mileageYear ? `MCS-150 mileage year ${carrier.mileageYear}` : 'Mileage year unavailable'} /><Metric label="Operating class" value={formatOperation(carrier.operation)} /></section>
+    <section className="c360-exposure-strip"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} /><Metric label="Drivers" value={formatNumber(carrier.drivers)} detail={driverReportDetail(carrier.mcs150Date, carrier.statusCode)} /><Metric label="Reported VMT" value={formatNumber(carrier.mileage)} detail={carrier.mileageYear ? `MCS-150 mileage year ${carrier.mileageYear}` : 'Mileage year unavailable'} /><Metric label="Operating class" value={formatOperation(carrier.operation)} /></section>
     <nav className="c360-tabs" aria-label="Carrier evidence sections">{SECTIONS.map((section) => <a key={section.id} href={`#/carrier/${carrier.dotNumber}/${section.id}`} className={route.kind === 'section' && route.section === section.id ? 'active' : ''}><strong>{section.label}</strong><span>{section.description}</span></a>)}</nav>
   </>;
 }
@@ -197,10 +201,10 @@ export function Summary({ carrier, evidence }: { carrier: Carrier; evidence: Car
 
   return <section className="c360-card">
     <SectionHeading eyebrow="Decision summary" title="Underwriting evidence at a glance" badges={<div className="c360-badge-stack"><Badge>Official FMCSA</Badge>{changes.loaded > 0 && <Badge tone="warning">Recent MOTUS change</Badge>}</div>} />
-    <div className="c360-metric-grid four"><Metric label="Loaded inspections" value={rowCountLabel(evidence.slices.inspections)} detail="Recent inspection window"/><Metric label="Loaded crashes" value={rowCountLabel(evidence.slices.crash)} detail={`${formatNumber(crashes.fatal)}${crashes.incomplete && crashes.fatal !== null ? "+" : ""} fatality-involved · ${formatNumber(crashes.injury)}${crashes.incomplete && crashes.injury !== null ? "+" : ""} injury-involved`}/><Metric label="Active/pending filings" value={rowCountLabel(evidence.slices.motusInsurance)} detail="MOTUS insurance"/><Metric label="24h MOTUS changes" value={changes.label} detail="Loaded carrier/insurance/revoke deltas"/></div>
+    <div className="c360-metric-grid four"><Metric label="Loaded inspections" value={loadedRowCountLabel(evidence.slices.inspections)} detail="Recent inspection window"/><Metric label="Loaded crashes" value={rowCountLabel(evidence.slices.crash)} detail={`${formatNumber(crashes.fatal)}${crashes.incomplete && crashes.fatal !== null ? "+" : ""} fatality-involved · ${formatNumber(crashes.injury)}${crashes.incomplete && crashes.injury !== null ? "+" : ""} injury-involved`}/><Metric label="Active/pending filings" value={rowCountLabel(evidence.slices.motusInsurance)} detail="MOTUS insurance"/><Metric label="24h MOTUS changes" value={changes.label} detail="Loaded carrier/insurance/revoke deltas"/></div>
     <div className="c360-decision-grid">
       <article><span>Identity & exposure</span><strong>{formatNumber(carrier.powerUnits)} power units · {formatNumber(carrier.drivers)} drivers</strong><p>Reported VMT {formatNumber(carrier.mileage)}{carrier.mileageYear ? ` (${carrier.mileageYear})` : ''}. Census values describe the carrier report, not an insured schedule.</p></article>
-      <article><span>Safety</span><strong>{rowCountLabel(evidence.slices.inspections)} inspections · {rowCountLabel(evidence.slices.crash)} crashes loaded</strong><p>{formatNumber(oos)} loaded OOS violation rows. Crash involvement does not establish fault.</p></article>
+      <article><span>Safety</span><strong>{loadedRowCountLabel(evidence.slices.inspections)} inspections · {rowCountLabel(evidence.slices.crash)} crashes loaded</strong><p>{formatNumber(oos)} loaded OOS violation rows. Crash involvement does not establish fault.</p></article>
       <article><span>Authority / enforcement</span><strong>{statuses.length ? statuses.join(', ') : 'No current MOTUS authority status row returned'}</strong><p>{rowCountLabel(evidence.slices.motusRevokeSuspend)} historical revoke/suspend rows · {rowCountLabel(evidence.slices.newEntrantOos)} New Entrant OOS rows.</p></article>
       <article><span>Coverage continuity</span><strong>{rowCountLabel(evidence.slices.motusInsurance)} active/pending filing rows</strong><p>{rowCountLabel(evidence.slices.motusInsuranceDelta)} insurance changes in the loaded 24-hour difference feed.</p></article>
     </div>
@@ -210,14 +214,14 @@ export function Summary({ carrier, evidence }: { carrier: Carrier; evidence: Car
   </section>;
 }
 
-function Safety({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
+export function Safety({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
   const inspections = evidence.slices.inspections?.rows ?? [];
   const violations = evidence.slices.violations?.rows ?? [];
   const crashes = evidence.slices.crash?.rows ?? [];
   const oos = oosViolationCount(evidence);
   return <section className="c360-card">
     <SectionHeading eyebrow="Daily safety evidence" title="Inspections, violations and crashes" badges={<Badge>Official FMCSA</Badge>} />
-    <div className="c360-metric-grid six"><Metric label="Inspections" value={rowCountLabel(evidence.slices.inspections)}/><Metric label="Violation rows" value={rowCountLabel(evidence.slices.violations)}/><Metric label="OOS violation rows" value={formatNumber(oos)}/><Metric label="Crash rows" value={rowCountLabel(evidence.slices.crash)}/><Metric label="Citation rows" value={rowCountLabel(evidence.slices.citations)}/><Metric label="Special study rows" value={rowCountLabel(evidence.slices.specialStudies)}/></div>
+    <div className="c360-metric-grid six"><Metric label="Inspections" value={rowCountLabel(evidence.slices.inspections)} detail={inspectionCountDetail(evidence.slices.inspections)}/><Metric label="Violation rows" value={rowCountLabel(evidence.slices.violations)} detail={`${loadedRowCountLabel(evidence.slices.inspections)} loaded inspections`}/><Metric label="OOS violation rows" value={`${formatNumber(oos)}${oos !== null && evidence.slices.violations?.truncated ? '+' : ''}`} detail="Loaded violation evidence"/><Metric label="Crash rows" value={rowCountLabel(evidence.slices.crash)}/><Metric label="Citation rows" value={rowCountLabel(evidence.slices.citations)} detail="Loaded inspection window"/><Metric label="Special study rows" value={rowCountLabel(evidence.slices.specialStudies)} detail="Loaded inspection window"/></div>
     <h3 className="c360-subhead">Recent inspections</h3><div className="c360-table inspection"><div className="c360-table-row header"><span>Date</span><span>State</span><span>Level</span><span>Vehicle viol.</span><span>Driver viol.</span><span></span></div>{inspections.slice(0, 30).map((row, index) => { const id = inspectionId(row); return <div className="c360-table-row" key={id ?? index}><span>{formatDate(readValue(row, ['INSP_DATE', 'INSPECTION_DATE', 'REPORT_DATE']))}</span><span>{readValue(row, ['REPORT_STATE', 'STATE']) ?? '—'}</span><span>{readValue(row, ['INSP_LEVEL_ID', 'INSPECTION_LEVEL', 'LEVEL']) ?? '—'}</span><span>{formatNumber(readNumber(row, ['VEHICLE_VIOL_TOTAL', 'VEHICLE_VIOLATIONS', 'VEH_VIOLATIONS', 'VEH_VIOL_TOTAL']))}</span><span>{formatNumber(readNumber(row, ['DRIVER_VIOLATIONS', 'DRV_VIOLATIONS', 'DRIVER_VIOL_TOTAL']))}</span><span>{id ? <a href={`#/carrier/${carrier.dotNumber}/inspection/${id}`}>Open →</a> : '—'}</span></div>; })}</div>
     <h3 className="c360-subhead">Violation evidence</h3><div className="c360-table violations"><div className="c360-table-row header"><span>Code</span><span>Description / BASIC</span><span>OOS</span><span>Unit</span><span>Inspection</span></div>{violations.slice(0, 40).map((row, index) => <div className="c360-table-row" key={index}><span className="mono">{readValue(row, ['VIOLATION_CODE', 'VIOL_CODE', 'CODE']) ?? '—'}</span><span>{readValue(row, [...VIOLATION_FIELD_ALIASES.description]) ?? readValue(row, ['BASIC_DESC']) ?? '—'}</span><span>{readValue(row, [...VIOLATION_FIELD_ALIASES.oos]) ?? '—'}</span><span>{readValue(row, [...VIOLATION_FIELD_ALIASES.unit]) ?? '—'}</span><span>{readValue(row, ['INSPECTION_ID', 'INSP_ID']) ?? '—'}</span></div>)}</div>
     <h3 className="c360-subhead">Recent crash involvement</h3><div className="c360-table crash"><div className="c360-table-row header"><span>Date</span><span>State</span><span>Fatalities</span><span>Injuries</span><span>Tow-away</span></div>{crashes.slice(0, 30).map((row, index) => <div className="c360-table-row" key={readValue(row, ['REPORT_NUMBER', 'CRASH_ID']) ?? index}><span>{formatDate(readValue(row, ['CRASH_DATE', 'REPORT_DATE']))}</span><span>{readValue(row, ['REPORT_STATE', 'STATE']) ?? '—'}</span><span>{formatNumber(readNumber(row, ['FATALITIES', 'FATALITY_CNT', 'FATALITY_COUNT']))}</span><span>{formatNumber(readNumber(row, ['INJURIES', 'INJURY_CNT', 'INJURY_COUNT']))}</span><span>{readValue(row, ['TOW_AWAY', 'TOWAWAY', 'TOW_AWAY_FLAG']) ?? '—'}</span></div>)}</div>
