@@ -3,7 +3,8 @@ import sourceCatalogJson from '../data/fmcsa_sources.json';
 import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail } from './datahub';
 
 type Page = 'overview' | 'carriers' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
-type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc';
+type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc' | 'drivers_desc' | 'drivers_asc';
+type RiskFilter = '' | 'available' | 'unavailable';
 
 type SourceCatalogEntry = {
   id: string;
@@ -61,6 +62,9 @@ type CarrierFilters = {
   operation: string;
   hazmat: string;
   minFleetCode: string;
+  minDrivers: string;
+  maxDrivers: string;
+  risk: RiskFilter;
   sort: SortMode;
 };
 
@@ -83,6 +87,9 @@ const DEFAULT_FILTERS: CarrierFilters = {
   operation: '',
   hazmat: '',
   minFleetCode: '',
+  minDrivers: '',
+  maxDrivers: '',
+  risk: '',
   sort: 'fleet_desc',
 };
 
@@ -172,10 +179,10 @@ function pageFromHash(): Page {
   return NAV.some((item) => item.id === segment) ? segment as Page : 'overview';
 }
 
-function parseCarrierFilters(): CarrierFilters {
-  const queryIndex = window.location.hash.indexOf('?');
+export function parseCarrierFilters(hash = window.location.hash): CarrierFilters {
+  const queryIndex = hash.indexOf('?');
   if (queryIndex < 0) return { ...DEFAULT_FILTERS };
-  const params = new URLSearchParams(window.location.hash.slice(queryIndex + 1));
+  const params = new URLSearchParams(hash.slice(queryIndex + 1));
   const sort = params.get('sort') as SortMode | null;
   const minFleetCode = (params.get('minFleet') ?? '').toUpperCase();
   return {
@@ -184,11 +191,14 @@ function parseCarrierFilters(): CarrierFilters {
     operation: (params.get('operation') ?? '').toUpperCase(),
     hazmat: (params.get('hazmat') ?? '').toUpperCase(),
     minFleetCode: FLEET_THRESHOLDS.some((option) => option.code === minFleetCode) ? minFleetCode : '',
-    sort: sort && ['fleet_desc', 'dot_desc', 'name_asc'].includes(sort) ? sort : DEFAULT_FILTERS.sort,
+    minDrivers: (params.get('minDrivers') ?? '').trim(),
+    maxDrivers: (params.get('maxDrivers') ?? '').trim(),
+    risk: ['available', 'unavailable'].includes(params.get('risk') ?? '') ? params.get('risk') as RiskFilter : '',
+    sort: sort && ['fleet_desc', 'dot_desc', 'name_asc', 'drivers_desc', 'drivers_asc'].includes(sort) ? sort : DEFAULT_FILTERS.sort,
   };
 }
 
-function carrierHash(filters: CarrierFilters): string {
+export function carrierHash(filters: CarrierFilters): string {
   const params = new URLSearchParams();
   const q = filters.q.trim();
   if (q) params.set('q', q);
@@ -196,6 +206,9 @@ function carrierHash(filters: CarrierFilters): string {
   if (filters.operation) params.set('operation', filters.operation);
   if (filters.hazmat) params.set('hazmat', filters.hazmat);
   if (filters.minFleetCode) params.set('minFleet', filters.minFleetCode);
+  if (filters.minDrivers.trim()) params.set('minDrivers', filters.minDrivers.trim());
+  if (filters.maxDrivers.trim()) params.set('maxDrivers', filters.maxDrivers.trim());
+  if (filters.risk) params.set('risk', filters.risk);
   if (filters.sort !== DEFAULT_FILTERS.sort) params.set('sort', filters.sort);
   const query = params.toString();
   return `#/carriers${query ? `?${query}` : ''}`;
@@ -238,6 +251,8 @@ function carrierFromRow(row: DataRow): Carrier {
 }
 
 function sortExpression(sort: SortMode): string {
+  if (sort === 'drivers_desc') return 'total_drivers::number DESC NULLS LAST, dot_number DESC';
+  if (sort === 'drivers_asc') return 'total_drivers::number ASC NULLS LAST, dot_number DESC';
   if (sort === 'dot_desc') return 'dot_number DESC';
   if (sort === 'name_asc') return 'legal_name ASC, dot_number DESC';
   return 'fleetsize DESC, dot_number DESC';
@@ -256,7 +271,18 @@ async function fetchWithTimeout(url: string, timeoutMs = 9000): Promise<Response
   }
 }
 
-async function loadCarriers(filters: CarrierFilters): Promise<Carrier[]> {
+export function carrierFilterError(filters: CarrierFilters): string | null {
+  for (const raw of [filters.minDrivers, filters.maxDrivers]) {
+    const value = raw.trim();
+    if (value && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))) return 'Driver limits must be whole numbers of zero or more.';
+  }
+  if (filters.minDrivers.trim() && filters.maxDrivers.trim() && Number(filters.minDrivers) > Number(filters.maxDrivers)) return 'Minimum drivers must not exceed maximum drivers.';
+  return null;
+}
+
+export function buildCarrierQuery(filters: CarrierFilters): URLSearchParams {
+  const error = carrierFilterError(filters);
+  if (error) throw new Error(error);
   const params = new URLSearchParams({ '$limit': String(PAGE_SIZE), '$order': sortExpression(filters.sort) });
   const where: string[] = [];
   const q = filters.q.trim();
@@ -266,8 +292,16 @@ async function loadCarriers(filters: CarrierFilters): Promise<Carrier[]> {
   if (filters.operation) where.push(`carrier_operation='${escapeSoql(filters.operation)}'`);
   if (filters.hazmat === 'Y' || filters.hazmat === 'N') where.push(`hm_ind='${filters.hazmat}'`);
   if (filters.minFleetCode) where.push(`fleetsize>='${filters.minFleetCode}'`);
+  if (filters.minDrivers.trim()) where.push(`total_drivers::number>=${Number(filters.minDrivers)}`);
+  if (filters.maxDrivers.trim()) where.push(`total_drivers::number<=${Number(filters.maxDrivers)}`);
   if (where.length) params.set('$where', where.join(' AND '));
+  return params;
+}
 
+export async function loadCarriers(filters: CarrierFilters): Promise<Carrier[]> {
+  const params = buildCarrierQuery(filters);
+  // No production score artifact/model is released. Availability is not a Census field.
+  if (filters.risk === 'available') return [];
   const response = await fetchWithTimeout(`${DATAHUB}/az4n-8mr2.json?${params.toString()}`);
   if (!response.ok) throw new Error(`Company Census returned HTTP ${response.status}`);
   const payload = await response.json();
@@ -410,10 +444,12 @@ function CarriersPage() {
 
   const loadedStates = useMemo(() => new Set(rows.map((row) => row.state).filter(Boolean)).size, [rows]);
   const loadedUnits = useMemo(() => rows.reduce((sum, row) => sum + (Number(row.powerUnits) || 0), 0), [rows]);
-  const activeFilters = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode].filter(Boolean).length;
+  const activeFilters = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode, applied.minDrivers, applied.maxDrivers, applied.risk].filter(Boolean).length;
+  const filterError = carrierFilterError(draft);
 
   function apply(event: FormEvent) {
     event.preventDefault();
+    if (filterError) return;
     const next = carrierHash(draft);
     if (window.location.hash === next) setApplied({ ...draft });
     else window.location.hash = next;
@@ -422,6 +458,12 @@ function CarriersPage() {
   function reset() {
     setDraft({ ...DEFAULT_FILTERS });
     window.location.hash = '#/carriers';
+  }
+
+  function sortDrivers() {
+    const next: CarrierFilters = { ...applied, sort: applied.sort === 'drivers_desc' ? 'drivers_asc' : 'drivers_desc' };
+    setDraft(next);
+    window.location.hash = carrierHash(next);
   }
 
   async function copyView() {
@@ -439,16 +481,21 @@ function CarriersPage() {
     <PageHeading eyebrow="Nationwide carrier intelligence" title="Carriers" copy="A live Company Census summary table for triage. Filters are encoded in the URL so an underwriting view can be shared exactly as screened." action={<button className="t3-button secondary" onClick={copyView}>{copyState === 'copied' ? 'View link copied' : 'Copy view link'}</button>} />
 
     <section className="t3-panel t3-filter-panel">
-      <form className="t3-filter-grid" onSubmit={apply}>
+      <form className="t3-filter-grid t3-carrier-filters" onSubmit={apply}>
         <label className="span-2"><span>Carrier / USDOT</span><input value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} placeholder="Legal name, DBA or USDOT number" /></label>
         <label><span>State</span><select value={draft.state} onChange={(event) => setDraft({ ...draft, state: event.target.value })}><option value="">All states</option>{STATES.map((state) => <option key={state}>{state}</option>)}</select></label>
         <label><span>Operation</span><select value={draft.operation} onChange={(event) => setDraft({ ...draft, operation: event.target.value })}><option value="">All operations</option><option value="A">Interstate</option><option value="B">Intrastate hazmat</option><option value="C">Intrastate non-hazmat</option></select></label>
         <label><span>Hazmat</span><select value={draft.hazmat} onChange={(event) => setDraft({ ...draft, hazmat: event.target.value })}><option value="">Any</option><option value="Y">Hazmat</option><option value="N">Non-hazmat</option></select></label>
         <label><span>Minimum fleet</span><select value={draft.minFleetCode} onChange={(event) => setDraft({ ...draft, minFleetCode: event.target.value })}>{FLEET_THRESHOLDS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
-        <label><span>Sort</span><select value={draft.sort} onChange={(event) => setDraft({ ...draft, sort: event.target.value as SortMode })}><option value="fleet_desc">Largest fleet band</option><option value="dot_desc">Newest USDOT number</option><option value="name_asc">Carrier name</option></select></label>
+        <label><span>Minimum drivers</span><input type="number" min="0" step="1" value={draft.minDrivers} onChange={(event) => setDraft({ ...draft, minDrivers: event.target.value })} placeholder="No minimum" /></label>
+        <label><span>Maximum drivers</span><input type="number" min="0" step="1" value={draft.maxDrivers} onChange={(event) => setDraft({ ...draft, maxDrivers: event.target.value })} placeholder="No maximum" /></label>
+        <label><span>Risk score</span><select value={draft.risk} onChange={(event) => setDraft({ ...draft, risk: event.target.value as RiskFilter })}><option value="">Any availability</option><option value="available">Available</option><option value="unavailable">Unavailable</option></select></label>
+        <label><span>Sort</span><select value={draft.sort} onChange={(event) => setDraft({ ...draft, sort: event.target.value as SortMode })}><option value="fleet_desc">Largest fleet band</option><option value="drivers_desc">Drivers · most first</option><option value="drivers_asc">Drivers · fewest first</option><option value="dot_desc">Newest USDOT number</option><option value="name_asc">Carrier name</option></select></label>
         <div className="t3-filter-actions"><button className="t3-button primary" disabled={loading}>{loading ? 'Loading…' : 'Apply filters'}</button><button className="t3-button text" type="button" onClick={reset}>Reset</button></div>
       </form>
-      <div className="t3-query-note"><span className="t3-live-dot"/>One live FMCSA Company Census request per table refresh · up to {PAGE_SIZE} rows · detailed evidence loads only after opening a carrier tab.</div>
+      {filterError && <div className="t3-error" role="alert">{filterError}</div>}
+      <div className="t3-query-note"><span className="t3-live-dot"/>Live FMCSA Company Census · filters and sorting apply before the {PAGE_SIZE}-row limit · detailed evidence loads after opening a carrier tab.</div>
+      <div className="t3-query-note">Risk scores are unavailable: no scoring model has been released. Driver limits use reported counts; unknown counts do not match a numeric range.</div>
     </section>
 
     <section className="t3-mini-stats">
@@ -464,19 +511,20 @@ function CarriersPage() {
       <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
       <div className="t3-carrier-table-wrap">
         <div className="t3-carrier-table">
-          <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span>Drivers</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
-          {rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
+          <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
+          {!loading && !error && rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
             <span className="carrier-name"><a href={`#/carrier/${carrier.dotNumber}/summary`}>{carrier.legalName}</a>{carrier.dbaName && <small>DBA {carrier.dbaName}</small>}</span>
             <span className="mono">{carrier.dotNumber}</span>
             <span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || '—'}</span>
             <span>{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
             <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
             <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small></span>
+            <span title="No released scoring model is available for this carrier.">Unavailable</span>
             <span>{formatNumber(carrier.mileage)}{carrier.mileageYear && <small>{carrier.mileageYear}</small>}</span>
             <span>{carrier.hazmat || '—'}</span>
             <span className="evidence-links"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>
           </div>)}
-          {!loading && !error && rows.length === 0 && <div className="t3-table-empty"><strong>No carriers returned for this screen.</strong><span>Broaden the filters or search by USDOT for exact entity resolution.</span></div>}
+          {!loading && !error && rows.length === 0 && <div className="t3-table-empty"><strong>{applied.risk === 'available' ? 'No released risk scores are available.' : 'No carriers returned for this screen.'}</strong><span>{applied.risk === 'available' ? 'Choose Any availability or Unavailable to browse carriers.' : 'Broaden the filters or search by USDOT for exact entity resolution.'}</span></div>}
           {loading && <div className="t3-table-empty"><span className="t3-spinner"/><strong>Loading current Company Census rows</strong></div>}
         </div>
       </div>
@@ -568,3 +616,4 @@ export default function WorkspaceApp() {
     {page === 'sources' && <SourcesPage health={health} schema={schema} />}
   </Shell>;
 }
+
