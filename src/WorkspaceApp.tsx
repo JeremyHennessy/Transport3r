@@ -1,3 +1,5 @@
+import {SmsDirectoryCell} from './OfficialSmsPanel';
+import {loadOfficialSmsBatch,officialSmsView,type OfficialSmsView} from './officialSms';
 import { EnrichmentSources } from './EnrichmentSources';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
@@ -447,6 +449,16 @@ function CarriersPage() {
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [reloadVersion, setReloadVersion] = useState(0);
+  const [smsRefresh,setSmsRefresh]=useState(0);
+  const [smsState,setSmsState]=useState<{rows:Carrier[];views:Record<string,OfficialSmsView>;error?:string}|null>(null);
+  useEffect(()=>{
+    let current=true;setSmsState(null);
+    if(rows.length)void loadSchemaRegistry().then(registry=>loadOfficialSmsBatch(registry,rows.map(row=>row.dotNumber))).then(records=>{
+      if(current)setSmsState({rows,views:Object.fromEntries(Object.entries(records).map(([dot,evidence])=>[dot,officialSmsView(evidence)]))});
+    }).catch(cause=>{if(current)setSmsState({rows,views:{},error:String(cause)});});
+    return()=>{current=false;};
+  },[rows,smsRefresh]);
+  const currentSms=smsState?.rows===rows?smsState:null;
 
   const appliedKey = useMemo(() => JSON.stringify(applied), [applied]);
 
@@ -530,7 +542,7 @@ function CarriersPage() {
         <div className="t3-filter-actions"><button className="t3-button primary" disabled={loading}>{loading ? 'Loading…' : 'Apply filters'}</button><button className="t3-button text" type="button" onClick={reset}>Reset</button></div>
       </form>
       {filterError && <div className="t3-error" role="alert">{filterError}</div>}
-      <div className="t3-query-note"><span className="t3-live-dot"/>Live FMCSA Company Census · filters and sorting apply before the {PAGE_SIZE}-row limit · detailed evidence loads after opening a carrier tab.</div>
+      <div className="t3-query-note"><span className="t3-live-dot"/>Live FMCSA Company Census · filters and sorting apply before the {PAGE_SIZE}-row limit · official SMS measures load automatically for these rows; other detailed evidence loads in carrier tabs.</div>
       <div className="t3-query-note">Risk scores are unavailable: no scoring model has been released. Driver limits use reported counts; unknown counts do not match a numeric range.</div>
     </section>
 
@@ -547,9 +559,10 @@ function CarriersPage() {
     <section className="t3-panel t3-table-panel">
       <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
       <p className="t3-table-scroll-note" id="carrier-scroll-help">Scroll horizontally for all columns and evidence links. Counts may come from different MCS-150 report dates.</p>
+      <div className="t3-sms-directory-controls"><button className="t3-button secondary" type="button" disabled={loading||!rows.length} onClick={()=>setSmsRefresh(value=>value+1)}>Refresh table SMS</button><span role="status">{rows.length ? !currentSms ? 'Loading official SMS measures...' : currentSms.error ? 'SMS request failed. Refresh to retry.' : `${Object.values(currentSms.views).filter(view=>view.status==='available').length}/${rows.length} rows have public SMS outputs; ${Object.values(currentSms.views).filter(view=>view.status==='unavailable').length} unavailable` : ''}</span><small>Separate BASIC measures; no combined SMS score. Passenger percentiles are shown in each carrier's SMS tab.</small></div>
       <div className="t3-carrier-table-wrap" role="region" aria-label="Carrier summary table" aria-describedby="carrier-scroll-help" tabIndex={0}>
         <div className="t3-carrier-table">
-          <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
+          <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>Official SMS measures</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
           {!loading && !error && rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
             <span className="carrier-name"><a href={`#/carrier/${carrier.dotNumber}/summary`}>{carrier.legalName}</a>{carrier.dbaName && <small>DBA {carrier.dbaName}</small>}</span>
             <span className="mono">{carrier.dotNumber}</span>
@@ -558,6 +571,7 @@ function CarriersPage() {
             <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
             <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
             <span title="No released scoring model is available for this carrier.">Unavailable</span>
+            <SmsDirectoryCell dot={carrier.dotNumber} view={currentSms?.views[carrier.dotNumber]} failed={Boolean(currentSms?.error)}/>
             <span>{formatNumber(carrier.mileage)}<small>{mileageYearLabel(carrier.mileageYear)}</small></span>
             <span>{carrier.hazmat || '—'}</span>
             <span className="evidence-links"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>

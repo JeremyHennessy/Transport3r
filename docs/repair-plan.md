@@ -73,3 +73,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Daily event windows and external enrichment
 
 [Data enrichment review](data-enrichment-review.md) adds source-side daily Safety date windows, full request counts with bounded monthly detail, publication-change rejection and observed-VIN NHTSA specifications with decoder warnings. The Data Sources page distinguishes the integrated vPIC lookup from PHMSA, recall, SmartWay and geographic candidates. Daily and SMS date encodings were checked separately; exact monthly SMS/exposure alignment remains unverified.
+
+## Official SMS summary display
+
+[SMS display repair](sms-display-repair.md) adds automatic official measures to the directory and carrier Summary, published passenger percentiles, and retry controls with strict population and carrier isolation. Missing official rows remain distinct from zero; TRI remains unreleased.

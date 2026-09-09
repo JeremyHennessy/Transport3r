@@ -3,3 +3,23 @@
 .inspection-observations{width:100%;min-width:620px;border-collapse:collapse}.inspection-observations th,.inspection-observations td{text-align:left;padding:12px;border-bottom:1px solid #dce5ed}.inspection-observations th{font-size:13px}
 .t3-window-panel{margin:24px 0;padding:20px;border:1px solid #d7e2ee;border-radius:12px;background:#f8fafc;overflow-wrap:anywhere}.t3-window-panel article{min-width:0}.t3-window-panel input{padding:8px;border:1px solid #cbd5e1;border-radius:6px;max-width:100%}.t3-window-panel table{width:100%;min-width:0}.t3-window-panel td,.t3-window-panel th{padding:8px;text-align:left}.t3-vin-specs,.t3-enrichment-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:16px}.t3-vin-specs dd{margin:4px 0;font-weight:600}.t3-vin-specs dt{font-size:13px}.t3-enrichment-grid article{padding:12px;border-top:1px solid #d7e2ee}
 .t3-enrichment-grid{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:900px){.t3-enrichment-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.t3-enrichment-grid{grid-template-columns:1fr}}
+
+.t3-carrier-table{min-width:1710px}
+.t3-carrier-row{grid-template-columns:minmax(230px,1.7fr) 90px 125px 145px 88px 75px 100px 240px 110px 45px minmax(300px,1.4fr)}
+.t3-sms-directory-controls{padding:0 18px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.t3-sms-directory-controls small{color:var(--muted,#65758b)}
+.t3-window-panel .t3-sms-values{width:100%;min-width:650px;border-collapse:collapse;text-align:left;font-size:13px}
+.t3-sms-values th,.t3-sms-values td{padding:12px;border-bottom:1px solid #dce4ec}
+.t3-sms-values td[data-value=measure]{font-weight:700;font-size:18px;font-variant-numeric:tabular-nums}
+@media(max-width:600px){
+ .t3-window-panel .t3-sms-values{min-width:0;display:block}
+ .t3-sms-values thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .t3-sms-values tbody{display:block}
+ .t3-sms-values tr{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:12px 0;border-bottom:1px solid #dce4ec}
+ .t3-window-panel .t3-sms-values th,.t3-window-panel .t3-sms-values td{border:0;padding:6px;overflow-wrap:normal}
+ .t3-sms-values th{grid-column:1/-1}
+ .t3-sms-values td::before{display:block;font-size:11px;font-weight:400;color:#52657b;margin-bottom:6px}
+ .t3-sms-values td:nth-child(2)::before{content:'Measure'}
+ .t3-sms-values td:nth-child(3)::before{content:'Percentile'}
+ .t3-sms-values td:nth-child(4)::before{content:'BASIC alert'}
+}

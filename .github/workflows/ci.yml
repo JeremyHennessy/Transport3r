@@ -83,6 +83,10 @@ jobs:
         env:
           BROWSER_SCENARIO: date-enrichment
         run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-date-enrichment.json
+      - name: Verify official SMS values and retries in directory and carrier summaries
+        env:
+          BROWSER_SCENARIO: sms-display
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-sms-display.json
       - name: Retain date window and enrichment browser checks
         if: always()
         uses: actions/upload-artifact@v4
