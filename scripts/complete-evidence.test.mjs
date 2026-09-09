@@ -6,6 +6,7 @@ const compiled=await build({stdin:{contents:"export * from './src/completeEviden
 const app=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 const registry=JSON.parse(await readFile('public/data/source-schemas.json','utf8'));
 const signal=()=>new AbortController().signal;
+test('complete daily records keep recent-event summaries newest first without losing undated rows',()=>{const rows=[{insp_date:'20240101'},{insp_date:'20260901'},{other:'undated'}];assert.deepEqual(app.recentDailyRows('fx4q-ay7w',rows),[rows[1],rows[0],rows[2]]);assert.deepEqual(rows[0],{insp_date:'20240101'});});
 function fixture(t,{total=5001,change=false,bad=false,duplicate=false,early=false}={}){
  let publications=0;const offsets=[];
  t.mock.method(globalThis,'fetch',async input=>{const url=new URL(input),id=url.pathname.split('/').at(-1).replace('.json','');

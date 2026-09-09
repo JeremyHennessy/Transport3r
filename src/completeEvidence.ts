@@ -16,6 +16,12 @@ async function request(url:string,signal:AbortSignal):Promise<unknown>{
  }
 }
 function publication(value:unknown,source:string){const m=value as {id?:string;rowsUpdatedAt?:number;tableId?:string;columns?:unknown[]};if(m?.id!==source||!m.rowsUpdatedAt||!m.tableId||!Array.isArray(m.columns))throw Error('Source publication metadata unavailable');return JSON.stringify([m.id,m.rowsUpdatedAt,m.tableId,m.columns]);}
+export function recentDailyRows(source:string,rows:DataRow[]){
+ const field=source==='fx4q-ay7w'?'insp_date':source==='aayw-vxb3'?'report_date':null;
+ if(!field)return rows;
+ const dated=rows.map(row=>{const raw=readValue(row,[field])??'';return {row,date:/^\d{8}$/.test(raw)?raw:''};});
+ dated.sort((a,b)=>b.date.localeCompare(a.date));return dated.map(item=>item.row);
+}
 
 export async function completeQuery(source:string,wheres:string[],valid:(row:DataRow)=>boolean,signal:AbortSignal,onRows:(count:number)=>void=()=>{}):Promise<DataSlice>{
  if(!/^[a-z0-9]{4}-[a-z0-9]{4}$/.test(source))throw Error('Invalid source');
@@ -35,7 +41,7 @@ export async function completeQuery(source:string,wheres:string[],valid:(row:Dat
   return rows;
  });
  const after=publication(await request(`${base}/api/views/${source}.json`,signal),source);if(before!==after)throw Error('Source changed during complete acquisition; retry required');
- const rows=batches.flat();return {sourceId:source,sourcePublication:after,rows,total:rows.length,truncated:false,scope:'carrier',acquiredAt:new Date().toISOString()};
+ const rows=recentDailyRows(source,batches.flat());return {sourceId:source,sourcePublication:after,rows,total:rows.length,truncated:false,scope:'carrier',acquiredAt:new Date().toISOString()};
 }
 function whereDot(registry:SchemaRegistry,key:EvidenceKey,dot:string){const source=registry.sources.find(s=>s.id===SOURCE_IDS[key]);const field=source?.columns.find(c=>['dot_number','usdot_number'].includes(c.field_name??''));if(!field?.field_name)throw Error('Registered USDOT field unavailable');const values=legacy.has(key)?[...new Set([dot,dot.padStart(8,'0')])]:[dot];return `${field.field_name} in (${values.map(value=>field.data_type==='number'?String(Number(value)):quote(value)).join(',')})`;}
 
