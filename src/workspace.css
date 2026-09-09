@@ -37,4 +37,5 @@ html{background:var(--soft);scroll-behavior:smooth}body{margin:0;min-width:320px
 @media(min-width:981px){.t3-directory-stats{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(max-width:720px){.t3-topbar{grid-template-columns:1fr;padding-top:10px;padding-bottom:8px;gap:6px}.t3-primary-nav{justify-content:flex-start;flex-wrap:wrap;overflow:visible}.t3-primary-nav a{min-height:34px}.t3-source-controls{align-items:stretch;flex-direction:column}.t3-source-controls>span{padding-bottom:0}}
 .t3-source-row>span:first-child{display:block}
-.t3-source-row>span:first-child .t3-source-dot{margin-right:6px}
+.t3-source-row>span:first-child .t3-source-dot{display:inline-block;margin-right:6px}
+
