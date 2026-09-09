@@ -53,3 +53,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Inspection and risk availability
 
 [Inspection and risk availability](inspection-risk-availability.md) addresses inactive/stale exposure and empty inspection evidence in Summary and Safety, explicitly shows risk availability, and validates all source mappings for active and inactive sample carriers. Source-reported counts are preserved; no historic inspections or numeric risk are invented when current sources cannot provide them.
+
+## Coverage and reconciliation follow-up
+
+[Coverage and reconciliation](coverage-reconciliation.md) adds a shared source coverage/date contract, carrier-tab filters and JSON exports, and a stratified live audit with retained raw observations and source-cut checks. Power BI definitions were reviewed; comparison of refreshed Power BI values remains explicitly unexecuted until matching source snapshots and exported measures are available.

@@ -5,6 +5,7 @@ import CarrierRouteApp from './CarrierRouteApp';
 import FleetRouteApp from './FleetRouteApp';
 import WorkspaceApp from './WorkspaceApp';
 import './workspace.css';
+import './coverage.css';
 
 type ErrorBoundaryState = { error: Error | null };
 

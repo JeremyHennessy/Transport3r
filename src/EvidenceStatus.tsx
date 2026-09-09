@@ -1,6 +1,7 @@
 import type { CarrierEvidence } from './carrierEvidence';
 import { evidenceIssues } from './carrierEvidence';
 import { censusReviewNotes } from './datahub';
+import { CoveragePanel } from './CoveragePanel';
 
 export function ExposureContext({ date, status }: { date?: string; status?: string }) {
   const notes = censusReviewNotes(date, status);
@@ -10,8 +11,7 @@ export function ExposureContext({ date, status }: { date?: string; status?: stri
 
 export function EvidenceStatus({ evidence }: { evidence: CarrierEvidence }) {
   const issues = evidenceIssues(evidence);
-  if (!issues.length) return null;
-  return <div className="c360-source-errors"><strong>{issues.length} source request{issues.length === 1 ? '' : 's'} incomplete or unavailable</strong><p>The rest of this tab remains usable. Unavailable data is not zero; partial results are not complete totals.</p><div>{issues.map(({key, message}) => <span key={key}><code>{key}</code>{message}</span>)}</div></div>;
+  return <><CoveragePanel evidence={evidence}/>{issues.length > 0 && <div className="c360-source-errors"><strong>{issues.length} source request{issues.length === 1 ? '' : 's'} incomplete or unavailable</strong><p>The rest of this tab remains usable. Unavailable data is not zero; partial results are not complete totals.</p><div>{issues.map(({key, message}) => <span key={key}><code>{key}</code>{message}</span>)}</div></div>}</>;
 }
 
 export function FleetEvidenceFailure({ error }: { error: string }) {
