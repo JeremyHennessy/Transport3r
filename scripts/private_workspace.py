@@ -13,7 +13,7 @@ import threading
 import time
 import urllib.parse
 import urllib.request
-from private_workspace_store import connect, dot, save_portfolio, portfolio, relationship, review_relationship, group_members, deliver
+from private_workspace_store import connect, dot, save_portfolio, portfolio, relationship, review_relationship, group_members, deliver, save_screening_case
 from snapshot_store import now, digest
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
@@ -134,6 +134,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200,{'portfolio':portfolio(self.app.folder),'subscriptions':[dict(r) for r in db.execute('SELECT * FROM subscriptions')],
                     'inbox':[dict(r) for r in db.execute('SELECT * FROM inbox ORDER BY delivered_at DESC')],
                     'relationships':[dict(r) for r in db.execute('SELECT * FROM relationships ORDER BY updated_at DESC')],
+                    'screening_cases':[dict(r) for r in db.execute('SELECT id,kind,dot,candidate_dot,status,notes,reviewer,updated_at FROM screening_cases ORDER BY updated_at DESC')],
                     'jobs':[dict(r) for r in db.execute('SELECT * FROM jobs ORDER BY id DESC LIMIT 20')],
                     'schedule':dict(db.execute("SELECT key,value FROM settings WHERE key='next_run'").fetchall()),
                     'warehouse_available':bool(self.app.warehouse),'forecast':{'status':'BLOCKED','reasons':['No matched historical SMS releases','No mature outcome follow-up','No insurer claims/loss outcomes or actuarial calibration']}})
@@ -161,11 +162,43 @@ class Handler(BaseHTTPRequestHandler):
             if route=='/api/history' and self.command=='GET':
                 return self.send(200,[dict(r) for r in db.execute('SELECT * FROM relationship_history ORDER BY id')])
             query=urllib.parse.parse_qs(request.query)
+            if route=='/api/screening-history' and self.command=='GET':
+                return self.send(200,[dict(r) for r in db.execute('SELECT * FROM screening_history WHERE case_id=? ORDER BY id',(query.get('id',[''])[0],))])
+            if route in ('/api/identity-screen','/api/ghost','/api/ghost-queue','/api/screening-case'):
+                if self.command!=('POST' if route=='/api/screening-case' else 'GET'):
+                    return self.send(405,{'error':'Unsupported method'})
+                if not self.app.warehouse:raise ValueError('Verified nationwide warehouse is not configured')
+                from workspace_analytics import open_warehouse
+                from identity_analytics import identity_screen,ghost_review,ghost_queue
+                days=int(query.get('days',['365'])[0]);page=int(query.get('page',['1'])[0])
+                with closing(open_warehouse(self.app.warehouse)) as warehouse:
+                    if route=='/api/ghost-queue':result=ghost_queue(warehouse,days,page)
+                    elif route=='/api/identity-screen':result=identity_screen(warehouse,dot(query.get('dot',[''])[0]),page)
+                    elif route=='/api/ghost':result=ghost_review(warehouse,dot(query.get('dot',[''])[0]),days)
+                    else:
+                        # Recompute on the server; client-authored findings never become source evidence.
+                        seed=dot(body.get('dot'))
+                        if body.get('kind')=='ghost':evidence=ghost_review(warehouse,seed,int(body.get('days',365)))
+                        elif body.get('kind')=='chameleon':
+                            screening=identity_screen(warehouse,seed,int(body.get('page',1)))
+                            selected=[c for c in screening['candidates'] if c['dot']==body.get('candidate_dot')]
+                            if not selected:raise ValueError('Candidate is not in the selected verified screening page; rerun screening')
+                            evidence={**screening,'candidates':selected}
+                        else:raise ValueError('Unsupported screening kind')
+                        result={'id':save_screening_case(db,body,owner,evidence),'status':'SAVED'}
+                return self.send(200,result)
             if route in ('/api/peers','/api/group') and self.command=='GET':
                 if not self.app.warehouse:raise ValueError('Verified nationwide warehouse is not configured')
                 from workspace_analytics import open_warehouse,peers,group_summary
                 identifier=dot(query.get('dot',[''])[0]);warehouse=open_warehouse(self.app.warehouse)
-                try:result=peers(warehouse,identifier) if route=='/api/peers' else group_summary(warehouse,group_members(db,identifier))
+                try:
+                    if route=='/api/peers':result=peers(warehouse,identifier)
+                    else:
+                        from identity_analytics import event_summary
+                        members=group_members(db,identifier)
+                        result=group_summary(warehouse,members)
+                        result['safety']=event_summary(warehouse,members,int(query.get('days',['365'])[0]))
+                        result['approved_relationships']=[dict(r) for r in db.execute("SELECT * FROM relationships WHERE status='approved' AND kind IN ('parent_subsidiary','common_ownership')") if r['dot_a'] in members and r['dot_b'] in members]
                 finally:warehouse.close()
                 return self.send(200,result)
             if route=='/api/recalls' and self.command=='GET':

@@ -28,6 +28,8 @@ The first verified cut is a baseline. Later verified cuts with the same membersh
 
 ## Reviewed corporate groups
 
+The [corporate aggregation and identity review guide](corporate-identity-review.md) covers group safety windows, nationwide shared-registration screening, Ghost DOT status/activity candidates and durable private review cases.
+
 Relationship proposals require two DOTs, a type, an evidence URL and a description. A separate approval/rejection/revocation records the signed-in reviewer and rationale, with immutable review history. Approved common-ownership and parent/subsidiary edges form connected groups; shared-registration-detail edges never do. Approval is an analyst decision, not an independent verification by the app.
 
 Group summaries deduplicate member DOTs and show Census matches, missing members, status/report dates and known/total denominators for reported exposure. Summed registration reports are not a deduplicated physical fleet or insured schedule, and dates can differ.

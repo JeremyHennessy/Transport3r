@@ -615,7 +615,7 @@ function CarriersPage() {
 }
 
 function LocalWorkspaceLink() {
-  return <section className="t3-panel"><h2>Private workspace on this computer</h2><p>Manage saved policies, subscribe to a scheduled inbox, review corporate relationships and compare reported exposure in the local service. Private records stay on your computer.</p><a className="t3-button secondary" href="http://127.0.0.1:4789/" target="_blank" rel="noopener noreferrer">Open local private workspace</a><p>The local service must be running. It has its own password and does not upload private records to this public site.</p></section>;
+  return <section className="t3-panel"><h2>Private workspace on this computer</h2><p>Manage policies and scheduled alerts, aggregate safety across approved corporate DOT relationships, and review shared-registration and inactive-DOT activity leads. Screening leads do not establish fraud or ownership. Private records stay on your computer.</p><a className="t3-button secondary" href="http://127.0.0.1:4789/" target="_blank" rel="noopener noreferrer">Open local private workspace</a><p>The local service must be running. It has its own password and does not upload private records to this public site.</p></section>;
 }
 
 function PortfolioPage() {
