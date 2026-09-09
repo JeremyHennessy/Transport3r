@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,started_at 
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS screening_cases(id TEXT PRIMARY KEY,kind TEXT NOT NULL,dot TEXT NOT NULL,candidate_dot TEXT,status TEXT NOT NULL,notes TEXT NOT NULL,reviewer TEXT NOT NULL,evidence TEXT NOT NULL,updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS screening_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id TEXT NOT NULL,payload TEXT NOT NULL,changed_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS compliance_observations(id TEXT PRIMARY KEY,dot TEXT NOT NULL,observed_at TEXT NOT NULL,cut TEXT NOT NULL,payload TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS compliance_latest ON compliance_observations(dot,observed_at);
+CREATE TABLE IF NOT EXISTS compliance_actions(id TEXT PRIMARY KEY,dot TEXT NOT NULL,check_id TEXT NOT NULL,observation_id TEXT NOT NULL,fingerprint TEXT NOT NULL,status TEXT NOT NULL,due_date TEXT,notes TEXT NOT NULL,reviewer TEXT NOT NULL,updated_at TEXT NOT NULL,title TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS compliance_action_history(id INTEGER PRIMARY KEY AUTOINCREMENT,action_id TEXT NOT NULL,payload TEXT NOT NULL,changed_at TEXT NOT NULL);
 '''
 
 def connect(path):
