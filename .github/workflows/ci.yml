@@ -33,6 +33,15 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
+      - name: Verify carrier table recovery in the production browser bundle
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-carrier-recovery.json
+      - name: Retain carrier recovery browser checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carrier-recovery-${{ github.sha }}
+          path: /tmp/transport3r-carrier-recovery.json
+          if-no-files-found: warn
       - name: Verify large-carrier drivers and full inspection counts
         run: node scripts/validate-large-carriers.mjs /tmp/transport3r-large-carriers.json
       - name: Retain large-carrier count verification

@@ -67,3 +67,39 @@ test('driver filtering queries the source and retains report dates, status and m
     assert.equal(requested.searchParams.has('risk'), false);
   } finally {globalThis.fetch=previousFetch;globalThis.window=previousWindow;}
 });
+
+test('an already cancelled directory request never reaches the source', async () => {
+  const previous=globalThis.fetch;
+  globalThis.fetch=()=>{throw new Error('Must not fetch');};
+  try {
+    const controller=new AbortController();controller.abort();
+    await assert.rejects(app.loadCarriers(app.parseCarrierFilters('#/carriers'),controller.signal),{name:'AbortError'});
+  } finally {globalThis.fetch=previous;}
+});
+
+test('directory cancellation remains effective while the response body is loading', async () => {
+  const previousFetch=globalThis.fetch,previousWindow=globalThis.window;
+  globalThis.window={setTimeout,clearTimeout};
+  let started,aborted=false;
+  const bodyStarted=new Promise(resolve=>{started=resolve;});
+  globalThis.fetch=async(_url,{signal})=>({ok:true,json:()=>new Promise((_resolve,reject)=>{
+    signal.addEventListener('abort',()=>{aborted=true;reject(new DOMException('Cancelled','AbortError'));},{once:true});started();
+  })});
+  try {
+    const controller=new AbortController();
+    const request=app.loadCarriers(app.parseCarrierFilters('#/carriers'),controller.signal);
+    await bodyStarted;controller.abort();
+    await assert.rejects(request,{name:'AbortError'});
+    assert.equal(aborted,true);
+  } finally {globalThis.fetch=previousFetch;globalThis.window=previousWindow;}
+});
+
+test('the request deadline also bounds a slow response body and differs from cancellation', async () => {
+  const previousFetch=globalThis.fetch,previousWindow=globalThis.window;
+  globalThis.window={setTimeout,clearTimeout};
+  globalThis.fetch=async(_url,{signal})=>({ok:true,json:()=>new Promise((_resolve,reject)=>{
+    signal.addEventListener('abort',()=>reject(new DOMException('Deadline','AbortError')),{once:true});
+  })});
+  try {await assert.rejects(app.fetchDirectoryRows('https://example.invalid',undefined,5),{message:'FMCSA request timed out'});}
+  finally {globalThis.fetch=previousFetch;globalThis.window=previousWindow;}
+});

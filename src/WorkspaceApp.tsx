@@ -258,16 +258,22 @@ function sortExpression(sort: SortMode): string {
   return 'fleetsize DESC, dot_number DESC';
 }
 
-async function fetchWithTimeout(url: string, timeoutMs = 9000): Promise<Response> {
+export async function fetchDirectoryRows(url: string, signal?: AbortSignal, timeoutMs = 9000): Promise<unknown> {
+  if (signal?.aborted) throw new DOMException('Request cancelled', 'AbortError');
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Company Census returned HTTP ${response.status}`);
+    return await response.json();
   } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') throw new Error('FMCSA request timed out');
+    if (!signal?.aborted && cause instanceof DOMException && cause.name === 'AbortError') throw new Error('FMCSA request timed out');
     throw cause;
   } finally {
     window.clearTimeout(timeout);
+    signal?.removeEventListener('abort', cancel);
   }
 }
 
@@ -298,13 +304,11 @@ export function buildCarrierQuery(filters: CarrierFilters): URLSearchParams {
   return params;
 }
 
-export async function loadCarriers(filters: CarrierFilters): Promise<Carrier[]> {
+export async function loadCarriers(filters: CarrierFilters, signal?: AbortSignal): Promise<Carrier[]> {
   const params = buildCarrierQuery(filters);
   // No production score artifact/model is released. Availability is not a Census field.
   if (filters.risk === 'available') return [];
-  const response = await fetchWithTimeout(`${DATAHUB}/az4n-8mr2.json?${params.toString()}`);
-  if (!response.ok) throw new Error(`Company Census returned HTTP ${response.status}`);
-  const payload = await response.json();
+  const payload = await fetchDirectoryRows(`${DATAHUB}/az4n-8mr2.json?${params.toString()}`, signal);
   if (!Array.isArray(payload)) throw new Error('Company Census returned an unexpected payload');
   return (payload as DataRow[]).map(carrierFromRow);
 }
@@ -416,6 +420,7 @@ function CarriersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
+  const [reloadVersion, setReloadVersion] = useState(0);
 
   const appliedKey = useMemo(() => JSON.stringify(applied), [applied]);
 
@@ -433,14 +438,16 @@ function CarriersPage() {
 
   useEffect(() => {
     let current = true;
+    const controller = new AbortController();
     setLoading(true);
     setError(null);
-    loadCarriers(applied)
+    setRows([]);
+    loadCarriers(applied, controller.signal)
       .then((loaded) => { if (current) setRows(loaded); })
       .catch((cause) => { if (current) { setRows([]); setError(cause instanceof Error ? cause.message : String(cause)); } })
       .finally(() => { if (current) setLoading(false); });
-    return () => { current = false; };
-  }, [appliedKey]);
+    return () => { current = false; controller.abort(); };
+  }, [appliedKey, reloadVersion]);
 
   const loadedStates = useMemo(() => new Set(rows.map((row) => row.state).filter(Boolean)).size, [rows]);
   const loadedUnits = useMemo(() => rows.reduce((sum, row) => sum + (Number(row.powerUnits) || 0), 0), [rows]);
@@ -451,13 +458,14 @@ function CarriersPage() {
     event.preventDefault();
     if (filterError) return;
     const next = carrierHash(draft);
-    if (window.location.hash === next) setApplied({ ...draft });
-    else window.location.hash = next;
+    if (carrierHash(applied) === next) setReloadVersion(version => version + 1);
+    if (window.location.hash !== next) window.location.hash = next;
   }
 
   function reset() {
     setDraft({ ...DEFAULT_FILTERS });
-    window.location.hash = '#/carriers';
+    if (carrierHash(applied) === '#/carriers') setReloadVersion(version => version + 1);
+    if (window.location.hash !== '#/carriers') window.location.hash = '#/carriers';
   }
 
   function sortDrivers() {
@@ -505,10 +513,10 @@ function CarriersPage() {
       <div><span>Active filters</span><strong>{activeFilters}</strong><small>Encoded in shareable URL</small></div>
     </section>
 
-    {error && <div className="t3-error"><strong>FMCSA carrier table unavailable.</strong><span>{error}</span><button onClick={() => setApplied({ ...applied })}>Retry</button></div>}
+    {error && <div className="t3-error"><strong>FMCSA carrier table unavailable.</strong><span>{error}</span><button onClick={() => setReloadVersion(version => version + 1)}>Retry</button></div>}
 
     <section className="t3-panel t3-table-panel">
-      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
+      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
       <div className="t3-carrier-table-wrap">
         <div className="t3-carrier-table">
           <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
