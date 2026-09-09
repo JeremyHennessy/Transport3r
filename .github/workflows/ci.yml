@@ -93,7 +93,7 @@ jobs:
         run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-insight.json
       - name: Render and validate carrier PDF reports
         run: |
-          python -m pip install pypdf==6.10.0
+          python -m pip install pypdf==6.10.0 pdfplumber==0.11.9
           node scripts/validate-reports.mjs /tmp/transport3r-reports
           python scripts/verify_report_pdfs.py /tmp/transport3r-reports
       - name: Retain carrier report PDFs and validation

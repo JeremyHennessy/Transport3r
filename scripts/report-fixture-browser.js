@@ -1,6 +1,7 @@
 (()=>{
  const original=fetch.bind(window),scenario=new URLSearchParams(location.hash.split('?')[1]).get('case')??'rich';
- window.__reportErrors=[];window.addEventListener('error',event=>window.__reportErrors.push(event.message));
+ window.__reportErrors=[];window.addEventListener('error',event=>{window.__reportErrors.push(event.message);document.documentElement.dataset.reportError=event.message;});
+ window.addEventListener('unhandledrejection',event=>{document.documentElement.dataset.reportError=String(event.reason);});
  window.fetch=async(input,options)=>{
   const text=String(input);if(text.includes('data.transportation.gov/api/views/'))return Response.json({id:text.split('/').at(-1),rowsUpdatedAt:1,viewLastModified:1});
   if(!text.includes('data.transportation.gov/resource/'))return original(input,options);
