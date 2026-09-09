@@ -1,0 +1,42 @@
+[
+  {
+    "dot_number": "54283",
+    "legal_name": "SWIFT TRANSPORTATION COMPANY OF ARIZONA LLC",
+    "power_units": "12940",
+    "total_drivers": "12883",
+    "mcs150_date": "20250805",
+    "status_code": "A"
+  },
+  {
+    "dot_number": "80806",
+    "legal_name": "J B HUNT TRANSPORT INC",
+    "power_units": "25280",
+    "total_drivers": "24116",
+    "mcs150_date": "20250707",
+    "status_code": "A"
+  },
+  {
+    "dot_number": "121058",
+    "legal_name": "TFORCE FREIGHT INC",
+    "power_units": "4155",
+    "total_drivers": "4379",
+    "mcs150_date": "20250806",
+    "status_code": "A"
+  },
+  {
+    "dot_number": "264184",
+    "legal_name": "SCHNEIDER NATIONAL CARRIERS INC",
+    "power_units": "9866",
+    "total_drivers": "11335",
+    "mcs150_date": "20260130",
+    "status_code": "A"
+  },
+  {
+    "dot_number": "265752",
+    "legal_name": "FEDEX GROUND PACKAGE SYSTEM INC",
+    "power_units": "101844",
+    "total_drivers": "127917",
+    "mcs150_date": "20241230",
+    "status_code": "I"
+  }
+]

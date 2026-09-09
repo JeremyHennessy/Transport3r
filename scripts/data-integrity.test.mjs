@@ -30,7 +30,7 @@ test('daily, legacy, ISO and named dates agree and reject invalid calendar dates
   assert.equal(runtime.parseDateValue('20240229')?.getUTCDate(), 29);
   assert.equal(runtime.parseDateValue(live.inspections.rows[0].insp_date)?.getUTCFullYear(), 2024);
 });
-function mockData(t, records, failSource) {
+function mockData(t, records, failSource, countResponse) {
   const calls = [];
   t.mock.method(globalThis, 'fetch', async (input) => {
     const url = new URL(String(input), 'http://local');
@@ -40,6 +40,7 @@ function mockData(t, records, failSource) {
     if (id === failSource) return new Response('', { status: 503 });
     const call = calls.at(-1);
     let rows = records[id] ?? [];
+    if (url.searchParams.has('$select')) return countResponse instanceof Response ? countResponse : Response.json(countResponse ?? [{count:String(rows.length)}]);
     if (call.where.includes(' in (')) {
       const ids = call.where.match(/in \((.*)\)/)[1].replaceAll("'", '').split(',');
       rows = rows.filter((row) => ids.includes(String(row.inspection_id)));
@@ -74,6 +75,33 @@ test('exact row limit is complete only after lookahead; larger source is partial
   mockData(t, { 'fx4q-ay7w': [{ inspection_id: '1' }, { inspection_id: '2' }] });
   assert.equal((await runtime.queryByDot(registry, 'fx4q-ay7w', '1', { limit: 2 })).truncated, false);
   assert.equal((await runtime.queryByDot(registry, 'fx4q-ay7w', '1', { limit: 1 })).truncated, true);
+});
+
+test('large-carrier source totals remain distinct from bounded loaded rows', async (t) => {
+  mockData(t, {'fx4q-ay7w':Array.from({length:501},(_,i)=>({inspection_id:String(i+1)}))},undefined,[{count:'30685'}]);
+  const result=await runtime.queryByDot(registry,'fx4q-ay7w','80806',{limit:500,includeTotal:true});
+  assert.equal(result.rows.length,500); assert.equal(result.total,30685); assert.equal(result.truncated,true);
+  assert.equal(runtime.rowCountLabel(result),'30,685');
+  assert.equal(runtime.loadedRowCountLabel(result),'500');
+  assert.equal(runtime.inspectionCountDetail(result),'Full available history · 500 recent rows loaded');
+});
+
+test('malformed, failed or contradictory counts never override the observed inspection window', async (t) => {
+  for(const countResponse of [[{count:null}],[{count:''}],[{count:'-1'}],[{count:'1.5'}],[{count:'9007199254740992'}],[{count:'500'}],[],new Response('',{status:503})]) {
+    await t.test(String(JSON.stringify(countResponse)),async t=>{
+      mockData(t,{'fx4q-ay7w':Array.from({length:501},(_,i)=>({inspection_id:String(i+1)}))},undefined,countResponse);
+      const result=await runtime.queryByDot(registry,'fx4q-ay7w','80806',{limit:500,includeTotal:true});
+      assert.equal(result.total,null); assert.equal(result.rows.length,500); assert.equal(result.truncated,true);
+      assert.equal(runtime.rowCountLabel(result),'500+');
+      assert.match(runtime.inspectionCountDetail(result),/total unavailable/);
+    });
+  }
+});
+
+test('confirmed empty source counts remain a complete zero',async t=>{
+  mockData(t,{},undefined,[{count:'0'}]);
+  const result=await runtime.queryByDot(registry,'fx4q-ay7w','1',{includeTotal:true});
+  assert.equal(result.total,0); assert.equal(result.truncated,false); assert.equal(runtime.rowCountLabel(result),'0');
 });
 test('failed parent does not turn dependent queries into empty successes', async (t) => {
   const calls = mockData(t, {}, 'fx4q-ay7w');

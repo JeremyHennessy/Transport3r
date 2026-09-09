@@ -113,6 +113,7 @@ function sourceTask(
     return queryByDot(registry, sourceId, dotNumber, {
       limit: 500,
       orderAliases: ['INSP_DATE', 'INSPECTION_DATE', 'REPORT_DATE'],
+      includeTotal: true,
     });
   }
   if (key === 'crash') {
@@ -274,6 +275,17 @@ export function rowCountLabel(slice?: DataSlice): string {
   if (!slice) return '—';
   const count = slice.total ?? slice.rows.length;
   return `${count.toLocaleString()}${slice.truncated && slice.total === null ? '+' : ''}`;
+}
+
+export function loadedRowCountLabel(slice?: DataSlice): string {
+  return slice ? slice.rows.length.toLocaleString() : '—';
+}
+
+export function inspectionCountDetail(slice?: DataSlice): string {
+  if (!slice) return 'Inspection source unavailable';
+  if (slice.rows.length === 0 && !slice.truncated) return 'No rows returned for this USDOT; not proof of no inspections';
+  const loaded = loadedRowCountLabel(slice);
+  return `Full available history · ${loaded} recent rows loaded${slice.truncated && slice.total === null ? ' · total unavailable' : ''}`;
 }
 
 export function evidenceIssues(evidence: CarrierEvidence): Array<{ key: EvidenceKey; message: string }> {

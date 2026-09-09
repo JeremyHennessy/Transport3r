@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
-import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue } from './datahub';
+import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail } from './datahub';
 
 type Page = 'overview' | 'carriers' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
 type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc';
@@ -47,6 +47,8 @@ type Carrier = {
   operation?: string;
   powerUnits?: string;
   drivers?: string;
+  mcs150Date?: string;
+  statusCode?: string;
   mileage?: string;
   mileageYear?: string;
   hazmat?: string;
@@ -226,6 +228,8 @@ function carrierFromRow(row: DataRow): Carrier {
     operation: readValue(row, ['CARRIER_OPERATION', 'CARRIER_OPERATION_DESC', 'OPERATION']),
     powerUnits: readValue(row, ['POWER_UNITS', 'NBR_POWER_UNIT', 'TOTAL_POWER_UNITS']),
     drivers: readValue(row, ['TOTAL_DRIVERS', 'DRIVER_TOTAL', 'DRIVERS']),
+    mcs150Date: readValue(row, ['MCS150_DATE']),
+    statusCode: readValue(row, ['STATUS_CODE']),
     mileage: readValue(row, ['MCS150_MILEAGE', 'MILEAGE', 'VMT']),
     mileageYear: readValue(row, ['MCS150_MILEAGE_YEAR', 'MILEAGE_YEAR', 'VMT_YEAR']),
     hazmat: readValue(row, ['HM_IND', 'HAZMAT_IND', 'HAZMAT_FLAG']),
@@ -467,7 +471,7 @@ function CarriersPage() {
             <span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || '—'}</span>
             <span>{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
             <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
-            <span>{formatNumber(carrier.drivers)}</span>
+            <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small></span>
             <span>{formatNumber(carrier.mileage)}{carrier.mileageYear && <small>{carrier.mileageYear}</small>}</span>
             <span>{carrier.hazmat || '—'}</span>
             <span className="evidence-links"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>

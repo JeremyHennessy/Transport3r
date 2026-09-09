@@ -102,6 +102,15 @@ export function formatDateValue(raw?: string): string {
   return parseDateValue(raw)?.toLocaleDateString(undefined, { timeZone: 'UTC' }) ?? '—';
 }
 
+export function censusStatusLabel(raw?: string): string {
+  const code = raw?.trim().toUpperCase();
+  return ({ A: 'Active', I: 'Inactive', P: 'Pending' } as Record<string, string>)[code ?? ''] ?? `Unknown${code ? ` (${code})` : ''}`;
+}
+
+export function driverReportDetail(date?: string, status?: string): string {
+  return `Company Census · MCS-150 ${formatDateValue(date)} · ${censusStatusLabel(status)} registration`;
+}
+
 async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
@@ -175,8 +184,9 @@ async function countWhere(sourceId: string, where: string): Promise<number | nul
   try {
     const rows = await fetchRows(sourceId, params);
     const raw = rows[0]?.count;
+    if (raw === null || raw === undefined || !/^\d+$/.test(String(raw))) return null;
     const parsed = Number(raw);
-    return Number.isFinite(parsed) ? parsed : null;
+    return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null;
   } catch {
     return null;
   }
@@ -209,9 +219,13 @@ export async function queryByDot(
   const where = `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
   const limit = options.limit ?? 500;
   const orderColumn = options.orderAliases ? findColumn(schema, options.orderAliases) : undefined;
-  const window = await fetchWindow(sourceId, where, limit, orderColumn?.field_name ? `${orderColumn.field_name} DESC, :id` : ':id');
+  const [window, reportedTotal] = await Promise.all([
+    fetchWindow(sourceId, where, limit, orderColumn?.field_name ? `${orderColumn.field_name} DESC, :id` : ':id'),
+    options.includeTotal ? countWhere(sourceId, where) : Promise.resolve(null),
+  ]);
   const { rows } = window;
-  const total = options.includeTotal ? await countWhere(sourceId, where) : null;
+  // A separately queried count cannot override rows (including the lookahead) already observed.
+  const total = reportedTotal !== null && reportedTotal >= rows.length + (window.truncated ? 1 : 0) ? reportedTotal : null;
   return {
     sourceId,
     rows,

@@ -42,8 +42,10 @@ function RootRouter() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
 
-  if (/^#\/carrier\/\d+\/fleet(?:\?|$)/.test(hash)) return <FleetRouteApp />;
-  return hash.startsWith('#/carrier/') ? <CarrierRouteApp /> : <WorkspaceApp />;
+  // A new USDOT must never inherit another carrier's identity, counts or failed-request state.
+  const carrierKey = hash.split('/')[2];
+  if (/^#\/carrier\/\d+\/fleet(?:\?|$)/.test(hash)) return <FleetRouteApp key={carrierKey} />;
+  return hash.startsWith('#/carrier/') ? <CarrierRouteApp key={carrierKey} /> : <WorkspaceApp />;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
