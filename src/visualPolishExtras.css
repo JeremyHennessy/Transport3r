@@ -1,0 +1,41 @@
+/* Focused refinements layered after visualPolish.css. */
+
+/* Native evidence tables used by inspection/VIN/date-window pages */
+.t3-coverage-scroll{overflow:auto;border:1px solid #dce5ee;border-radius:14px;background:#fff;box-shadow:0 2px 10px rgba(7,26,51,.045)}
+.inspection-observations{width:100%;min-width:680px;border-collapse:separate;border-spacing:0;font-size:10px;color:#4b5f77;background:#fff}
+.inspection-observations thead{position:sticky;top:0;z-index:2;background:#edf3f8}
+.inspection-observations th{padding:11px 12px;border-bottom:1px solid #d6e1eb;text-align:left;font-size:8.5px;letter-spacing:.075em;text-transform:uppercase;color:#687b92;font-weight:850;white-space:nowrap}
+.inspection-observations td{padding:11px 12px;border-bottom:1px solid #e9eef4;vertical-align:top;line-height:1.45}
+.inspection-observations tbody tr:nth-child(even){background:#fbfcfe}.inspection-observations tbody tr:hover{background:#f1f7fc}.inspection-observations tbody tr:last-child td{border-bottom:0}.inspection-observations a{color:#2a67a3;font-weight:800}.inspection-observations a:hover{color:#e85c0d}
+
+/* Drillthrough fact blocks */
+.t3-drill-metrics{margin-top:2px!important}.t3-drill-callout{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:center;margin:2px 0 14px;padding:12px 14px;border:1px solid #d7e3ee;border-radius:13px;background:linear-gradient(90deg,#f3f8fc,#fbfcfe);color:#52677f}.t3-drill-callout strong{font-size:10px;color:#173b63;white-space:nowrap}.t3-drill-callout span{font-size:10px;line-height:1.45}.t3-parent-record{margin-top:20px;border:1px solid #dfe7ef;border-radius:12px;overflow:hidden;background:#f8fafc}.t3-parent-record>summary{padding:11px 13px;cursor:pointer;font-size:10px;font-weight:800;color:#4e627a}.t3-parent-record[open]>summary{border-bottom:1px solid #e2e9f0}
+
+/* Complete evidence browser */
+[data-testid="all-source-records"]{padding:0!important;overflow:hidden}
+[data-testid="all-source-records"]>h2{margin:0;padding:20px 22px 12px;font-size:22px;border-bottom:1px solid #e6edf4}
+[data-testid="all-source-records"]>button,[data-testid="all-source-records"]>label,[data-testid="all-source-records"]>p,[data-testid="all-source-records"]>div{margin-left:22px;margin-right:22px}
+[data-testid="all-source-records"]>button{min-height:35px;padding:0 11px;border-radius:10px;border:1px solid #cbd8e4;background:#fff;color:#274e76;font-size:10px;font-weight:800}
+[data-testid="all-source-records"]>label{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:10px;font-weight:800;color:#63758c}
+[data-testid="all-source-records"] select,[data-testid="all-source-records"] input{height:36px;border:1px solid #ccd8e5;border-radius:9px;background:#fff;padding:0 9px;color:#304a67}
+[data-testid="all-source-records"]>p{font-size:10px;line-height:1.5;color:#6b7c91}
+[data-testid="all-source-records"]>div:not(.c360-raw-list){padding:10px 0;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+[data-testid="all-source-records"] details{margin-left:22px!important;margin-right:22px!important}
+[data-testid="all-source-records"] details:last-child{margin-bottom:22px!important}
+[data-testid="all-source-records"] dl{margin:0;padding:0;background:#fff}
+[data-testid="all-source-records"] dl>div{display:grid;grid-template-columns:minmax(160px,.42fr) minmax(0,1fr);gap:12px;padding:8px 12px;border-top:1px solid #edf1f5}
+[data-testid="all-source-records"] dt{font-size:9px;color:#63758a;overflow-wrap:anywhere}[data-testid="all-source-records"] dd{margin:0;font-size:10px;color:#314a66;overflow-wrap:anywhere}
+
+/* SMS/source cells */
+.t3-sms-directory-controls{display:flex;align-items:center;flex-wrap:wrap}.t3-sms-directory-controls small{color:#7c899a}.t3-sms-directory-controls span{font-size:10px;color:#5e7086}
+
+/* Report output is deliberately denser than the application shell. */
+.report-screen{background:#e7edf4!important;color:#18304b!important}.report-controls{max-width:960px!important;border:1px solid #d4e0ea!important;border-radius:16px!important;box-shadow:0 10px 32px rgba(7,26,51,.08)!important}.report-controls h1{letter-spacing:-.035em;color:#0b2345}.report-controls button{border-radius:9px!important;font-weight:800!important}.carrier-report .t3-insight-bars{padding:8px!important;border-radius:8px!important;box-shadow:none!important}.carrier-report .t3-insight-bars figcaption{margin-bottom:6px!important}.carrier-report .t3-insight-bars figcaption strong{font-size:10px!important}.carrier-report .t3-insight-bars figcaption p{font-size:7.5px!important}.carrier-report .t3-chart-total{font-size:7.5px!important;padding:3px 5px!important}.carrier-report .t3-bar-list{gap:3px!important}.carrier-report .t3-bar-row{grid-template-columns:68px 1fr 25px!important;gap:5px!important}.carrier-report .t3-bar-row>span:first-child,.carrier-report .t3-bar-row b{font-size:7.5px!important}.carrier-report .t3-bar-track{height:5px!important}.carrier-report .t3-safety-visuals{padding:8px!important;margin:9px 0!important;border-radius:9px!important;box-shadow:none!important}.carrier-report .t3-map-head{margin-bottom:5px!important}.carrier-report .t3-map-head h3{font-size:10px!important}.carrier-report .t3-map-head p{font-size:7px!important}.carrier-report .t3-map-kpis,.carrier-report .t3-coverage-controls{display:none!important}.carrier-report .t3-map-layout{grid-template-columns:1fr!important;margin-top:3px!important}.carrier-report .t3-map-canvas{min-height:0!important;height:245px!important;padding:2px!important;border-radius:7px!important}.carrier-report .t3-map-canvas svg{height:100%!important;max-height:245px!important}.carrier-report .t3-map-side{display:none!important}.carrier-report .t3-map-legend{margin-top:4px!important;gap:7px!important}.carrier-report .t3-map-legend span{font-size:6.8px!important}.carrier-report .t3-map-footnote{font-size:6.5px!important;margin-top:4px!important}.carrier-report .t3-insight-timeline{padding:8px!important}.carrier-report .t3-insight-timeline li{font-size:7.5px!important;padding-bottom:5px!important}
+
+@media print{
+  .report-screen{background:#fff!important}.carrier-report .t3-safety-visuals{break-inside:avoid!important}.carrier-report .t3-map-canvas{height:225px!important}.carrier-report .t3-map-canvas svg{max-height:225px!important}.carrier-report .t3-insight-bars{break-inside:avoid!important}
+}
+
+@media(max-width:760px){
+  .t3-drill-callout{grid-template-columns:1fr;gap:4px}.t3-drill-callout strong{white-space:normal}.inspection-observations{min-width:620px}[data-testid="all-source-records"] dl>div{grid-template-columns:1fr;gap:3px}
+}
