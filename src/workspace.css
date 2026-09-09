@@ -39,3 +39,8 @@ html{background:var(--soft);scroll-behavior:smooth}body{margin:0;min-width:320px
 .t3-source-row>span:first-child{display:block}
 .t3-source-row>span:first-child .t3-source-dot{display:inline-block;margin-right:6px}
 
+/* Directory review details stay within the fleet column on narrow screens. */
+.t3-exposure-flags { white-space: normal; margin-top: .5rem; font-size: .75rem; }
+.t3-exposure-flags summary { cursor: pointer; color: #855514; }
+.t3-exposure-flags small { display: block; margin-top: .4rem; }
+.t3-directory-paging { padding: 1rem; align-items: center; flex-wrap: wrap; }
