@@ -2,6 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { queryLiveSource } from './live-source-retry.mjs';
 
+test('raw metadata fetch retries transport errors, timeout and transient HTTP status',async()=>{
+ for(const message of ['fetch failed','Request timed out after 30s','HTTP 503','HTTP 429']){
+  let calls=0;const result=await queryLiveSource(async()=>{if(++calls===1)throw new Error(message);return {rowsUpdatedAt:123};},{wait:async()=>{}});
+  assert.equal(calls,2);assert.deepEqual(result.attempts.map(a=>a.status),['FAIL','PASS']);assert.equal(result.slice.rowsUpdatedAt,123);
+ }
+});
+test('raw metadata validation and permanent HTTP failures are never retried',async()=>{
+ for(const message of ['HTTP 400','HTTP 404','Unexpected token in JSON','Source changed during acquisition']){
+  let calls=0;await assert.rejects(queryLiveSource(async()=>{calls++;throw new Error(message);},{wait:async()=>{}}),{message});assert.equal(calls,1);
+ }
+});
+
 test('live source retry retains transient failures and uses a fresh successful observation', async () => {
   let calls = 0; const delays = [];
   const result = await queryLiveSource(async () => {

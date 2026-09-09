@@ -9,7 +9,7 @@ export async function queryLiveSource(query, { requireTotal = false, wait = ms =
       return { slice, attempts };
     } catch (error) {
       attempts.push({ attempt, status: 'FAIL', error: error.message });
-      const transient = /request failed:|returned HTTP (429|5\d\d)|^Source total unavailable$/.test(error.message);
+      const transient = /request failed:|returned HTTP (429|5\d\d)|^Source total unavailable$|^fetch failed$|^Request timed out after \d+s$|^HTTP (429|5\d\d)$/.test(error.message);
       if (!transient || attempt === 3) {
         error.attempts = attempts;
         throw error;

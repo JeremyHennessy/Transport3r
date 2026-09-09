@@ -32,6 +32,8 @@ The Data Sources page lists all six with explicit integrated/candidate statuses,
 
 ## Verification
 
+The source-window CI audit now also uses bounded transient retries for its raw metadata and cohort-selection requests. Attempt URLs/statuses are retained in `acquisition-attempts.json`. Transport errors, timeouts, HTTP 429 and 5xx may retry up to three times; invalid payloads, permanent HTTP failures and publication changes still fail. The repair followed an observed CI `fetch failed` error before reconciliation began.
+
 Eight new unit tests cover calendar boundaries and injection, shared detail/count predicates, rejected SMS date encoding, foreign/invalid rows, partial monthly zeros, changed publication metadata, decoder warnings, response identity and request provenance. Eleven production-bundle browser checks cover user interaction, old-response isolation, refetch/recovery, source changes and candidate/integrated labels. Real-source examples and screenshots are retained under `outputs/date-enrichment-local-ui/` and, after deployment, `outputs/date-enrichment-live-ui/`.
 
 Live-source browser checks for the inclusive 2024 calendar year returned 8,658 inspections and 374 crashes for USDOT 3706 (500 inspection details loaded), two inspections and no crash rows for USDOT 3938496, and no rows in either daily file for USDOT 2855794. These are current-source results within the selected dates, not historical snapshot values or safety clearance. VIN `3C63RRGLXPG628183` decoded as a 2023 RAM 3500 with no reported decoder error; recorded VIN `3AKJHHDR1NCMS1700` returned Freightliner Cascadia fields alongside an explicit check-digit warning. Desktop and mobile checks passed without runtime errors.
