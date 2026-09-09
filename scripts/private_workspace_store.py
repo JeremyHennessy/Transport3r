@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS relationships(id TEXT PRIMARY KEY,dot_a TEXT NOT NULL
 CREATE TABLE IF NOT EXISTS relationship_history(id INTEGER PRIMARY KEY AUTOINCREMENT,relationship_id TEXT NOT NULL,payload TEXT NOT NULL,changed_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS jobs(id INTEGER PRIMARY KEY AUTOINCREMENT,started_at TEXT NOT NULL,finished_at TEXT,status TEXT NOT NULL,detail TEXT);
 CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS screening_cases(id TEXT PRIMARY KEY,kind TEXT NOT NULL,dot TEXT NOT NULL,candidate_dot TEXT,status TEXT NOT NULL,notes TEXT NOT NULL,reviewer TEXT NOT NULL,evidence TEXT NOT NULL,updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS screening_history(id INTEGER PRIMARY KEY AUTOINCREMENT,case_id TEXT NOT NULL,payload TEXT NOT NULL,changed_at TEXT NOT NULL);
 '''
 
 def connect(path):
@@ -81,6 +83,23 @@ def group_members(db,seed):
             if r['dot_a'] in members or r['dot_b'] in members:
                 before=len(members);members.update((r['dot_a'],r['dot_b']));changed|=len(members)!=before
     return sorted(members,key=int)
+
+def save_screening_case(db,body,reviewer,evidence):
+    kind=body.get('kind');seed=dot(body.get('dot'))
+    candidate=dot(body.get('candidate_dot')) if kind=='chameleon' else None
+    if kind not in ('ghost','chameleon'):raise ValueError('Unsupported screening case')
+    status=body.get('status');notes=body.get('notes','').strip()
+    if status not in ('in_review','dismissed','escalated') or not 10<=len(notes)<=8000:
+        raise ValueError('Select a review state and provide 10 to 8,000 characters of rationale')
+    # One case per pair/rule, with successive source evidence and decisions in history.
+    identity=digest([kind,seed,candidate]);at=now()
+    with db:
+        prior=db.execute('SELECT * FROM screening_cases WHERE id=?',(identity,)).fetchone()
+        db.execute('INSERT OR REPLACE INTO screening_cases VALUES (?,?,?,?,?,?,?,?,?)',
+                   (identity,kind,seed,candidate,status,notes,reviewer,json.dumps(evidence),at))
+        db.execute('INSERT INTO screening_history(case_id,payload,changed_at) VALUES (?,?,?)',
+                   (identity,json.dumps({'previous':dict(prior) if prior else None,'status':status,'notes':notes,'reviewer':reviewer,'evidence':evidence}),at))
+    return identity
 
 def deliver(db,alerts_path):
     """Atomic durable inbox delivery; a browser visit is not required."""

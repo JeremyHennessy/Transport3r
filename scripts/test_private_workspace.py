@@ -35,10 +35,13 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.request('/api/setup',{'name':'Test owner','password':'fixture-only-password'})[0],200)
     def test_auth_origin_and_host_boundaries(self):
         self.assertEqual(self.request('/api/state')[0],401)
+        for path in ('/api/identity-screen?dot=3706','/api/ghost?dot=3706','/api/ghost-queue','/api/group?dot=3706','/api/screening-history?id=test'):
+            self.assertEqual(self.request(path)[0],401)
         self.assertEqual(self.request('/api/setup',{'name':'Test','password':'fixture-only-password'},origin=False)[0],403)
         self.assertEqual(self.request('/api/session',host='attacker.test')[0],403)
         self.login();self.assertEqual(self.request('/api/state')[0],200)
         self.assertEqual(self.request('/api/subscribe',{'dot':'3706','enabled':True},origin=False)[0],403)
+        self.assertEqual(self.request('/api/screening-case',{'kind':'ghost','dot':'3706'},origin=False)[0],403)
         self.request('/api/logout',{});self.assertEqual(self.request('/api/state')[0],401)
     def test_portfolio_roundtrip_preserves_private_values_and_rejects_bad_batch(self):
         self.login()

@@ -23,6 +23,7 @@ def census(db,dots):
     return rows
 
 def group_summary(db,dots):
+    dots=sorted({dot(x) for x in dots},key=int)
     rows=census(db,dots);totals={}
     for field in ('power_units','total_drivers','mcs150_mileage'):
         known=[int(r[field]) for r in rows if isinstance(r.get(field),str) and r[field].isdigit()]
