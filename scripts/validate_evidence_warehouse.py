@@ -1,12 +1,15 @@
 """Live acquisition-to-warehouse gate, or validation of an already preserved extended cut."""
 import argparse
 import collections
+import datetime as dt
 import json
 import pathlib
 
 from cohort_snapshot import acquire, hash_file, load_verified, source_dot
 from evidence_warehouse import carrier_evidence, connect, promote, verify
+from inspection_evidence_audit import audit_cut
 from snapshot_store import now, write_once
+from verify_snapshot import timestamp
 
 
 def validate(output, cut=None, per_stratum=1):
@@ -22,6 +25,11 @@ def validate(output, cut=None, per_stratum=1):
         manifest, cohort, data = load_verified(cut)
         if manifest.get('source_profile') != 'underwriting_evidence_v1':
             raise ValueError('This gate requires the complete 14-source profile')
+        day = timestamp(manifest['completed_at']).date()
+        inspection_audit = audit_cut(cut, day-dt.timedelta(days=729), day)
+        write_once(output/'inspection-audit.json', inspection_audit)
+        if inspection_audit['status'] != 'PASS':
+            raise ValueError('Inspection parent/date integrity is incomplete; see inspection-audit.json')
         db = output/'evidence.sqlite'
         first = promote(cut,db)
         second = promote(cut,db)
@@ -48,6 +56,9 @@ def validate(output, cut=None, per_stratum=1):
         report.update(status='PASS',cut_id=manifest['snapshot_id'],source_manifest_sha256=hash_file(cut/'manifest.json'),
                       cohort_sha256=manifest['cohort_sha256'],carriers=len(cohort['dots']),sources=len(data),
                       total_rows=sum(len(rows) for rows in data.values()),source_rows={sid:len(rows) for sid,rows in data.items()},
+                      inspection_audit={'status':inspection_audit['status'],
+                                        'matched_violation_rows':inspection_audit['matched_violation_rows'],
+                                        'sha256':hash_file(output/'inspection-audit.json')},
                       carrier_source_checks=len(checks),warehouse=verified,
                       exported_dot=largest,exported_inspections=inspection['carrier_rows'],
                       export_sha256=hash_file(output/'carrier-export.json'),

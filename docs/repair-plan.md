@@ -61,3 +61,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Complete cohort warehouse
 
 [Verified evidence warehouse](evidence-warehouse.md) extends the preserved cohort from seven to 14 complete source extracts, adds verified atomic SQLite promotion and complete carrier exports, and retains the original baseline. The 62-carrier expanded cut contains 109,466 rows and passes 868 carrier/source count checks. Browser limits remain separate; historical monthly alignment, remaining source joins, feature eligibility and future-outcome validation are still required.
+
+## Power BI review and inspection-grain gate
+
+[Full Power BI model review](powerbi-model-review.md) covers two PBIP projects and three PBIX files, including extracted model formulas and all report definitions. It identifies double-normalized denominators, unknown-to-zero scores, differing violation grains, date/filter inconsistencies and exposure/population ambiguity. Useful drilldowns and source mappings inform the next steps. The warehouse CI gate now checks every preserved SMS violation parent/carrier/date and exports explicit event-window monthly counts without treating sparse months as missing sources. The original Power BI assets and TRI v0.1 remain unchanged; Power BI DAX execution and matched-cut numerical comparison remain outstanding.
