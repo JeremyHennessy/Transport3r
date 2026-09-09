@@ -228,3 +228,29 @@ export function replaySummary(replays: SmsMeasureReplay[]) {
     exactMatches: validationCandidates.filter((replay) => replay.status === 'MATCH').length,
   };
 }
+
+// Explain rejected comparisons without exposing hundreds of repeated row-level codes.
+// The complete machine-readable codes remain in the replay and retained CI results.
+export function smsReplayMessages(replays: SmsMeasureReplay[]): string[] {
+  const messages = new Set<string>();
+  if (replays.some(replay => replay.truncatedInput)) messages.add('Inspection or violation inputs are incomplete or unavailable.');
+  const rules: Array<[RegExp, string]> = [
+    [/DATE/, 'Inspection dates are missing, invalid or inconsistent between linked rows.'],
+    [/TIME_WEIGHT/, 'Published time weights are missing, invalid or inconsistent.'],
+    [/SEVERITY/, 'Violation severity weights are missing or invalid.'],
+    [/CARRIER_IDENTITY_MISMATCH/, 'Input rows do not match the requested USDOT.'],
+    [/MISSING_INSPECTION_ID|DUPLICATE_INSPECTION_ID/, 'Inspection identifiers are missing or duplicated.'],
+    [/UNMATCHED_RELEVANT_INSPECTION/, 'Violations could not be linked to a relevant loaded inspection.'],
+    [/MISSING_VIOLATION_BASIC/, 'Some violation rows have no BASIC classification.'],
+    [/INVALID_RELEVANCE_FLAG/, 'Some inspection relevance flags are invalid.'],
+    [/INCOMPLETE_SMS_OUTPUT/, 'One or more official SMS output sources are incomplete or unavailable.'],
+    [/DUPLICATE_SMS_OUTPUT/, 'An official SMS output source returned multiple rows for this USDOT.'],
+    [/SMS_OUTPUT_IDENTITY_MISMATCH/, 'Official SMS output rows do not match the requested USDOT.'],
+    [/CONFLICTING_SMS_OPERATION_POPULATIONS/, 'Official SMS outputs disagree on the carrier operation population.'],
+    [/CONFLICTING_SMS_MEASURE/, 'Overlapping official SMS outputs contain conflicting measures.'],
+  ];
+  for (const issue of replays.flatMap(replay => [...replay.inputIssues, ...replay.officialOutputIssues])) {
+    messages.add(rules.find(([pattern]) => pattern.test(issue))?.[1] ?? 'SMS input or output validation failed.');
+  }
+  return [...messages];
+}
