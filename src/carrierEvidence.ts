@@ -76,6 +76,7 @@ export type CarrierEvidence = {
   registry: SchemaRegistry;
   slices: Partial<Record<EvidenceKey, DataSlice>>;
   errors: Partial<Record<EvidenceKey, string>>;
+  census?: DataRow;
 };
 
 const CHILD_KEYS = new Set<EvidenceKey>(['units', 'violations', 'specialStudies', 'citations']);
@@ -101,6 +102,10 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   inspection: ['inspections', 'units', 'violations', 'citations'],
   evidence: Object.keys(SOURCE_IDS) as EvidenceKey[],
 };
+
+export function evidenceKeys(mode: CarrierEvidenceMode): EvidenceKey[] {
+  return [...MODE_KEYS[mode]];
+}
 
 function sourceTask(
   registry: SchemaRegistry,

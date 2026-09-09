@@ -32,6 +32,7 @@ export type DataSlice = {
   total: number | null;
   truncated: boolean;
   scope?: 'carrier' | 'loaded_inspections' | 'dockets';
+  acquiredAt?: string;
 };
 
 const DATAHUB = 'https://data.transportation.gov/resource';
@@ -250,6 +251,7 @@ export async function queryByDot(
     total,
     truncated: window.truncated || (total !== null && rows.length < total),
     scope: 'carrier',
+    acquiredAt: new Date().toISOString(),
   };
 }
 
@@ -271,7 +273,7 @@ export async function queryByInspectionIds(
 
   const allIds = [...new Set(inspectionIds.filter(Boolean))];
   const unique = allIds.slice(0, options.maxInspectionIds ?? 500);
-  if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
+  if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false, scope: 'loaded_inspections' };
 
   const limitPerChunk = options.limitPerChunk ?? 5000;
   const batches = chunks(unique, options.idsPerChunk ?? 100);
@@ -290,6 +292,7 @@ export async function queryByInspectionIds(
     total: truncated ? null : rows.length,
     truncated,
     scope: 'loaded_inspections',
+    acquiredAt: new Date().toISOString(),
   };
 }
 
@@ -305,7 +308,7 @@ export async function queryByDocketNumbers(
 
   const allDockets = [...new Set(docketNumbers.filter(Boolean))];
   const unique = allDockets.slice(0, options.maxDocketNumbers ?? 100);
-  if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false };
+  if (!unique.length) return { sourceId, rows: [], total: 0, truncated: false, scope: 'dockets' };
 
   const limitPerChunk = options.limitPerChunk ?? 2000;
   const batches = chunks(unique, options.idsPerChunk ?? 50);
@@ -324,6 +327,7 @@ export async function queryByDocketNumbers(
     total: truncated ? null : rows.length,
     truncated,
     scope: 'dockets',
+    acquiredAt: new Date().toISOString(),
   };
 }
 

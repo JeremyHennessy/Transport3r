@@ -55,6 +55,21 @@ jobs:
           if-no-files-found: warn
       - name: Verify all carrier evidence mappings for inactive and active registrations
         run: node scripts/validate-carrier-mappings.mjs /tmp/transport3r-carrier-mappings.json
+      - name: Verify coverage filters and export in the production browser bundle
+        env:
+          BROWSER_SCENARIO: coverage
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-coverage-browser.json
+      - name: Reconcile stratified Census and detailed safety source windows
+        run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-reconciliation
+      - name: Retain coverage and reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reconciliation-${{ github.sha }}
+          path: |
+            /tmp/transport3r-coverage-browser.json
+            /tmp/transport3r-reconciliation/
+          if-no-files-found: warn
       - name: Retain complete carrier mapping checks
         if: always()
         uses: actions/upload-artifact@v4

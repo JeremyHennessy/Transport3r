@@ -272,9 +272,8 @@ export function Sms({ evidence }: { evidence: CarrierEvidence }) {
 }
 
 export function Evidence({ carrier, evidence }: { carrier: Carrier; evidence: CarrierEvidence }) {
-  const entries = Object.entries(evidence.slices);
   const issues = evidenceIssues(evidence);
-  return <section className="c360-card"><SectionHeading eyebrow="Full configured source sweep" title="Evidence lineage" badges={<Badge tone={issues.length ? 'warning' : 'good'}>{issues.length ? `${issues.length} source${issues.length === 1 ? '' : 's'} incomplete or unavailable` : 'Loaded without source errors'}</Badge>} /><div className="c360-source-grid">{entries.map(([key, slice]) => <article key={key}><span>{key}</span><strong>{rowCountLabel(slice)}</strong><small>{slice?.sourceId} · {slice?.rows.length.toLocaleString()} rows loaded · {slice?.truncated ? 'loaded window / partial' : 'query complete for request'}</small></article>)}</div><SourceErrors evidence={evidence}/><details className="c360-raw-census"><summary>Raw Company Census record</summary><pre>{JSON.stringify(carrier.raw, null, 2)}</pre></details><p className="c360-disclaimer">The Evidence tab intentionally performs the broadest source sweep. Other Carrier 360 tabs load only the evidence needed for their underwriting question.</p></section>;
+  return <section className="c360-card"><SectionHeading eyebrow="Full configured source sweep" title="Evidence lineage" badges={<Badge tone={issues.length ? 'warning' : 'good'}>{issues.length ? `${issues.length} source${issues.length === 1 ? '' : 's'} incomplete or unavailable` : 'Loaded without source errors'}</Badge>} /><SourceErrors evidence={evidence}/><details className="c360-raw-census"><summary>Raw Company Census record</summary><pre>{JSON.stringify(carrier.raw, null, 2)}</pre></details><p className="c360-disclaimer">The Evidence tab intentionally performs the broadest source sweep. Other Carrier 360 tabs load only the evidence needed for their underwriting question.</p></section>;
 }
 
 function InspectionDetail({ carrier, evidence, inspectionIdValue }: { carrier: Carrier; evidence: CarrierEvidence; inspectionIdValue: string }) {
@@ -319,14 +318,15 @@ export default function CarrierRouteApp() {
 
   const content = useMemo(() => {
     if (!route || !carrier || !evidence) return null;
-    if (route.kind === 'inspection') return <InspectionDetail carrier={carrier} evidence={evidence} inspectionIdValue={route.inspectionId}/>;
-    if (route.section === 'summary') return <Summary carrier={carrier} evidence={evidence}/>;
-    if (route.section === 'safety') return <Safety carrier={carrier} evidence={evidence}/>;
-    if (route.section === 'fleet') return <Fleet carrier={carrier} evidence={evidence}/>;
-    if (route.section === 'authority') return <Authority evidence={evidence}/>;
-    if (route.section === 'insurance') return <Insurance evidence={evidence}/>;
-    if (route.section === 'sms') return <Sms evidence={evidence}/>;
-    return <Evidence carrier={carrier} evidence={evidence}/>;
+    const displayEvidence = { ...evidence, census: carrier.raw };
+    if (route.kind === 'inspection') return <InspectionDetail carrier={carrier} evidence={displayEvidence} inspectionIdValue={route.inspectionId}/>;
+    if (route.section === 'summary') return <Summary carrier={carrier} evidence={displayEvidence}/>;
+    if (route.section === 'safety') return <Safety carrier={carrier} evidence={displayEvidence}/>;
+    if (route.section === 'fleet') return <Fleet carrier={carrier} evidence={displayEvidence}/>;
+    if (route.section === 'authority') return <Authority evidence={displayEvidence}/>;
+    if (route.section === 'insurance') return <Insurance evidence={displayEvidence}/>;
+    if (route.section === 'sms') return <Sms evidence={displayEvidence}/>;
+    return <Evidence carrier={carrier} evidence={displayEvidence}/>;
   }, [route, carrier, evidence]);
 
   if (!route) return <div className="t3-fatal"><strong>Invalid carrier route.</strong><a href="#/carriers">Return to Carriers</a></div>;
