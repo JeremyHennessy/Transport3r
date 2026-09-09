@@ -61,6 +61,8 @@ The unchanged feature schema produced 62 as-of observations using its original s
 
 ## Automated release gate
 
+The default live gate now acquires the 18-source `underwriting_evidence_v2` profile (schema v5), including all four daily inspection child families through verified parents. Existing v1 cut validation remains supported. See [inspection children and drilldowns](inspection-drilldowns.md) for the acquisition contract and September 9 acceptance evidence.
+
 ```sh
 python scripts/validate_evidence_warehouse.py --output UNIQUE_VALIDATION_DIRECTORY --per-stratum 1
 python scripts/validate_evidence_warehouse.py --cut warehouse/raw/EXISTING_EXTENDED_CUT --output ANOTHER_UNIQUE_DIRECTORY

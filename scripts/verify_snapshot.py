@@ -16,7 +16,7 @@ def timestamp(value):
 def verify(folder, as_of=None):
     root = pathlib.Path(folder).resolve()
     manifest = json.loads((root/'manifest.json').read_text(encoding='utf-8'))
-    if manifest.get('schema_version') in (3,4):
+    if manifest.get('schema_version') in (3,4,5):
         # Imported here because cohort acquisition shares this module's timestamp parser.
         from cohort_snapshot import load_verified
         verified, cohort, data = load_verified(root,as_of)

@@ -53,7 +53,7 @@ export function coverageRows(evidence: CarrierEvidence) {
 export function coverageReport(evidence: CarrierEvidence, census?: DataRow) {
   census ??= evidence.census ?? evidence.slices.census?.rows[0];
   return {
-    version: 1, dotNumber: evidence.dotNumber, mode: evidence.mode, assembledAt: evidence.loadedAt,
+    version: 1, dotNumber: evidence.dotNumber, inspectionId: evidence.inspectionId ?? null, mode: evidence.mode, assembledAt: evidence.loadedAt,
     scope: 'Loaded source requests only. Metadata dates are a saved catalog cut, not live publication or historical availability dates. Sparse event dates do not establish missing records.',
     riskScore: null, riskReason: 'No numeric Transport3r risk model released.',
     exposure: census ? {

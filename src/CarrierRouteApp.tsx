@@ -1,3 +1,5 @@
+import { InspectionDetail, ObservedVinDetail } from './InspectionDrilldowns';
+import { loadInspectionEvidence } from './inspectionEvidence';
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -33,7 +35,8 @@ type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance'
 
 type ParsedRoute =
   | { kind: 'section'; dotNumber: string; section: CarrierSection }
-  | { kind: 'inspection'; dotNumber: string; inspectionId: string };
+  | { kind: 'inspection'; dotNumber: string; inspectionId: string }
+  | { kind: 'vin'; dotNumber: string; vin: string; inspectionId?: string };
 
 type Carrier = {
   dotNumber: string;
@@ -70,16 +73,24 @@ const OPERATION_LABELS: Record<string, string> = {
 };
 
 function parseRoute(): ParsedRoute | null {
-  const parts = window.location.hash.replace(/^#\//, '').split('/').filter(Boolean);
+  const parts = window.location.hash.split('?')[0].replace(/^#\//, '').split('/').filter(Boolean);
   if (parts[0] !== 'carrier' || !/^\d+$/.test(parts[1] ?? '')) return null;
   const dotNumber = parts[1];
-  if (parts[2] === 'inspection' && parts[3]) return { kind: 'inspection', dotNumber, inspectionId: parts[3] };
+  if (parts[2] === 'vin' && parts[3]) {
+    try {
+      const vin = decodeURIComponent(parts[3]);
+      const seed = new URLSearchParams(window.location.hash.split('?')[1] ?? '').get('inspection');
+      if (!vin.trim() || vin.length > 64 || (seed && !/^[1-9]\d*$/.test(seed))) return null;
+      return { kind: 'vin', dotNumber, vin, inspectionId: seed ?? undefined };
+    } catch { return null; }
+  }
+  if (parts[2] === 'inspection' && /^[1-9]\d*$/.test(parts[3] ?? '')) return { kind: 'inspection', dotNumber, inspectionId: parts[3] };
   const section = (parts[2] ?? 'summary') as CarrierSection;
   return { kind: 'section', dotNumber, section: SECTIONS.some((candidate) => candidate.id === section) ? section : 'summary' };
 }
 
 function routeMode(route: ParsedRoute): CarrierEvidenceMode {
-  return route.kind === 'inspection' ? 'inspection' : route.section;
+  return route.kind === 'inspection' || (route.kind === 'vin' && route.inspectionId) ? 'inspection' : route.kind === 'vin' ? 'fleet' : route.section;
 }
 
 export function carrierFromRow(row: DataRow): Carrier {
@@ -276,19 +287,11 @@ export function Evidence({ carrier, evidence }: { carrier: Carrier; evidence: Ca
   return <section className="c360-card"><SectionHeading eyebrow="Full configured source sweep" title="Evidence lineage" badges={<Badge tone={issues.length ? 'warning' : 'good'}>{issues.length ? `${issues.length} source${issues.length === 1 ? '' : 's'} incomplete or unavailable` : 'Loaded without source errors'}</Badge>} /><SourceErrors evidence={evidence}/><details className="c360-raw-census"><summary>Raw Company Census record</summary><pre>{JSON.stringify(carrier.raw, null, 2)}</pre></details><p className="c360-disclaimer">The Evidence tab intentionally performs the broadest source sweep. Other Carrier 360 tabs load only the evidence needed for their underwriting question.</p></section>;
 }
 
-function InspectionDetail({ carrier, evidence, inspectionIdValue }: { carrier: Carrier; evidence: CarrierEvidence; inspectionIdValue: string }) {
-  const inspection = (evidence.slices.inspections?.rows ?? []).find((row) => inspectionId(row) === inspectionIdValue);
-  const belongs = (row: DataRow) => readValue(row, ['INSPECTION_ID', 'UNIQUE_ID', 'INSP_ID']) === inspectionIdValue;
-  const units = (evidence.slices.units?.rows ?? []).filter(belongs);
-  const violations = (evidence.slices.violations?.rows ?? []).filter(belongs);
-  const citations = (evidence.slices.citations?.rows ?? []).filter(belongs);
-  return <section className="c360-card"><SectionHeading eyebrow="Inspection drillthrough" title={`Inspection ${inspectionIdValue}`} badges={<a className="t3-button text" href={`#/carrier/${carrier.dotNumber}/safety`}>Back to Safety</a>} />{!inspection ? <div className="c360-review warning"><strong>This inspection is outside the currently loaded recent inspection window.</strong><p>Transport3r does not fabricate a drillthrough. A direct inspection-ID retrieval path can be added later for deep-history links.</p></div> : <><div className="c360-metric-grid four"><Metric label="Date" value={formatDate(readValue(inspection, ['INSP_DATE', 'INSPECTION_DATE', 'REPORT_DATE']))}/><Metric label="State" value={readValue(inspection, ['REPORT_STATE', 'STATE']) ?? '—'}/><Metric label="Level" value={readValue(inspection, ['INSP_LEVEL_ID', 'INSPECTION_LEVEL', 'LEVEL']) ?? '—'}/><Metric label="Units / violations" value={`${units.length} / ${violations.length}`} detail={`${citations.length} citation rows`}/></div><h3 className="c360-subhead">Inspection record</h3><RawRecords rows={[inspection]}/><h3 className="c360-subhead">Vehicle units</h3><div className="c360-table fleet"><div className="c360-table-row header"><span>VIN</span><span>Make</span><span>Type</span><span>Plate</span><span>State</span><span>Unit</span></div>{units.map((row, index) => <div className="c360-table-row" key={index}><span className="mono">{readValue(row, [...UNIT_FIELD_ALIASES.vin]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.make]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.type]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plate]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.plateState]) ?? '—'}</span><span>{readValue(row, [...UNIT_FIELD_ALIASES.unitNumber]) ?? '—'}</span></div>)}</div><h3 className="c360-subhead">Violations</h3><RawRecords rows={violations}/><h3 className="c360-subhead">Citations</h3><RawRecords rows={citations}/></>}<SourceErrors evidence={evidence}/></section>;
-}
-
 export default function CarrierRouteApp() {
   const [route, setRoute] = useState<ParsedRoute | null>(() => parseRoute());
   const [carrier, setCarrier] = useState<Carrier | null>(null);
   const [evidence, setEvidence] = useState<CarrierEvidence | null>(null);
+  const [refresh, setRefresh] = useState(0);
   const [carrierError, setCarrierError] = useState<string | null>(null);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
@@ -307,19 +310,22 @@ export default function CarrierRouteApp() {
   }, [route?.dotNumber]);
 
   const mode = route ? routeMode(route) : 'summary';
+  const selectedInspection = route && route.kind !== 'section' ? route.inspectionId : undefined;
   useEffect(() => {
     if (!route) return;
     let current = true;
     setEvidence(null);
     setEvidenceError(null);
-    loadCarrierEvidence(route.dotNumber, mode).then((loaded) => { if (current) setEvidence(loaded); }).catch((cause) => { if (current) setEvidenceError(cause instanceof Error ? cause.message : String(cause)); });
+    const task = selectedInspection ? loadInspectionEvidence(route.dotNumber, selectedInspection) : loadCarrierEvidence(route.dotNumber, mode);
+    task.then((loaded) => { if (current) setEvidence(loaded); }).catch((cause) => { if (current) setEvidenceError(cause instanceof Error ? cause.message : String(cause)); });
     return () => { current = false; };
-  }, [route?.dotNumber, mode]);
+  }, [route?.dotNumber, mode, selectedInspection, refresh]);
 
   const content = useMemo(() => {
-    if (!route || !carrier || !evidence) return null;
+    if (!route || !carrier || !evidence || evidence.dotNumber !== route.dotNumber || evidence.mode !== mode || evidence.inspectionId !== selectedInspection) return null;
     const displayEvidence = { ...evidence, census: carrier.raw };
-    if (route.kind === 'inspection') return <InspectionDetail carrier={carrier} evidence={displayEvidence} inspectionIdValue={route.inspectionId}/>;
+    if (route.kind === 'inspection') return <InspectionDetail evidence={displayEvidence} onRetry={() => setRefresh(value => value+1)}/>;
+    if (route.kind === 'vin') return <ObservedVinDetail evidence={displayEvidence} vin={route.vin}/>;
     if (route.section === 'summary') return <Summary carrier={carrier} evidence={displayEvidence}/>;
     if (route.section === 'safety') return <Safety carrier={carrier} evidence={displayEvidence}/>;
     if (route.section === 'fleet') return <Fleet carrier={carrier} evidence={displayEvidence}/>;
@@ -327,7 +333,7 @@ export default function CarrierRouteApp() {
     if (route.section === 'insurance') return <Insurance evidence={displayEvidence}/>;
     if (route.section === 'sms') return <Sms evidence={displayEvidence}/>;
     return <Evidence carrier={carrier} evidence={displayEvidence}/>;
-  }, [route, carrier, evidence]);
+  }, [route, carrier, evidence, mode, selectedInspection]);
 
   if (!route) return <div className="t3-fatal"><strong>Invalid carrier route.</strong><a href="#/carriers">Return to Carriers</a></div>;
 

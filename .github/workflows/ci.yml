@@ -68,6 +68,17 @@ jobs:
         env:
           BROWSER_SCENARIO: coverage
         run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-coverage-browser.json
+      - name: Verify inspection and VIN drilldowns in the production browser bundle
+        env:
+          BROWSER_SCENARIO: inspection
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-inspection-browser.json
+      - name: Retain inspection drilldown browser checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: inspection-drilldowns-${{ github.sha }}
+          path: /tmp/transport3r-inspection-browser.json
+          if-no-files-found: warn
       - name: Reconcile stratified Census and detailed safety source windows
         run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-reconciliation
       - name: Retain coverage and reconciliation evidence

@@ -8,6 +8,7 @@ import pathlib
 from cohort_snapshot import acquire, hash_file, load_verified, source_dot
 from evidence_warehouse import carrier_evidence, connect, promote, verify
 from inspection_evidence_audit import audit_cut
+from inspection_children import PARENT, CHILDREN, parent_index
 from snapshot_store import now, write_once
 from verify_snapshot import timestamp
 
@@ -18,13 +19,14 @@ def validate(output, cut=None, per_stratum=1):
     report = {'status':'RUNNING','started_at':now()}
     try:
         if cut is None:
-            cut, manifest = acquire(output/'raw',per_stratum=per_stratum,profile='underwriting_evidence_v1')
+            cut, manifest = acquire(output/'raw',per_stratum=per_stratum,profile='underwriting_evidence_v2')
             if manifest['status'] != 'COMPLETE':
                 raise ValueError('Live acquisition did not complete every required source')
         cut = pathlib.Path(cut)
         manifest, cohort, data = load_verified(cut)
-        if manifest.get('source_profile') != 'underwriting_evidence_v1':
-            raise ValueError('This gate requires the complete 14-source profile')
+        profile = manifest.get('source_profile')
+        if profile not in ['underwriting_evidence_v1','underwriting_evidence_v2']:
+            raise ValueError('This gate requires a complete extended profile')
         day = timestamp(manifest['completed_at']).date()
         inspection_audit = audit_cut(cut, day-dt.timedelta(days=729), day)
         write_once(output/'inspection-audit.json', inspection_audit)
@@ -36,7 +38,8 @@ def validate(output, cut=None, per_stratum=1):
         if first['promotion'] != 'INSERTED' or second['promotion'] != 'ALREADY_PRESENT':
             raise ValueError('Idempotent promotion did not preserve a single cut')
         verified = verify(db)
-        expected = collections.Counter((sid,source_dot(sid,row)) for sid,rows in data.items() for row in rows)
+        parents = parent_index(data[PARENT]) if profile=='underwriting_evidence_v2' else None
+        expected = collections.Counter((sid,source_dot(sid,row,parents)) for sid,rows in data.items() for row in rows)
         connection = connect(db)
         try:
             actual = {(row[0],row[1]):row[2] for row in connection.execute('SELECT source_id,dot,count(*) FROM records GROUP BY source_id,dot')}
@@ -47,14 +50,15 @@ def validate(output, cut=None, per_stratum=1):
         if any(check['raw_count'] != check['warehouse_count'] for check in checks):
             raise ValueError('Raw-to-warehouse source/carrier count mismatch')
         largest = max(cohort['dots'],key=lambda dot:expected['fx4q-ay7w',dot])
-        exported = carrier_evidence(db,largest,manifest['completed_at'],profile='underwriting_evidence_v1',include_records=True)
+        exported = carrier_evidence(db,largest,manifest['completed_at'],profile=profile,include_records=True)
         inspection = next(source for source in exported['sources'] if source['source_id']=='fx4q-ay7w')
-        if len(inspection['rows']) != expected['fx4q-ay7w',largest]:
+        if len(inspection['rows']) != expected['fx4q-ay7w',largest] or any(len(s['rows'])!=expected[s['source_id'],largest] for s in exported['sources']):
             raise ValueError('Export did not preserve complete inspection records')
         write_once(output/'carrier-export.json',exported)
         write_once(output/'carrier-count-checks.json',checks)
         report.update(status='PASS',cut_id=manifest['snapshot_id'],source_manifest_sha256=hash_file(cut/'manifest.json'),
-                      cohort_sha256=manifest['cohort_sha256'],carriers=len(cohort['dots']),sources=len(data),
+                      cohort_sha256=manifest['cohort_sha256'],profile=profile,carriers=len(cohort['dots']),sources=len(data),
+                      child_rows_verified=sum(len(data.get(sid,[])) for sid in CHILDREN),
                       total_rows=sum(len(rows) for rows in data.values()),source_rows={sid:len(rows) for sid,rows in data.items()},
                       inspection_audit={'status':inspection_audit['status'],
                                         'matched_violation_rows':inspection_audit['matched_violation_rows'],

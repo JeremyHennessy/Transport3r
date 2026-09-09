@@ -65,3 +65,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Power BI review and inspection-grain gate
 
 [Full Power BI model review](powerbi-model-review.md) covers two PBIP projects and three PBIX files, including extracted model formulas and all report definitions. It identifies double-normalized denominators, unknown-to-zero scores, differing violation grains, date/filter inconsistencies and exposure/population ambiguity. Useful drilldowns and source mappings inform the next steps. The warehouse CI gate now checks every preserved SMS violation parent/carrier/date and exports explicit event-window monthly counts without treating sparse months as missing sources. The original Power BI assets and TRI v0.1 remain unchanged; Power BI DAX execution and matched-cut numerical comparison remain outstanding.
+
+## Complete inspection children and usable deep links
+
+[Inspection children and drilldowns](inspection-drilldowns.md) adds an 18-source verified profile, retains 102,861 daily child rows through the full 39,760-parent cohort, and reconciles 212,327 warehouse rows. Direct inspection routes verify carrier ownership before querying children; VIN links retain the exact inspection context or explicitly use the bounded recent carrier window. Missing/failed/partial evidence and old-response isolation have dedicated browser regressions. Remaining work includes source/exposure alignment, event-window controls, MOTUS/docket acquisition and temporal model validation.

@@ -71,6 +71,7 @@ export type CarrierEvidenceMode = 'summary' | 'safety' | 'fleet' | 'authority' |
 
 export type CarrierEvidence = {
   dotNumber: string;
+  inspectionId?: string;
   mode: CarrierEvidenceMode;
   loadedAt: string;
   registry: SchemaRegistry;
@@ -99,7 +100,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   ],
   insurance: ['motusInsurance', 'motusInsuranceHistory', 'motusInsuranceDelta', 'motusInsuranceHistoryDelta'],
   sms: ['smsCensus', 'smsInspection', 'smsCrash', 'smsViolation', 'smsABPass', 'smsCPass', 'smsABProperty', 'smsCProperty'],
-  inspection: ['inspections', 'units', 'violations', 'citations'],
+  inspection: ['inspections', 'units', 'violations', 'citations', 'specialStudies'],
   evidence: Object.keys(SOURCE_IDS) as EvidenceKey[],
 };
 
