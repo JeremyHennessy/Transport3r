@@ -111,6 +111,24 @@ export function driverReportDetail(date?: string, status?: string): string {
   return `Company Census · MCS-150 ${formatDateValue(date)} · ${censusStatusLabel(status)} registration`;
 }
 
+export function mileageYearLabel(raw?: string): string {
+  return raw && /^\d{4}$/.test(raw) && Number(raw) >= 1900 && Number(raw) <= new Date().getUTCFullYear()
+    ? raw : 'Year unavailable';
+}
+
+export function censusReviewNotes(reportDate?: string, status?: string, now = new Date()): string[] {
+  const notes: string[] = [];
+  if (status?.trim().toUpperCase() === 'I') notes.push('This USDOT registration is inactive. Reported fleet and driver counts do not establish current operating exposure.');
+  const date = parseDateValue(reportDate);
+  if (!date) notes.push('The MCS-150 report date is unavailable; exposure freshness cannot be verified.');
+  else if (date > now) notes.push('The MCS-150 report date is in the future; verify the source record before relying on exposure.');
+  else {
+    const cutoff = new Date(now); cutoff.setUTCFullYear(cutoff.getUTCFullYear() - 2);
+    if (date < cutoff) notes.push(`The MCS-150 report is more than two years old (${formatDateValue(reportDate)}). These are source-reported figures, not verified current counts.`);
+  }
+  return notes;
+}
+
 export async function fetchSourceJson(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);

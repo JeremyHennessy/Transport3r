@@ -285,7 +285,16 @@ export function inspectionCountDetail(slice?: DataSlice): string {
   if (!slice) return 'Inspection source unavailable';
   if (slice.rows.length === 0 && !slice.truncated) return 'No rows returned for this USDOT; not proof of no inspections';
   const loaded = loadedRowCountLabel(slice);
-  return `Full available history · ${loaded} recent rows loaded${slice.truncated && slice.total === null ? ' · total unavailable' : ''}`;
+  return `Published daily file · ${loaded} recent rows loaded${slice.truncated && slice.total === null ? ' · total unavailable' : ''}; not a SAFER 24-month count`;
+}
+
+export function inspectionAvailability(evidence: CarrierEvidence): string | null {
+  const slice = evidence.slices.inspections;
+  if (evidence.errors.inspections || !slice) return 'Inspection source unavailable. The app cannot determine how many inspection records exist.';
+  if (slice.rows.length === 0) return slice.truncated
+    ? 'No inspection rows in the loaded window; source coverage is incomplete.'
+    : 'No inspection rows returned for this USDOT from the published daily file. This does not prove no inspections ever occurred or that the carrier is low risk.';
+  return null;
 }
 
 export function evidenceIssues(evidence: CarrierEvidence): Array<{ key: EvidenceKey; message: string }> {

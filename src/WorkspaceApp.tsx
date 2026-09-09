@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
-import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail, formatDateValue, fetchSourceJson } from './datahub';
+import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail, formatDateValue, fetchSourceJson, mileageYearLabel } from './datahub';
 
 type Page = 'overview' | 'carriers' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
 type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc' | 'drivers_desc' | 'drivers_asc';
@@ -557,7 +557,7 @@ function CarriersPage() {
             <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
             <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
             <span title="No released scoring model is available for this carrier.">Unavailable</span>
-            <span>{formatNumber(carrier.mileage)}{carrier.mileageYear && <small>{carrier.mileageYear}</small>}</span>
+            <span>{formatNumber(carrier.mileage)}<small>{mileageYearLabel(carrier.mileageYear)}</small></span>
             <span>{carrier.hazmat || '—'}</span>
             <span className="evidence-links"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>
           </div>)}
