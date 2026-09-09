@@ -1,5 +1,5 @@
 import { CarrierEvidence, selectOfficialSmsOutput } from './carrierEvidence';
-import { DataRow, readNumber, readValue } from './datahub';
+import { DataRow, parseDateValue, readNumber, readValue } from './datahub';
 import {
   INSPECTION_MEASURE_BASICS,
   InspectionMeasureBasicKey,
@@ -46,6 +46,41 @@ function inspectionKey(row: DataRow): string | undefined {
   return readValue(row, ['UNIQUE_ID', 'INSPECTION_ID', 'INSP_ID']);
 }
 
+// INSP_DATE is an event calendar date, not a source upload or SMS calculation date.
+function inspectionDate(row: DataRow): string | null {
+  const raw = readValue(row, ['INSP_DATE'])?.trim();
+  const parsed = parseDateValue(raw);
+  if (!parsed || !raw) return null;
+  // Preserve the source calendar day even when an ISO representation includes an offset.
+  return /^\d{4}-\d{2}-\d{2}(?:T|$)/.test(raw) ? raw.slice(0, 10) : parsed.toISOString().slice(0, 10);
+}
+
+export function inspectSmsInputDates(inspections: DataRow[], violations: DataRow[]) {
+  const issues = new Set<string>();
+  const parents = new Map<string, string>();
+  function collect(rows: DataRow[], kind: 'INSPECTION' | 'VIOLATION') {
+    const dates: string[] = [];
+    for (const row of rows) {
+      const key = inspectionKey(row);
+      const date = inspectionDate(row);
+      if (!date) {
+        issues.add(`INVALID_${kind}_DATE:${key ?? 'missing'}`);
+        continue;
+      }
+      dates.push(date);
+      if (kind === 'INSPECTION' && key) parents.set(key, date);
+      if (kind === 'VIOLATION' && key && parents.has(key) && parents.get(key) !== date) {
+        issues.add(`CONFLICTING_INSPECTION_VIOLATION_DATE:${key}`);
+      }
+    }
+    dates.sort();
+    return { rows: rows.length, validDates: dates.length, earliest: dates[0] ?? null, latest: dates.at(-1) ?? null };
+  }
+  const inspectionDates = collect(inspections, 'INSPECTION');
+  const violationDates = collect(violations, 'VIOLATION');
+  return { inspectionDates, violationDates, issues: [...issues] };
+}
+
 function violationMatchesBasic(row: DataRow, basic: InspectionMeasureBasicKey): boolean {
   const description = (readValue(row, ['BASIC_DESC']) ?? '').toLowerCase();
   return SMS_BASIC_RULES[basic].violationBasicMatches.some((match) => description.includes(match));
@@ -68,7 +103,7 @@ export function replayInspectionMeasure(
   if (!rule.relevantInspectionField) throw new Error(`${basic} does not define a relevant-inspection field`);
 
   const relevant = inspections.filter((row) => truthy(readValue(row, [rule.relevantInspectionField!]))) ;
-  const issues = new Set<string>();
+  const issues = new Set<string>(inspectSmsInputDates(inspections, violations).issues);
   const seen = new Set<string>();
   for (const row of inspections) {
     const key = inspectionKey(row);

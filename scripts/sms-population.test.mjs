@@ -6,7 +6,7 @@ const compiled=await build({stdin:{contents:"export * from './src/carrierEvidenc
 const app=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 const row=(extra={})=>({dot_number:'1',hos_driv_measure:'.5',...extra});
 const slice=(rows=[])=>({rows,total:rows.length,truncated:false,sourceId:'test'});
-const evidence=(rows={})=>({dotNumber:'1',errors:{},slices:{...Object.fromEntries(app.SMS_OUTPUT_KEYS.map(key=>[key,slice(rows[key])])),smsInspection:slice([{dot_number:'1',unique_id:'i',fatigued_insp:'true',time_weight:'2'}]),smsViolation:slice([{dot_number:'1',unique_id:'i',basic_desc:'Hours-of-Service Compliance',time_weight:'2',total_severity_wght:'0.5'}])}});
+const evidence=(rows={})=>({dotNumber:'1',errors:{},slices:{...Object.fromEntries(app.SMS_OUTPUT_KEYS.map(key=>[key,slice(rows[key])])),smsInspection:slice([{dot_number:'1',unique_id:'i',insp_date:'15-MAY-26',fatigued_insp:'true',time_weight:'2'}]),smsViolation:slice([{dot_number:'1',unique_id:'i',insp_date:'15-MAY-26',basic_desc:'Hours-of-Service Compliance',time_weight:'2',total_severity_wght:'0.5'}])}});
 test('general output is selected only after all populations have completed',()=>{
   const ev=evidence({smsABProperty:[row()]});
   assert.equal(app.officialSmsSourceId(ev),'4y6x-dmck');

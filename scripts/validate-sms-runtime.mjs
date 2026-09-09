@@ -7,9 +7,10 @@ const r = await import(`data:text/javascript;base64,${Buffer.from(compiled.outpu
 const sample = JSON.parse(await readFile(process.argv[2], 'utf8'));
 const sourceCut = verifySmsSourceCut(sample);
 const slice = (rows) => ({rows,total:rows.length,truncated:false,sourceId:'validation'});
-const comparisons=[], failures=[], unavailable=[];
+const comparisons=[], failures=[], unavailable=[], eventDateCoverage=[];
 if(new Set(sample.carriers.map(c=>c.dot_number)).size!==sample.carriers.length) throw new Error('Duplicate carrier in validation sample');
 for(const carrier of sample.carriers) {
+  eventDateCoverage.push({dot:carrier.dot_number,...r.inspectSmsInputDates(carrier.inspections,carrier.violations)});
   if(String(carrier.official.dot_number)!==carrier.dot_number) throw new Error('Official output carrier mismatch');
   if(carrier.inspections.length>=10000 || carrier.violations.length>=20000) throw new Error('Validation sample hit an acquisition limit');
   const outputs={};
@@ -30,7 +31,7 @@ for(const carrier of sample.carriers) {
     }
   }
 }
-const result={status:!failures.length && sample.carriers.length>=6 && comparisons.length>=12?'PASS':'FAIL',captured_at:sample.captured_at,source_cut:sourceCut,carriers:sample.carriers.length,comparisons:comparisons.length,unavailable,failures,results:comparisons};
+const result={status:!failures.length && sample.carriers.length>=6 && comparisons.length>=12?'PASS':'FAIL',captured_at:sample.captured_at,source_cut:sourceCut,event_date_coverage:eventDateCoverage,carriers:sample.carriers.length,comparisons:comparisons.length,unavailable,failures,results:comparisons};
 console.log(JSON.stringify(result,null,2));
 if(result.status!=='PASS') process.exitCode=1;
 
