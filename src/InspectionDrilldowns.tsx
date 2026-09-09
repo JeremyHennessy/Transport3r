@@ -17,7 +17,7 @@ function Records({ rows, unavailable }: { rows: DataRow[]; unavailable?: string 
 }
 
 function DrillMetric({label,value,detail}:{label:string;value:string;detail?:string}) {
-  return <div className="c360-metric"><span>{label}</span><strong>{value}</strong>{detail&&<small>{detail}</small>}</div>;
+  return <div className="c360-metric" data-metric={label}><span>{label}</span><strong>{value}</strong>{detail&&<small>{detail}</small>}</div>;
 }
 
 export function InspectionDetail({ evidence, onRetry }: { evidence: CarrierEvidence; onRetry: () => void }) {
