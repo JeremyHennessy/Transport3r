@@ -87,6 +87,22 @@ jobs:
         env:
           BROWSER_SCENARIO: sms-display
         run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-sms-display.json
+      - name: Verify carrier insights and synchronized state maps
+        env:
+          BROWSER_SCENARIO: insight
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-insight.json
+      - name: Render and validate carrier PDF reports
+        run: |
+          python -m pip install pypdf==6.10.0
+          node scripts/validate-reports.mjs /tmp/transport3r-reports
+          python scripts/verify_report_pdfs.py /tmp/transport3r-reports
+      - name: Retain carrier report PDFs and validation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carrier-reports-${{ github.sha }}
+          path: /tmp/transport3r-reports/
+          if-no-files-found: warn
       - name: Retain date window and enrichment browser checks
         if: always()
         uses: actions/upload-artifact@v4

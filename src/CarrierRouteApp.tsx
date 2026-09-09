@@ -1,3 +1,4 @@
+import {CarrierInsight} from './CarrierInsight';
 import {OfficialSmsPanel} from './OfficialSmsPanel';
 import { InspectionDetail, ObservedVinDetail } from './InspectionDrilldowns';
 import { loadInspectionEvidence } from './inspectionEvidence';
@@ -194,6 +195,7 @@ export function CarrierHeader({ carrier, route }: { carrier: Carrier; route: Par
     </section>
     <ExposureContext date={carrier.mcs150Date} status={carrier.statusCode}/>
     <section className="c360-exposure-strip"><Metric label="Reported power units" value={formatNumber(carrier.powerUnits)} /><Metric label="Drivers" value={formatNumber(carrier.drivers)} detail={driverReportDetail(carrier.mcs150Date, carrier.statusCode)} /><Metric label="Reported VMT" value={formatNumber(carrier.mileage)} detail={`MCS-150 mileage · ${mileageYearLabel(carrier.mileageYear)}`} /><Metric label="Operating class" value={formatOperation(carrier.operation)} /></section>
+    <div className="t3-report-actions"><a className="t3-button secondary" href={`#/carrier/${carrier.dotNumber}/report?format=brief`}>Export Carrier Brief</a><a className="t3-button secondary" href={`#/carrier/${carrier.dotNumber}/report?format=detailed`}>Export Detailed Report</a></div>
     <nav className="c360-tabs" aria-label="Carrier evidence sections">{SECTIONS.map((section) => <a key={section.id} href={`#/carrier/${carrier.dotNumber}/${section.id}`} className={route.kind === 'section' && route.section === section.id ? 'active' : ''}><strong>{section.label}</strong><span>{section.description}</span></a>)}</nav>
   </>;
 }
@@ -328,15 +330,16 @@ export default function CarrierRouteApp() {
   const content = useMemo(() => {
     if (!route || !carrier || !evidence || evidence.dotNumber !== route.dotNumber || evidence.mode !== mode || evidence.inspectionId !== selectedInspection) return null;
     const displayEvidence = { ...evidence, census: carrier.raw };
-    if (route.kind === 'inspection') return <InspectionDetail evidence={displayEvidence} onRetry={() => setRefresh(value => value+1)}/>;
+    const wrap=(body:ReactNode)=><><CarrierInsight evidence={displayEvidence} section={route.kind==='section'?route.section:route.kind}/>{body}</>;
+    if (route.kind === 'inspection') return wrap(<InspectionDetail evidence={displayEvidence} onRetry={() => setRefresh(value => value+1)}/>);
     if (route.kind === 'vin') return <ObservedVinDetail evidence={displayEvidence} vin={route.vin}/>;
-    if (route.section === 'summary') return <Summary carrier={carrier} evidence={displayEvidence}/>;
-    if (route.section === 'safety') return <Safety carrier={carrier} evidence={displayEvidence}/>;
-    if (route.section === 'fleet') return <Fleet carrier={carrier} evidence={displayEvidence}/>;
-    if (route.section === 'authority') return <Authority evidence={displayEvidence}/>;
-    if (route.section === 'insurance') return <Insurance evidence={displayEvidence}/>;
-    if (route.section === 'sms') return <Sms evidence={displayEvidence}/>;
-    return <Evidence carrier={carrier} evidence={displayEvidence}/>;
+    if (route.section === 'summary') return wrap(<Summary carrier={carrier} evidence={displayEvidence}/>);
+    if (route.section === 'safety') return wrap(<Safety carrier={carrier} evidence={displayEvidence}/>);
+    if (route.section === 'fleet') return wrap(<Fleet carrier={carrier} evidence={displayEvidence}/>);
+    if (route.section === 'authority') return wrap(<Authority evidence={displayEvidence}/>);
+    if (route.section === 'insurance') return wrap(<Insurance evidence={displayEvidence}/>);
+    if (route.section === 'sms') return wrap(<Sms evidence={displayEvidence}/>);
+    return wrap(<Evidence carrier={carrier} evidence={displayEvidence}/>);
   }, [route, carrier, evidence, mode, selectedInspection]);
 
   if (!route) return <div className="t3-fatal"><strong>Invalid carrier route.</strong><a href="#/carriers">Return to Carriers</a></div>;

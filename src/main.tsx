@@ -2,10 +2,12 @@ import React, { Component, useEffect, useState } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import CarrierRouteApp from './CarrierRouteApp';
+import CarrierReport from './CarrierReport';
 import FleetRouteApp from './FleetRouteApp';
 import WorkspaceApp from './WorkspaceApp';
 import './workspace.css';
 import './coverage.css';
+import './insight.css';
 
 type ErrorBoundaryState = { error: Error | null };
 
@@ -45,6 +47,7 @@ function RootRouter() {
 
   // A new USDOT must never inherit another carrier's identity, counts or failed-request state.
   const carrierKey = hash.split('/')[2];
+  if (/^#\/carrier\/\d+\/report(?:\?|$)/.test(hash)) return <CarrierReport key={hash.split('?')[0]+new URLSearchParams(hash.split('?')[1]??'').get('format')}/>;
   if (/^#\/carrier\/\d+\/fleet(?:\?|$)/.test(hash)) return <FleetRouteApp key={carrierKey} />;
   return hash.startsWith('#/carrier/') ? <CarrierRouteApp key={carrierKey} /> : <WorkspaceApp />;
 }

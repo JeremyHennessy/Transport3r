@@ -11,8 +11,8 @@ if (!chrome) throw new Error('Chrome is required for the carrier recovery releas
 const dist=resolve('dist');
 const fixture=await readFile('scripts/fixtures/large-carrier-census.json','utf8');
 const scenario=process.env.BROWSER_SCENARIO??'carrier-recovery';
-if (!['carrier-recovery','data-ui','coverage','inspection','date-enrichment','sms-display'].includes(scenario)) throw new Error('Unknown browser scenario');
-const harness=await readFile(`scripts/${scenario}-browser.js`,'utf8');
+if (!['carrier-recovery','data-ui','coverage','inspection','date-enrichment','sms-display','insight'].includes(scenario)) throw new Error('Unknown browser scenario');
+const harness=(scenario==='insight'?await readFile('scripts/report-fixture-browser.js','utf8'):'')+await readFile(`scripts/${scenario}-browser.js`,'utf8');
 const html=(await readFile(resolve(dist,'index.html'),'utf8')).replace('<head>',`<head><script>window.__carrierFixtures=${fixture.replaceAll('<','\\u003c')};</script><script src="/recovery-harness.js"></script>`);
 const server=createServer(async(req,res)=>{
   try {
