@@ -9,23 +9,24 @@ from cohort_snapshot import acquire, hash_file, load_verified, source_dot
 from evidence_warehouse import carrier_evidence, connect, promote, verify
 from inspection_evidence_audit import audit_cut
 from inspection_children import PARENT, CHILDREN, parent_index
+from docket_identity import BRIDGE, docket_index
 from snapshot_store import now, write_once
 from verify_snapshot import timestamp
 
 
-def validate(output, cut=None, per_stratum=1):
+def validate(output, cut=None, per_stratum=1, profile='underwriting_evidence_v2'):
     output = pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=False)
     report = {'status':'RUNNING','started_at':now()}
     try:
         if cut is None:
-            cut, manifest = acquire(output/'raw',per_stratum=per_stratum,profile='underwriting_evidence_v2')
+            cut, manifest = acquire(output/'raw',per_stratum=per_stratum,profile=profile)
             if manifest['status'] != 'COMPLETE':
                 raise ValueError('Live acquisition did not complete every required source')
         cut = pathlib.Path(cut)
         manifest, cohort, data = load_verified(cut)
         profile = manifest.get('source_profile')
-        if profile not in ['underwriting_evidence_v1','underwriting_evidence_v2']:
+        if profile not in ['underwriting_evidence_v1','underwriting_evidence_v2','underwriting_evidence_v3']:
             raise ValueError('This gate requires a complete extended profile')
         day = timestamp(manifest['completed_at']).date()
         inspection_audit = audit_cut(cut, day-dt.timedelta(days=729), day)
@@ -38,8 +39,9 @@ def validate(output, cut=None, per_stratum=1):
         if first['promotion'] != 'INSERTED' or second['promotion'] != 'ALREADY_PRESENT':
             raise ValueError('Idempotent promotion did not preserve a single cut')
         verified = verify(db)
-        parents = parent_index(data[PARENT]) if profile=='underwriting_evidence_v2' else None
-        expected = collections.Counter((sid,source_dot(sid,row,parents)) for sid,rows in data.items() for row in rows)
+        parents = parent_index(data[PARENT]) if profile in ('underwriting_evidence_v2','underwriting_evidence_v3') else None
+        dockets=docket_index(data[BRIDGE]) if profile=='underwriting_evidence_v3' else None
+        expected = collections.Counter((sid,source_dot(sid,row,parents,dockets)) for sid,rows in data.items() for row in rows)
         connection = connect(db)
         try:
             actual = {(row[0],row[1]):row[2] for row in connection.execute('SELECT source_id,dot,count(*) FROM records GROUP BY source_id,dot')}
@@ -78,8 +80,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output',required=True)
     parser.add_argument('--cut')
+    parser.add_argument('--profile',default='underwriting_evidence_v2',choices=['underwriting_evidence_v1','underwriting_evidence_v2','underwriting_evidence_v3'])
     parser.add_argument('--per-stratum',type=int,default=1)
     args = parser.parse_args()
-    result = validate(args.output,args.cut,args.per_stratum)
+    result = validate(args.output,args.cut,args.per_stratum,args.profile)
     print(json.dumps(result,indent=2))
     raise SystemExit(0 if result['status']=='PASS' else 1)

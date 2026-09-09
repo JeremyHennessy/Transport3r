@@ -44,3 +44,12 @@ test('VIN lookup transmits only normalized observed VIN and retains provenance',
  let requested;t.mock.method(globalThis,'fetch',async input=>{requested=String(input);return Response.json({Results:[{VIN:vin,ErrorCode:'0',Make:'RAM'}]});});
  const result=await app.loadVinSpecifications(vin.toLowerCase());assert.equal(requested,`https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/${vin}?format=json`);assert.equal(result.url,requested);assert.ok(result.acquiredAt);
 });
+
+test('legacy DOT queries include padded identity and reject unrelated returned rows',async t=>{
+ for(const source of ['6eyk-hxee','qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp']){
+  let where;t.mock.method(globalThis,'fetch',async input=>{where=new URL(input).searchParams.get('$where');return Response.json([{dot_number:'00003706'}]);});
+  const result=await app.queryByDot(registry,source,'3706');assert.equal(result.rows[0].dot_number,'00003706');assert.equal(where,"dot_number in ('3706','00003706')");t.mock.restoreAll();
+ }
+ t.mock.method(globalThis,'fetch',async()=>Response.json([{dot_number:'00003707'}]));
+ await assert.rejects(app.queryByDot(registry,'6eyk-hxee','3706'),/unrelated carrier/);
+});

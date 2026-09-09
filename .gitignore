@@ -7,6 +7,9 @@ dist/
 warehouse/raw/
 warehouse/staging/
 warehouse/curated/
+warehouse/private/
+warehouse/monitoring/
+private/
 
 # Local analyst artifacts
 coverage/
