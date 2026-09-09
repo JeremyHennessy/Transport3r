@@ -17,6 +17,65 @@ const evidence = (slices = {}, mode = 'summary', errors = {}) => ({ slices, mode
 const allSlices = Object.fromEntries(Object.keys(r.SOURCE_IDS).map((key) => [key, slice()]));
 const render = (Component, props) => renderToStaticMarkup(createElement(Component, props));
 
+test('Evidence reports partial and missing sources even without HTTP errors',()=>{
+  const carrier=r.carrierFromRow({dot_number:'1',legal_name:'Example'});
+  const partial=evidence({...allSlices,inspections:{...slice([{}],true),total:900}},'evidence');
+  const html=render(r.Evidence,{carrier,evidence:partial});
+  assert.match(html,/sources? incomplete or unavailable/);
+  assert.ok(html.includes('Loaded evidence is partial'));
+  assert.ok(html.includes('1 rows loaded'));
+  assert.ok(!html.includes('Loaded without source errors'));
+  delete partial.slices.motusCarrier;
+  assert.ok(render(r.Evidence,{carrier,evidence:partial}).includes('Source evidence was not returned.'));
+  const complete=render(r.Evidence,{carrier,evidence:evidence({...allSlices},'evidence')});
+  assert.ok(complete.includes('Loaded without source errors'));
+  assert.ok(!complete.includes('sources incomplete or unavailable'));
+});
+
+test('authority empty states distinguish failed, missing, partial and confirmed-empty sources',()=>{
+  for(const kind of ['failed','missing','partial','empty']) {
+    const ev=evidence({...allSlices},'authority');
+    for(const key of ['motusAuthHistory','motusRevokeSuspend','motusBoc3']) {
+      if(kind==='failed') {delete ev.slices[key];ev.errors[key]='HTTP 503';}
+      if(kind==='missing') delete ev.slices[key];
+      if(kind==='partial') ev.slices[key]=slice([],true);
+    }
+    const html=render(r.Authority,{evidence:ev});
+    const expected=kind==='empty'?'No BOC-3 rows returned for this USDOT.':kind==='partial'?'No rows in the loaded window; source coverage is partial.':'Source unavailable; record absence cannot be determined.';
+    assert.ok(html.includes(expected),kind);
+    if(kind!=='empty') assert.ok(!html.includes('No BOC-3 rows returned for this USDOT.'));
+  }
+  const ev=evidence({...allSlices},'summary',{motusCarrier:'HTTP 503'});
+  delete ev.slices.motusCarrier;
+  assert.equal(r.authorityStatusLabel(ev),'Current MOTUS authority unavailable');
+});
+
+test('SMS displays a deduplicated date rejection reason without losing valid official values',()=>{
+  const ev=evidence({...allSlices,smsABProperty:slice([{dot_number:'1',hos_driv_measure:'5'}]),smsInspection:slice([{dot_number:'1',unique_id:'i',insp_date:'2026-05-15',time_weight:'3',fatigued_insp:'true'}]),smsViolation:slice([{dot_number:'1',unique_id:'i',insp_date:'2026-05-16',time_weight:'3',basic_desc:'Hours-of-Service Compliance',total_severity_wght:'5'}])},'sms');
+  const replays=r.replayCarrierInspectionMeasures(ev);
+  const messages=r.smsReplayMessages(replays);
+  assert.deepEqual(messages,['Inspection dates are missing, invalid or inconsistent between linked rows.']);
+  assert.equal(replays[0].officialMeasure,5); assert.equal(replays[0].calculatedMeasure,null);
+  const html=render(r.Sms,{evidence:ev});
+  assert.ok(html.includes('SMS replay could not be fully validated'));
+  assert.equal(html.split(messages[0]).length-1,1);
+  assert.ok(html.includes('PARTIAL_DATA'));
+});
+
+test('SMS distinguishes unavailable or conflicting outputs from successful absence',()=>{
+  const empty=evidence({...allSlices},'sms');
+  assert.ok(render(r.Sms,{evidence:empty}).includes('No applicable public SMS output row returned.'));
+  assert.deepEqual(r.smsReplayMessages(r.replayCarrierInspectionMeasures(empty)),[]);
+  const failed=evidence({...allSlices},'sms',{smsABProperty:'HTTP 503'});
+  delete failed.slices.smsABProperty;
+  const html=render(r.Sms,{evidence:failed});
+  assert.ok(html.includes('Official SMS output is unavailable or inconsistent.'));
+  assert.ok(html.includes('One or more official SMS output sources are incomplete or unavailable.'));
+  assert.ok(!html.includes('No applicable public SMS output row returned.'));
+  const conflict=evidence({...allSlices,smsABProperty:slice([{dot_number:'1',hos_driv_measure:'1'}]),smsABPass:slice([{dot_number:'1',hos_driv_measure:'2'}])},'sms');
+  assert.ok(render(r.Sms,{evidence:conflict}).includes('Overlapping official SMS outputs contain conflicting measures.'));
+});
+
 test('large-carrier driver exposure preserves Census totals and report date',async()=>{
   const carriers=JSON.parse(await readFile('scripts/fixtures/large-carrier-census.json','utf8'));
   for(const row of carriers) {

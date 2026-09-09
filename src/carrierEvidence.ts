@@ -297,6 +297,19 @@ export function evidenceIssues(evidence: CarrierEvidence): Array<{ key: Evidence
   });
 }
 
+export function sourceEmptyMessage(evidence: CarrierEvidence, key: EvidenceKey, empty = 'No rows returned.'): string {
+  if (evidence.errors[key] || !evidence.slices[key]) return 'Source unavailable; record absence cannot be determined.';
+  if (evidence.slices[key]?.truncated) return 'No rows in the loaded window; source coverage is partial.';
+  return empty;
+}
+
+export function authorityStatusLabel(evidence: CarrierEvidence): string {
+  if (evidence.errors.motusCarrier || !evidence.slices.motusCarrier) return 'Current MOTUS authority unavailable';
+  const statuses = authorityStatuses(evidence);
+  if (statuses.length) return statuses.join(', ');
+  return evidence.slices.motusCarrier.truncated ? 'No authority status in the loaded window' : 'No current MOTUS authority status row returned';
+}
+
 export function aggregateRows(evidence: CarrierEvidence | null, keys: EvidenceKey[]): { loaded: number; complete: boolean; label: string } {
   const loaded = keys.reduce((sum, key) => sum + (evidence?.slices[key]?.rows.length ?? 0), 0);
   const complete = keys.length > 0 && keys.every((key) => Boolean(evidence?.slices[key] && !evidence.errors[key] && !evidence.slices[key]?.truncated));

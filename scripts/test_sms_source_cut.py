@@ -4,6 +4,8 @@ import io
 import json
 from sms_source_cut import assess_source_cut, state_issues, capture_sources
 from unittest.mock import patch
+from http.client import RemoteDisconnected
+from urllib.error import HTTPError
 
 SID = '4y6x-dmck'
 def state(at):
@@ -15,6 +17,40 @@ def cut():
             'before':{SID:state('2026-01-01T00:00:30Z')},'after':{SID:state('2026-01-01T00:02:30Z')}}
 
 class SourceCutTests(unittest.TestCase):
+    def test_transient_acquisition_retries_retain_attempts_and_fresh_observation(self):
+        observed = state('2026-01-01T00:00:30Z')
+        with patch('sms_source_cut.source_state', side_effect=[RemoteDisconnected('closed'), TimeoutError('timeout'), observed]), patch('sms_source_cut.time.sleep') as wait:
+            result = capture_sources([SID])[SID]
+        self.assertEqual(result['observed_at'], observed['observed_at'])
+        self.assertEqual([a['status'] for a in result['acquisition_attempts']], ['FAIL', 'FAIL', 'PASS'])
+        self.assertEqual(wait.call_count, 2)
+        self.assertEqual(state_issues(SID, result), [])
+
+    def test_exhausted_transient_acquisition_still_fails_source_cut(self):
+        with patch('sms_source_cut.source_state', side_effect=TimeoutError('timeout')) as fetch, patch('sms_source_cut.time.sleep'):
+            result = capture_sources([SID])[SID]
+        self.assertEqual(fetch.call_count, 3)
+        self.assertEqual(len(result['acquisition_attempts']), 3)
+        data = cut(); data['before'][SID] = result
+        self.assertIn(f'UNAVAILABLE_SOURCE_STATE:{SID}', assess_source_cut(data, [SID]))
+
+    def test_invalid_metadata_and_bad_requests_are_not_retried(self):
+        with patch('sms_source_cut.source_state', side_effect=HTTPError('url', 400, 'bad request', {}, None)) as fetch:
+            result = capture_sources([SID])[SID]
+        self.assertEqual(fetch.call_count, 1)
+        self.assertTrue(state_issues(SID, result))
+        with patch('sms_source_cut.source_state', return_value={**state('2026-01-01T00:00:30Z'), 'row_count': -1}) as fetch:
+            result = capture_sources([SID])[SID]
+        self.assertEqual(fetch.call_count, 1)
+        self.assertIn(f'INVALID_ROW_COUNT:{SID}', state_issues(SID, result))
+
+    def test_http_503_is_retried_without_relaxing_changed_source_rejection(self):
+        changed = state('2026-01-01T00:02:30Z'); changed['row_count'] = 11
+        with patch('sms_source_cut.source_state', side_effect=[HTTPError('url', 503, 'unavailable', {}, None), changed]), patch('sms_source_cut.time.sleep'):
+            result = capture_sources([SID])[SID]
+        data = cut(); data['after'][SID] = result
+        self.assertIn(f'SOURCE_CHANGED:{SID}:row_count', assess_source_cut(data, [SID]))
+
     def test_stable_query_window_is_accepted_without_a_monthly_date(self):
         self.assertEqual(assess_source_cut(cut(), [SID]), [])
 
