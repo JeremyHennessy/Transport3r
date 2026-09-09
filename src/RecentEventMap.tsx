@@ -1,4 +1,5 @@
 import {useMemo, useState} from 'react';
+import type {CSSProperties} from 'react';
 import type {CarrierEvidence} from './carrierEvidence';
 import {formatDateValue, readValue, type DataRow} from './datahub';
 import boundaries from './stateBoundaries.json';
@@ -99,7 +100,7 @@ export function RecentEventMap({evidence}:{evidence:CarrierEvidence}) {
         </svg>
       </div>
       <aside className="t3-map-side">
-        {selected ? <><h4>{selected} · {selectedEvents.length} loaded events</h4><p>Showing up to 20 current loaded records. Use the detailed tables for complete source fields.</p><div className="t3-map-events">{selectedEvents.slice(0,20).map((event) => <div className="t3-map-event" key={event.key}><strong>{event.kind === 'inspection' ? 'Inspection' : 'Crash involvement'} · {event.date}</strong><br/>Report {event.report} · {event.precision}{event.kind === 'inspection' && event.inspectionId && <a href={`#/carrier/${evidence.dotNumber}/inspection/${event.inspectionId}`}>Open inspection →</a>}</div>)}</div></> : <><h4>Highest activity states</h4><p>Counts use loaded rows only and follow the active layer toggles.</p><div className="t3-map-state-list">{ranked.slice(0,12).map((state) => <button key={state.code} onClick={() => setSelected(state.code)} style={{'--pct': `${Math.max(4, (state.events.length / maxState) * 100)}%`} as React.CSSProperties}><strong>{state.code}</strong><i/><span>{state.events.length.toLocaleString()}</span></button>)}</div></>}
+        {selected ? <><h4>{selected} · {selectedEvents.length} loaded events</h4><p>Showing up to 20 current loaded records. Use the detailed tables for complete source fields.</p><div className="t3-map-events">{selectedEvents.slice(0,20).map((event) => <div className="t3-map-event" key={event.key}><strong>{event.kind === 'inspection' ? 'Inspection' : 'Crash involvement'} · {event.date}</strong><br/>Report {event.report} · {event.precision}{event.kind === 'inspection' && event.inspectionId && <a href={`#/carrier/${evidence.dotNumber}/inspection/${event.inspectionId}`}>Open inspection →</a>}</div>)}</div></> : <><h4>Highest activity states</h4><p>Counts use loaded rows only and follow the active layer toggles.</p><div className="t3-map-state-list">{ranked.slice(0,12).map((state) => <button key={state.code} onClick={() => setSelected(state.code)} style={{'--pct': `${Math.max(4, (state.events.length / maxState) * 100)}%`} as CSSProperties}><strong>{state.code}</strong><i/><span>{state.events.length.toLocaleString()}</span></button>)}</div></>}
       </aside>
     </div>}
     <div className="t3-map-legend"><span><i className="inspection"/>Inspection</span><span><i className="crash"/>Crash involvement</span><span><i className="empty"/>No loaded mappable rows</span><span>{(inspectionResult.unlocated + crashResult.unlocated).toLocaleString()} loaded rows lack a mappable state</span></div>
