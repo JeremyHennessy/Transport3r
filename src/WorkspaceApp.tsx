@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
-import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail } from './datahub';
+import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail, formatDateValue, fetchSourceJson } from './datahub';
 
 type Page = 'overview' | 'carriers' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
 type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc' | 'drivers_desc' | 'drivers_asc';
@@ -65,10 +65,30 @@ type CarrierFilters = {
   minDrivers: string;
   maxDrivers: string;
   risk: RiskFilter;
+  registration: string;
   sort: SortMode;
 };
 
 const sourceCatalog = sourceCatalogJson as SourceCatalogEntry[];
+export const sourceFamilyCount = (...families: string[]) => sourceCatalog.filter(source => families.includes(source.family)).length;
+
+export function sourceHealthSummary(health: SourceHealthPayload | null) {
+  const available = Boolean(health?.generated_at && Number.isFinite(Date.parse(health.generated_at)));
+  const byId = new Map((health?.sources ?? []).map(source => [source.id, source]));
+  const count = (status: string) => sourceCatalog.filter(source => byId.get(source.id)?.status === status).length;
+  const healthy = count('healthy'), degraded = count('degraded'), failed = count('failed');
+  return { available, healthy: available ? healthy : null, degraded: available ? degraded : null,
+    failed: available ? failed : null, unknown: available ? sourceCatalog.length - healthy - degraded - failed : sourceCatalog.length };
+}
+
+// Missing, invalid and negative exposure never contribute an invented zero.
+export function exposureTotal(rows: Array<{powerUnits?: string; drivers?: string}>, field: 'powerUnits' | 'drivers') {
+  const known = rows.map(row => row[field]?.trim()).filter((raw): raw is string => Boolean(raw))
+    .map(raw => Number(raw.replaceAll(',', ''))).filter(value => Number.isSafeInteger(value) && value >= 0);
+  const sum = known.reduce((total, value) => total + value, 0);
+  const value = (rows.length > 0 && known.length === 0) || !Number.isSafeInteger(sum) ? null : sum;
+  return { value, known: known.length, missing: rows.length - known.length };
+}
 const DATAHUB = 'https://data.transportation.gov/resource';
 const PAGE_SIZE = 100;
 
@@ -90,6 +110,7 @@ const DEFAULT_FILTERS: CarrierFilters = {
   minDrivers: '',
   maxDrivers: '',
   risk: '',
+  registration: '',
   sort: 'fleet_desc',
 };
 
@@ -160,7 +181,7 @@ const DATA_FAMILIES = [
   {
     title: 'SMS methodology',
     eyebrow: 'Monthly input + official output',
-    description: 'Replay FMCSA measures from the exact monthly inputs, then validate against official published outputs before any insurance model uses them.',
+    description: 'Replay measures from published SMS inputs and compare official outputs. Matching calculations do not establish a common monthly source cut.',
     sources: ['kjg3-diqy', 'rbkj-cgst', '4wxs-vbns', '8mt8-2mdr', 'm3ry-qcip', 'h3zn-uid9', '4y6x-dmck', 'h9zy-gjn8'],
     action: 'Deterministic scoring layer',
   },
@@ -194,6 +215,7 @@ export function parseCarrierFilters(hash = window.location.hash): CarrierFilters
     minDrivers: (params.get('minDrivers') ?? '').trim(),
     maxDrivers: (params.get('maxDrivers') ?? '').trim(),
     risk: ['available', 'unavailable'].includes(params.get('risk') ?? '') ? params.get('risk') as RiskFilter : '',
+    registration: (params.get('registration') ?? '').toUpperCase(),
     sort: sort && ['fleet_desc', 'dot_desc', 'name_asc', 'drivers_desc', 'drivers_asc'].includes(sort) ? sort : DEFAULT_FILTERS.sort,
   };
 }
@@ -209,6 +231,7 @@ export function carrierHash(filters: CarrierFilters): string {
   if (filters.minDrivers.trim()) params.set('minDrivers', filters.minDrivers.trim());
   if (filters.maxDrivers.trim()) params.set('maxDrivers', filters.maxDrivers.trim());
   if (filters.risk) params.set('risk', filters.risk);
+  if (filters.registration) params.set('registration', filters.registration);
   if (filters.sort !== DEFAULT_FILTERS.sort) params.set('sort', filters.sort);
   const query = params.toString();
   return `#/carriers${query ? `?${query}` : ''}`;
@@ -278,6 +301,7 @@ export async function fetchDirectoryRows(url: string, signal?: AbortSignal, time
 }
 
 export function carrierFilterError(filters: CarrierFilters): string | null {
+  if (filters.registration && !['A', 'I', 'P'].includes(filters.registration)) return 'Choose Active, Inactive or Pending registration.';
   for (const raw of [filters.minDrivers, filters.maxDrivers]) {
     const value = raw.trim();
     if (value && (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)))) return 'Driver limits must be whole numbers of zero or more.';
@@ -297,6 +321,7 @@ export function buildCarrierQuery(filters: CarrierFilters): URLSearchParams {
   if (filters.state) where.push(`phy_state='${escapeSoql(filters.state)}'`);
   if (filters.operation) where.push(`carrier_operation='${escapeSoql(filters.operation)}'`);
   if (filters.hazmat === 'Y' || filters.hazmat === 'N') where.push(`hm_ind='${filters.hazmat}'`);
+  if (filters.registration) where.push(`status_code='${filters.registration}'`);
   if (filters.minFleetCode) where.push(`fleetsize>='${filters.minFleetCode}'`);
   if (filters.minDrivers.trim()) where.push(`total_drivers::number>=${Number(filters.minDrivers)}`);
   if (filters.maxDrivers.trim()) where.push(`total_drivers::number<=${Number(filters.maxDrivers)}`);
@@ -326,10 +351,9 @@ function Brand() {
 
 function HealthPill({ health }: { health: SourceHealthPayload | null }) {
   if (!health) return <span className="t3-health neutral"><i/>Source snapshot loading</span>;
-  const healthy = health.healthy_count ?? health.sources.filter((source) => source.status === 'healthy').length;
-  const total = health.source_count ?? sourceCatalog.length;
-  const allHealthy = healthy === total;
-  return <span className={`t3-health ${allHealthy ? 'good' : 'warn'}`}><i/>{healthy}/{total} source probes healthy</span>;
+  const summary = sourceHealthSummary(health);
+  if (!summary.available) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
+  return <a href="#/sources" title={`Saved probe snapshot: ${formatDateTime(health.generated_at)}. This is not a live carrier-data check.`} className={`t3-health ${summary.healthy === sourceCatalog.length ? 'good' : 'warn'}`}><i/>Snapshot: {summary.healthy}/{sourceCatalog.length} probes passed</a>;
 }
 
 function Shell({ page, health, children }: { page: Page; health: SourceHealthPayload | null; children: React.ReactNode }) {
@@ -353,7 +377,7 @@ function PageHeading({ eyebrow, title, copy, action }: { eyebrow: string; title:
 }
 
 function OverviewPage({ health, schema }: { health: SourceHealthPayload | null; schema: SchemaRegistry | null }) {
-  const healthy = health?.healthy_count ?? health?.sources.filter((source) => source.status === 'healthy').length ?? 0;
+  const healthy = sourceHealthSummary(health).healthy;
   const latestDaily = useMemo(() => {
     const values = (health?.sources ?? []).map((source) => source.rows_updated_at).filter((value): value is string => Boolean(value));
     if (!values.length) return null;
@@ -369,22 +393,23 @@ function OverviewPage({ health, schema }: { health: SourceHealthPayload | null; 
         <div className="t3-actions"><a className="t3-button primary" href="#/carriers">Browse carriers</a><a className="t3-button ghost" href="#/sources">Review the data</a></div>
       </div>
       <aside className="t3-hero-status">
-        <div className="t3-status-head"><span>Evidence system</span><strong>{healthy || '—'} / {sourceCatalog.length}</strong></div>
+        <div className="t3-status-head"><span>Saved source probes</span><strong>{healthy ?? '—'} / {sourceCatalog.length}</strong></div>
         <div className="t3-status-row"><span>Official source registry</span><strong>{schema?.source_count ?? sourceCatalog.length} datasets</strong></div>
         <div className="t3-status-row"><span>Registered fields</span><strong>{schema?.field_count?.toLocaleString() ?? '—'}</strong></div>
-        <div className="t3-status-row"><span>Latest daily source update</span><strong>{latestDaily ? formatDateTime(latestDaily) : 'Loading'}</strong></div>
+        <div className="t3-status-row"><span>Latest source metadata update</span><strong>{latestDaily ? formatDateTime(latestDaily) : 'Unavailable'}</strong></div>
+        <div className="t3-status-row"><span>Snapshot checked</span><strong>{formatDateTime(health?.generated_at)}</strong></div>
         <div className="t3-status-note">Overview uses repository snapshots only. Live FMCSA requests begin when you open Carriers or a Carrier 360 tab.</div>
       </aside>
     </section>
 
     <section className="t3-kpi-grid">
-      <article><span>Daily safety / census</span><strong>7</strong><p>Carrier identity, crashes, inspections, units, violations, citations and studies.</p></article>
-      <article><span>Authority / insurance</span><strong>11</strong><p>Six full-history MOTUS sources plus five daily change feeds.</p></article>
-      <article><span>Monthly SMS</span><strong>8</strong><p>Exact inputs and official outputs for replay and validation.</p></article>
-      <article><span>Enforcement</span><strong>1</strong><p>New Entrant operational OOS orders surfaced as a hard-review fact.</p></article>
+      <article><span>Daily safety / census</span><strong>{sourceFamilyCount('Census', 'Safety', 'Inspection')}</strong><p>Carrier identity, crashes, inspections, units, violations, citations and studies.</p></article>
+      <article><span>Authority / insurance</span><strong>{sourceFamilyCount('MOTUS', 'MOTUS Delta', 'MOTUS Legacy Archive')}</strong><p>{sourceFamilyCount('MOTUS')} MOTUS baseline sources, {sourceFamilyCount('MOTUS Delta')} change feeds and {sourceFamilyCount('MOTUS Legacy Archive')} legacy archives.</p></article>
+      <article><span>Monthly SMS</span><strong>{sourceFamilyCount('SMS Input', 'SMS Output')}</strong><p>Published inputs and official outputs; a common monthly cut remains to be verified.</p></article>
+      <article><span>Enforcement</span><strong>{sourceFamilyCount('Enforcement')}</strong><p>New Entrant operational OOS orders; verify dates and rescissions.</p></article>
     </section>
 
-    <section className="t3-section-head"><div><div className="t3-eyebrow">Data → decision</div><h2>Every dataset has an underwriting job.</h2></div><a href="#/sources">See all 27 sources →</a></section>
+    <section className="t3-section-head"><div><div className="t3-eyebrow">Data → decision</div><h2>Every dataset has an underwriting job.</h2></div><a href="#/sources">See all {sourceCatalog.length} sources →</a></section>
     <section className="t3-family-grid">
       {DATA_FAMILIES.map((family) => <article className="t3-family-card" key={family.title}><div className="t3-eyebrow">{family.eyebrow}</div><h3>{family.title}</h3><p>{family.description}</p><div className="t3-card-foot"><span>{family.sources.length} source{family.sources.length === 1 ? '' : 's'}</span><strong>{family.action}</strong></div></article>)}
     </section>
@@ -450,8 +475,9 @@ function CarriersPage() {
   }, [appliedKey, reloadVersion]);
 
   const loadedStates = useMemo(() => new Set(rows.map((row) => row.state).filter(Boolean)).size, [rows]);
-  const loadedUnits = useMemo(() => rows.reduce((sum, row) => sum + (Number(row.powerUnits) || 0), 0), [rows]);
-  const activeFilters = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode, applied.minDrivers, applied.maxDrivers, applied.risk].filter(Boolean).length;
+  const loadedUnits = useMemo(() => exposureTotal(rows, 'powerUnits'), [rows]);
+  const loadedDrivers = useMemo(() => exposureTotal(rows, 'drivers'), [rows]);
+  const activeFilters = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode, applied.minDrivers, applied.maxDrivers, applied.risk, applied.registration].filter(Boolean).length;
   const filterError = carrierFilterError(draft);
 
   function apply(event: FormEvent) {
@@ -494,6 +520,7 @@ function CarriersPage() {
         <label><span>State</span><select value={draft.state} onChange={(event) => setDraft({ ...draft, state: event.target.value })}><option value="">All states</option>{STATES.map((state) => <option key={state}>{state}</option>)}</select></label>
         <label><span>Operation</span><select value={draft.operation} onChange={(event) => setDraft({ ...draft, operation: event.target.value })}><option value="">All operations</option><option value="A">Interstate</option><option value="B">Intrastate hazmat</option><option value="C">Intrastate non-hazmat</option></select></label>
         <label><span>Hazmat</span><select value={draft.hazmat} onChange={(event) => setDraft({ ...draft, hazmat: event.target.value })}><option value="">Any</option><option value="Y">Hazmat</option><option value="N">Non-hazmat</option></select></label>
+        <label><span>Registration</span><select value={draft.registration} onChange={event => setDraft({ ...draft, registration: event.target.value })}><option value="">All registrations</option><option value="A">Active</option><option value="I">Inactive</option><option value="P">Pending</option></select></label>
         <label><span>Minimum fleet</span><select value={draft.minFleetCode} onChange={(event) => setDraft({ ...draft, minFleetCode: event.target.value })}>{FLEET_THRESHOLDS.map((option) => <option key={option.code} value={option.code}>{option.label}</option>)}</select></label>
         <label><span>Minimum drivers</span><input type="number" min="0" step="1" value={draft.minDrivers} onChange={(event) => setDraft({ ...draft, minDrivers: event.target.value })} placeholder="No minimum" /></label>
         <label><span>Maximum drivers</span><input type="number" min="0" step="1" value={draft.maxDrivers} onChange={(event) => setDraft({ ...draft, maxDrivers: event.target.value })} placeholder="No maximum" /></label>
@@ -506,10 +533,11 @@ function CarriersPage() {
       <div className="t3-query-note">Risk scores are unavailable: no scoring model has been released. Driver limits use reported counts; unknown counts do not match a numeric range.</div>
     </section>
 
-    <section className="t3-mini-stats">
-      <div><span>Rows loaded</span><strong>{loading ? '—' : rows.length.toLocaleString()}</strong><small>Current screened slice</small></div>
-      <div><span>States represented</span><strong>{loading ? '—' : loadedStates.toLocaleString()}</strong><small>Within loaded slice</small></div>
-      <div><span>Reported power units</span><strong>{loading ? '—' : loadedUnits.toLocaleString()}</strong><small>Sum of loaded rows</small></div>
+    <section className="t3-mini-stats t3-directory-stats" aria-live="polite">
+      <div><span>Rows loaded</span><strong>{loading || error ? '—' : rows.length.toLocaleString()}</strong><small>Current screened slice</small></div>
+      <div><span>States represented</span><strong>{loading || error ? '—' : loadedStates.toLocaleString()}</strong><small>Within loaded slice</small></div>
+      <div><span>Reported power units</span><strong>{loading || error ? '—' : formatNumber(loadedUnits.value)}</strong><small>{loadedUnits.missing ? `${loadedUnits.known}/${rows.length} rows reported · partial sum` : 'Sum of reported counts in loaded rows'}</small></div>
+      <div><span>Reported drivers</span><strong>{loading || error ? '—' : formatNumber(loadedDrivers.value)}</strong><small>{loadedDrivers.missing ? `${loadedDrivers.known}/${rows.length} rows reported · partial sum` : 'Sum of reported counts in loaded rows'}</small></div>
       <div><span>Active filters</span><strong>{activeFilters}</strong><small>Encoded in shareable URL</small></div>
     </section>
 
@@ -517,7 +545,8 @@ function CarriersPage() {
 
     <section className="t3-panel t3-table-panel">
       <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
-      <div className="t3-carrier-table-wrap">
+      <p className="t3-table-scroll-note" id="carrier-scroll-help">Scroll horizontally for all columns and evidence links. Counts may come from different MCS-150 report dates.</p>
+      <div className="t3-carrier-table-wrap" role="region" aria-label="Carrier summary table" aria-describedby="carrier-scroll-help" tabIndex={0}>
         <div className="t3-carrier-table">
           <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
           {!loading && !error && rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
@@ -526,7 +555,7 @@ function CarriersPage() {
             <span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || '—'}</span>
             <span>{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
             <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
-            <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small></span>
+            <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
             <span title="No released scoring model is available for this carrier.">Unavailable</span>
             <span>{formatNumber(carrier.mileage)}{carrier.mileageYear && <small>{carrier.mileageYear}</small>}</span>
             <span>{carrier.hazmat || '—'}</span>
@@ -562,32 +591,55 @@ function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
   ];
   return <main className="t3-main"><PageHeading eyebrow="Material change detection" title="Alerts" copy="Alerts are facts or deterministic changes, not score decorations. Daily MOTUS difference feeds are the near-current event layer; portfolio persistence is still required to evaluate insured-carrier changes continuously." />
     <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Priority</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${source?.status ?? 'pending'}`}/>{source?.status ?? 'pending'}</span></div>; })}</div></section>
-    <section className="t3-note-panel"><strong>Current constraint</strong><p>The source feeds are live and healthy, but Transport3r does not yet persist a durable insured-carrier snapshot history. Until that layer exists, the app will not invent “new since yesterday” events from a single current lookup.</p></section>
+    <section className="t3-note-panel"><strong>Current constraint</strong><p>Source statuses describe the saved probe snapshot, not a continuous live check. Transport3r does not yet persist a durable insured-carrier snapshot history. Until that layer exists, the app will not invent “new since yesterday” events from a single current lookup.</p></section>
   </main>;
 }
 
 function MethodologyPage() {
   return <main className="t3-main"><PageHeading eyebrow="Versioned calculation contract" title="Methodology" copy="Official FMCSA outputs, deterministic Transport calculations and proprietary insurance models are separate evidence classes with separate validation gates." />
     <section className="t3-evidence-class-grid"><article className="official"><span>01</span><div className="t3-eyebrow">Official FMCSA</div><h2>Published evidence</h2><p>Census, inspections, violations, crashes, authority, insurance, OOS orders and official SMS outputs. These values are never presented as proprietary scores.</p></article><article className="calculated"><span>02</span><div className="t3-eyebrow">Transport calculated</div><h2>Deterministic replay</h2><p>SMS v3.21 inspection-based measures are reproduced from the current monthly input files and regression-tested against FMCSA outputs. Every formula stays versioned and replayable.</p></article><article className="modelled"><span>03</span><div className="t3-eyebrow">Transport modelled</div><h2>Insurance inference</h2><p>TRI is intentionally not released until full-population percentile reconstruction, exposure treatment and actuarial validation are defensible.</p></article></section>
-    <section className="t3-panel"><div className="t3-panel-head"><div><div className="t3-eyebrow">SMS v3.21</div><h2>Calculation pipeline</h2></div><span className="t3-chip good">Current ruleset</span></div><div className="t3-method-pipeline"><div><span>1</span><strong>Monthly census</strong><p>Carrier class, power units, VMT and SMS eligibility inputs.</p></div><div><span>2</span><strong>Inspection / crash / violation inputs</strong><p>Exact events and FMCSA-provided methodology fields for the current SMS month.</p></div><div><span>3</span><strong>Measure replay</strong><p>Severity, OOS and recency weighting plus relevant-inspection denominators.</p></div><div><span>4</span><strong>Official output validation</strong><p>Compare Transport replay to the public AB/C passenger/property outputs.</p></div><div><span>5</span><strong>Percentile gate</strong><p>Blocked until the peer-population calculation is reconstructed and validated exactly.</p></div><div><span>6</span><strong>TRI gate</strong><p>Only after actuarial testing against insurer claims and exposure.</p></div></div></section>
-    <section className="t3-note-panel"><strong>Historical integrity rule</strong><p>A future FMCSA methodology activation must create a new ruleset. It must never rewrite a result that was calculated under an older ruleset or source as-of state.</p></section>
+    <section className="t3-panel"><div className="t3-panel-head"><div><div className="t3-eyebrow">SMS v3.21</div><h2>Calculation pipeline</h2></div><span className="t3-chip good">Current ruleset</span></div><div className="t3-method-pipeline"><div><span>1</span><strong>Monthly census</strong><p>Carrier class, power units, VMT and SMS eligibility inputs.</p></div><div><span>2</span><strong>Inspection / crash / violation inputs</strong><p>Published events and methodology fields. Event dates and source update dates do not prove that all files describe the same SMS month.</p></div><div><span>3</span><strong>Measure replay</strong><p>Severity, OOS and recency weighting plus relevant-inspection denominators.</p></div><div><span>4</span><strong>Official output validation</strong><p>Compare Transport replay to the public AB/C passenger/property outputs.</p></div><div><span>5</span><strong>Percentile gate</strong><p>Blocked until the peer-population calculation is reconstructed and validated exactly.</p></div><div><span>6</span><strong>TRI gate</strong><p>Only after actuarial testing against insurer claims and exposure.</p></div></div></section>
+    <section className="t3-note-panel"><strong>Source dates and historical integrity</strong><p>A common monthly cut across the live SMS inputs and outputs remains unverified. A future FMCSA methodology activation must create a new ruleset. It must never rewrite a result that was calculated under an older ruleset or source as-of state.</p></section>
   </main>;
 }
 
 function SourcesPage({ health, schema }: { health: SourceHealthPayload | null; schema: SchemaRegistry | null }) {
-  const healthById = useMemo(() => new Map((health?.sources ?? []).map((source) => [source.id, source])), [health]);
-  const groups = useMemo(() => {
-    const map = new Map<string, SourceCatalogEntry[]>();
-    for (const source of sourceCatalog) {
-      const current = map.get(source.family) ?? [];
-      current.push(source);
-      map.set(source.family, current);
-    }
-    return [...map.entries()];
-  }, []);
-  return <main className="t3-main"><PageHeading eyebrow="Data lineage & operating contract" title="Data Sources" copy={`All ${schema?.source_count ?? sourceCatalog.length} configured FMCSA/DOT datasets, why they exist in Transport3r, their update cadence, and the job each performs in underwriting or validation.`} action={<div className="t3-asof"><span>Health snapshot</span><strong>{formatDateTime(health?.generated_at)}</strong></div>} />
-    <section className="t3-mini-stats"><div><span>Registered datasets</span><strong>{schema?.source_count ?? sourceCatalog.length}</strong><small>Version-controlled registry</small></div><div><span>Registered fields</span><strong>{schema?.field_count?.toLocaleString() ?? '—'}</strong><small>Persisted schema snapshot</small></div><div><span>Healthy probes</span><strong>{health?.healthy_count ?? health?.sources.filter((source) => source.status === 'healthy').length ?? '—'}</strong><small>Latest automated probe</small></div><div><span>Failed probes</span><strong>{health?.failed_count ?? health?.sources.filter((source) => source.status === 'failed').length ?? '—'}</strong><small>Not hidden from the UI</small></div></section>
-    <div className="t3-source-groups">{groups.map(([family, sources]) => <section className="t3-panel t3-source-group" key={family}><div className="t3-source-group-head"><div><div className="t3-eyebrow">{sources[0]?.cadence}</div><h2>{family}</h2></div><span>{sources.length} source{sources.length === 1 ? '' : 's'}</span></div><div className="t3-source-list"><div className="t3-source-row header"><span>Status</span><span>Dataset</span><span>Purpose in Transport3r</span><span>Scope / history</span><span>Updated</span></div>{sources.map((source) => { const status = healthById.get(source.id); return <div className="t3-source-row" key={source.id}><span><i className={`t3-source-dot ${status?.status ?? 'pending'}`}/>{status?.status ?? 'pending'}</span><span><strong>{source.name}</strong><code>{source.id}</code><small>{source.tier}</small></span><span>{source.role}</span><span>{source.scope}<small>{source.history}</small></span><span>{formatDateTime(status?.rows_updated_at)}<small>{status?.schema_fields ?? '—'} fields</small></span></div>; })}</div></section>)}</div>
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState('');
+  const summary = sourceHealthSummary(health);
+  const healthById = useMemo(() => new Map((health?.sources ?? []).map(source => [source.id, source])), [health]);
+  const statusOf = (id: string) => summary.available ? healthById.get(id)?.status ?? 'unavailable' : 'unavailable';
+  const filtered = sourceCatalog.filter(source => (!filter || statusOf(source.id) === filter) &&
+    `${source.id} ${source.name} ${source.family} ${source.role}`.toLowerCase().includes(search.trim().toLowerCase()));
+  const groups = new Map<string, SourceCatalogEntry[]>();
+  for (const source of filtered) groups.set(source.family, [...(groups.get(source.family) ?? []), source]);
+  return <main className="t3-main">
+    <PageHeading eyebrow="Data lineage & operating contract" title="Data Sources" copy={`All ${sourceCatalog.length} configured FMCSA/DOT datasets, why they exist in Transport3r, their update cadence, and the job each performs in underwriting or validation.`} action={<div className="t3-asof"><span>Health snapshot checked</span><strong>{formatDateTime(health?.generated_at)}</strong></div>} />
+    <section className="t3-mini-stats">
+      <div><span>Configured datasets</span><strong>{sourceCatalog.length}</strong><small>{schema?.source_count ?? '—'} schemas loaded</small></div>
+      <div><span>Registered fields</span><strong>{schema?.field_count?.toLocaleString() ?? '—'}</strong><small>Persisted schema snapshot</small></div>
+      <div><span>Healthy probes</span><strong>{summary.healthy ?? '—'}</strong><small>{summary.degraded ?? '—'} degraded · {summary.unknown} unavailable</small></div>
+      <div><span>Failed probes</span><strong>{summary.failed ?? '—'}</strong><small>At the saved check time</small></div>
+    </section>
+    <section className="t3-note-panel"><strong>Snapshot checks are not live carrier results</strong><p>Probe status describes metadata and a sample request at the saved check time. Source row-update times are dataset metadata; they are not MCS-150 report dates, event dates or proof of a shared SMS month. A healthy source can still return missing or partial carrier evidence.</p></section>
+    <section className="t3-panel t3-source-controls">
+      <label><span>Find a source</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Name, source ID or purpose" /></label>
+      <label><span>Probe status</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">All statuses</option><option value="healthy">Healthy</option><option value="degraded">Degraded</option><option value="failed">Failed</option><option value="unavailable">Unavailable</option></select></label>
+      <span role="status">{filtered.length} of {sourceCatalog.length} sources</span>
+    </section>
+    {!filtered.length && <div className="t3-table-empty"><strong>No sources match these filters.</strong><button className="t3-button secondary" onClick={() => { setSearch(''); setFilter(''); }}>Clear source filters</button></div>}
+    <div className="t3-source-groups">{[...groups].map(([family, sources]) => <section className="t3-panel t3-source-group" key={family}>
+      <div className="t3-source-group-head"><div><div className="t3-eyebrow">{sources[0]?.cadence}</div><h2>{family}</h2></div><span>{sources.length} source{sources.length === 1 ? '' : 's'}</span></div>
+      <div className="t3-source-list" role="region" aria-label={`${family} source records`} tabIndex={0}>
+        <div className="t3-source-row header"><span>Saved probe</span><span>Dataset</span><span>Purpose in Transport3r</span><span>Scope / history</span><span>Source rows updated</span></div>
+        {sources.map(source => { const probe = healthById.get(source.id); const status = statusOf(source.id); return <div className="t3-source-row" key={source.id}>
+          <span><i className={`t3-source-dot ${status}`}/>{status}<small>Checked {formatDateTime(probe?.checked_at)}</small>{probe?.error && <small className="t3-source-error">{probe.error}</small>}</span>
+          <span><a href={`https://data.transportation.gov/d/${source.id}`} target="_blank" rel="noreferrer"><strong>{source.name} ↗</strong></a><code>{source.id}</code><small>{source.tier}</small></span>
+          <span>{source.role}</span><span>{source.scope}<small>{source.history}</small></span>
+          <span>{formatDateTime(probe?.rows_updated_at)}<small>{probe?.schema_fields ?? '—'} fields · {source.cadence}</small></span>
+        </div>; })}
+      </div>
+    </section>)}</div>
   </main>;
 }
 
@@ -608,8 +660,11 @@ export default function WorkspaceApp() {
   }, [page]);
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}data/source-health.json`, { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() as Promise<SourceHealthPayload> : Promise.reject(new Error(`HTTP ${response.status}`)))
+    fetchSourceJson(`${import.meta.env.BASE_URL}data/source-health.json`, { cache: 'no-store' })
+      .then(payload => {
+        if (!payload || typeof payload !== 'object' || !Array.isArray((payload as SourceHealthPayload).sources)) throw new Error('Invalid health snapshot');
+        return payload as SourceHealthPayload;
+      })
       .then(setHealth)
       .catch(() => setHealth({ generated_at: null, sources: [] }));
     loadSchemaRegistry().then(setSchema).catch(() => setSchema(null));

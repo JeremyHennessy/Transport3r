@@ -42,6 +42,17 @@ jobs:
           name: carrier-recovery-${{ github.sha }}
           path: /tmp/transport3r-carrier-recovery.json
           if-no-files-found: warn
+      - name: Verify source review and exposure UI in the production browser bundle
+        env:
+          BROWSER_SCENARIO: data-ui
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-data-ui.json
+      - name: Retain data UI browser checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-ui-${{ github.sha }}
+          path: /tmp/transport3r-data-ui.json
+          if-no-files-found: warn
       - name: Verify large-carrier drivers and full inspection counts
         run: node scripts/validate-large-carriers.mjs /tmp/transport3r-large-carriers.json
       - name: Retain large-carrier count verification

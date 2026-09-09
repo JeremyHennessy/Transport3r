@@ -111,11 +111,13 @@ export function driverReportDetail(date?: string, status?: string): string {
   return `Company Census · MCS-150 ${formatDateValue(date)} · ${censusStatusLabel(status)} registration`;
 }
 
-async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<Response> {
+export async function fetchSourceJson(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
   const controller = new AbortController();
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
@@ -128,10 +130,10 @@ async function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs =
 
 export async function loadSchemaRegistry(): Promise<SchemaRegistry> {
   if (!schemaPromise) {
-    schemaPromise = fetch(`${import.meta.env.BASE_URL}data/source-schemas.json`, { cache: 'no-store' })
-      .then((response) => {
-        if (!response.ok) throw new Error(`Schema registry returned HTTP ${response.status}`);
-        return response.json() as Promise<SchemaRegistry>;
+    schemaPromise = fetchSourceJson(`${import.meta.env.BASE_URL}data/source-schemas.json`, { cache: 'no-store' })
+      .then(payload => {
+        if (!payload || typeof payload !== 'object' || !Array.isArray((payload as SchemaRegistry).sources)) throw new Error('Invalid schema registry');
+        return payload as SchemaRegistry;
       })
       .catch((error) => {
         schemaPromise = null;
@@ -164,17 +166,15 @@ function literal(column: SchemaColumn, value: string | number): string {
 }
 
 async function fetchRows(sourceId: string, params: URLSearchParams): Promise<DataRow[]> {
-  let response: Response;
+  let payload: unknown;
   try {
-    response = await fetchWithTimeout(`${DATAHUB}/${sourceId}.json?${params.toString()}`, {
+    payload = await fetchSourceJson(`${DATAHUB}/${sourceId}.json?${params.toString()}`, {
       headers: { Accept: 'application/json' },
     });
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : String(cause);
     throw new Error(`${sourceId} request failed: ${message}`);
   }
-  if (!response.ok) throw new Error(`${sourceId} returned HTTP ${response.status}`);
-  const payload = await response.json();
   if (!Array.isArray(payload)) throw new Error(`${sourceId} returned a non-array payload`);
   return payload as DataRow[];
 }
