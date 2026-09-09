@@ -49,5 +49,6 @@ jobs:
           name: sms-runtime-${{ github.sha }}
           path: |
             /tmp/transport3r-sms-runtime.json
+            /tmp/transport3r-sms-runtime.json.before.json
             /tmp/transport3r-sms-runtime-result.json
           if-no-files-found: warn

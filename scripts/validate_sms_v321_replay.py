@@ -22,7 +22,6 @@ from __future__ import annotations
 
 import json
 import argparse
-import datetime as dt
 import pathlib
 import math
 import time
@@ -31,6 +30,8 @@ import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from snapshot_store import now, write_once
+from sms_source_cut import SMS_RUNTIME_SOURCES, capture_sources, state_issues, assess_source_cut
 
 BASE = "https://data.transportation.gov/resource"
 USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
@@ -177,6 +178,18 @@ def choose_candidates() -> list[dict[str, Any]]:
 
 
 def main(runtime_sample: str | None = None) -> int:
+    source_ids = SMS_RUNTIME_SOURCES if runtime_sample else [OUTPUT_ID, INSPECTION_ID, VIOLATION_ID]
+    if runtime_sample and (pathlib.Path(runtime_sample).exists() or pathlib.Path(runtime_sample + '.before.json').exists()):
+        raise FileExistsError('Retained validation input already exists; use a new output path')
+    started_at = now()
+    before = capture_sources(source_ids)
+    if runtime_sample:
+        write_once(pathlib.Path(runtime_sample + '.before.json'), {'started_at': started_at, 'sources': before})
+    before_issues = [issue for sid in source_ids for issue in state_issues(sid, before[sid])]
+    if before_issues:
+        print(json.dumps({'status': 'source_state_unavailable', 'issues': before_issues}, indent=2))
+        return 2
+    queries_started_at = now()
     candidates = choose_candidates()
     comparisons: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
@@ -254,12 +267,22 @@ def main(runtime_sample: str | None = None) -> int:
                     pending = {key: pool.submit(fetch_json, source, {'$where': f"dot_number='{dot_number}'", '$limit': str(10000 if key == 'inspections' else 20000 if key == 'violations' else 5)}) for key, source in jobs.items()}
                     rows = {key: future.result() for key, future in pending.items()}
                 runtime_carriers.append({'dot_number': dot_number, 'official': output, 'outputs': {key: rows[key] for key in sources}, 'inspections': rows['inspections'], 'violations': rows['violations']})
-        with pathlib.Path(runtime_sample).open('x',encoding='utf-8') as handle:
-            json.dump({'captured_at':dt.datetime.now(dt.timezone.utc).isoformat(),
-                       'purpose':'LIVE_RUNTIME_REGRESSION_NOT_HISTORICAL_TRAINING',
-                       'source_ids':[*sources.values(),INSPECTION_ID,VIOLATION_ID],'carriers':runtime_carriers},handle,indent=2)
+    queries_completed_at = now()
+    after = capture_sources(source_ids)
+    cut = {'schema_version': 1, 'started_at': started_at, 'queries_started_at': queries_started_at,
+           'queries_completed_at': queries_completed_at, 'completed_at': now(), 'before': before, 'after': after,
+           'monthly_alignment': 'NOT_VERIFIED', 'snapshot_date': None}
+    cut['issues'] = assess_source_cut(cut, source_ids)
+    cut['status'] = 'REJECTED' if cut['issues'] else 'STABLE_DURING_QUERY_WINDOW'
+    summary['source_cut'] = {key: cut[key] for key in ['status', 'issues', 'monthly_alignment', 'snapshot_date']}
+    if cut['issues']:
+        summary['status'] = 'source_cut_rejected'
+    if runtime_sample:
+        write_once(pathlib.Path(runtime_sample), {'captured_at': now(), 'source_cut': cut,
+                   'purpose': 'LIVE_RUNTIME_REGRESSION_NOT_HISTORICAL_TRAINING',
+                   'source_ids': source_ids, 'carriers': runtime_carriers})
     print(json.dumps(summary, indent=2))
-    return 0 if not mismatches else 2
+    return 0 if not mismatches and not cut['issues'] else 2
 
 
 if __name__ == "__main__":
