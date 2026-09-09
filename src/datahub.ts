@@ -237,7 +237,11 @@ export async function queryByDot(
   const dotColumn = findColumn(schema, USDOT_ALIASES);
   if (!dotColumn?.field_name) throw new Error(`${sourceId} has no registered USDOT field`);
 
-  let where = `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
+  const legacyDotSources = new Set(['6eyk-hxee','qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp']);
+  if (!/^[1-9][0-9]*$/.test(dotNumber)) throw new Error('Positive USDOT required');
+  const legacy = legacyDotSources.has(sourceId);
+  const values = [...new Set([dotNumber, dotNumber.padStart(8,'0')])];
+  let where = legacy ? `${dotColumn.field_name} in (${values.map(value => literal(dotColumn,value)).join(',')})` : `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
   const eventWindow = options.eventWindow && validateEventWindow(options.eventWindow);
   if (eventWindow) {
     const field = DAILY_DATE_FIELDS[sourceId];
@@ -252,6 +256,7 @@ export async function queryByDot(
     options.includeTotal ? countWhere(sourceId, where) : Promise.resolve(null),
   ]);
   const { rows } = window;
+  if (legacy && rows.some(row => { const raw=readValue(row,USDOT_ALIASES) ?? ''; return !/^[0-9]+$/.test(raw) || raw.replace(/^0+/,'') !== dotNumber; })) throw new Error('Legacy response contains an unrelated carrier record.');
   if (eventWindow && rows.some(row => {
     const raw = readValue(row,[DAILY_DATE_FIELDS[sourceId]]) ?? '';
     const date = parseDateValue(raw)?.toISOString().slice(0,10);

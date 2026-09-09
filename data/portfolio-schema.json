@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Transport3r insurer-owned portfolio import",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "records"
+  ],
+  "properties": {
+    "schema": {
+      "const": "INSURER_PORTFOLIO_1"
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "account_id",
+          "policy_id",
+          "dot_number",
+          "policy_start",
+          "policy_end",
+          "status",
+          "review_status"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "policy_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250
+          },
+          "dot_number": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250,
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "policy_start": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250,
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "policy_end": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250,
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "status": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250,
+            "enum": [
+              "quoted",
+              "active",
+              "expired",
+              "cancelled",
+              "watch"
+            ]
+          },
+          "review_status": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 250,
+            "enum": [
+              "unreviewed",
+              "in_review",
+              "reviewed"
+            ]
+          },
+          "limit_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "premium_minor": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "scheduled_units": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "insured_vmt": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 250,
+            "pattern": "^[A-Z]{3}$"
+          },
+          "class_code": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 250
+          },
+          "territory": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 250
+          },
+          "broker": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 250
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 8000
+          }
+        }
+      }
+    }
+  },
+  "$comment": "Runtime validation also requires start < end, unique account/policy pairs and currency when money is present. Null is unknown, never a guessed zero."
+}

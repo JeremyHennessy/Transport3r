@@ -81,3 +81,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Continued custody, explanations and report exports
 
 See [continued custody acceptance log](custody-20260909.md) for the protected baseline, targeted drillthrough summaries, state-cluster maps and professional brief/detailed report routes. Later temporal/model phases remain separately gated.
+
+## Continued custody and complete-source foundation
+
+[September 9 acceptance log](custody-20260909.md) records branch protection, deployed summaries/maps/PDF reports, v3 acquisition and legacy USDOT padding correction, private portfolio storage, persistent change comparisons and the remaining exact-release/historical/outcome/DAX gates. Earlier sections describe historical checkpoints; source counts and completion status must be read with their cut/profile.

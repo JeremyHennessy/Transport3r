@@ -54,7 +54,7 @@ PBIX input hashes:
 | --- | --- | --- |
 | Company Census | `az4n-8mr2` | Existing explicit reported exposure; dataflow transformation equivalence unverified |
 | Daily inspections / crash reports | `fx4q-ay7w` / `aayw-vxb3` | Keep different event grains and file windows |
-| Inspection units / violations / citations | `wt8s-2hbx` / `876r-jsdb` / `qbt8-7vic` | Join through verified inspection parent IDs; full warehouse child acquisition remains next |
+| Inspection units / violations / citations | `wt8s-2hbx` / `876r-jsdb` / `qbt8-7vic` | Join through verified inspection parent IDs; complete child acquisition is implemented in v2/v3 with parent and source-count validation |
 | SMS Census / inspections / violations / crashes | `kjg3-diqy` / `rbkj-cgst` / `8mt8-2mdr` / `4wxs-vbns` | Already present in 14-source preserved cuts |
 | AB/C property and passenger | `4y6x-dmck`, `h9zy-gjn8`, `m3ry-qcip`, `h3zn-uid9` | Retain source/population identity; no MAX-based resolution |
 | Additional INTER/INTRA extracts | `hg4d-8cim`, `isy5-3gj3`, `n6n3-vpjj`, `dri9-7c4y` | Found in models; not added to the 36-source live contract without separate necessity/schema validation |
@@ -78,7 +78,11 @@ For USDOT 3706, daily events extend to September 6, 2026, while SMS inspections 
 
 ## Next implementation order
 
-1. Extend complete acquisition to daily inspection units, violations, citations and studies through preserved parent IDs, retaining child-source update checks and orphan diagnostics.
-2. Expose carrier → inspection report → observed unit/VIN drilldowns using those complete joins, and add the explicit event-window/month view with coverage status. Preserve the existing navigation and source labels.
+1. Completed: v2/v3 retains daily inspection units, violations, citations and studies through preserved parent IDs, with source-update checks and orphan rejection.
+2. Completed: inspection/VIN routes, daily windows, monthly visuals, state maps and report exports. Browser evidence remains bounded and separate from the offline warehouse.
 3. Establish exact SMS release alignment and exposure eligibility before comparing Power BI-exported measures or admitting new model features. Reuse `compare-measure-snapshots.mjs` only for identical source cut, grain, filters and event windows.
 4. If editing the Power BI models next, make versioned copies, fix denominator/date/null semantics first, and execute matched-cut DAX fixtures before replacing originals. No model score or percentile is released by this review.
+
+## Matched-cut numerical acceptance remains blocked
+
+The preserved PBIX metadata and Power Query definitions do not expose an immutable source artifact equal to the new acquisition. No DAX result for that same cut has been executed. An identical date slicer is insufficient. Do not call definition review or a self-comparison numerical reconciliation. The existing comparison harness requires exact USDOT, source ID/cut, window boundaries, date field, grain and filters; unavailable and mismatched values remain separate. Required next evidence: an immutable matching Power BI refresh and executed DAX exports for inspection/violation/OOS counts and denominators, reported exposure and applicable SMS populations. Originals remain untouched.

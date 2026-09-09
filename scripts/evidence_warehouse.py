@@ -7,8 +7,9 @@ import pathlib
 import re
 import sqlite3
 
-from cohort_snapshot import PROFILES, ROOT, hash_file, load_verified, source_dot
+from cohort_snapshot import PROFILES, ROOT, hash_file, load_verified, source_dot, cohort_where
 from inspection_children import PARENT, parent_index
+from docket_identity import BRIDGE, docket_index, IDENTITY_CONTRACT
 from snapshot_store import digest, now, write_once
 from verify_snapshot import timestamp
 
@@ -67,7 +68,7 @@ def connect(db, writable=False):
     return connection
 
 
-def insert_source(connection, folder, cut_id, source, rows, parents=None):
+def insert_source(connection, folder, cut_id, source, rows, parents=None, dockets=None):
     sid = source['id']
     lineage_text = (folder/source['lineage']).read_bytes().decode('utf-8')
     if hashlib.sha256(lineage_text.encode()).hexdigest() != source['lineage_sha256']:
@@ -75,7 +76,11 @@ def insert_source(connection, folder, cut_id, source, rows, parents=None):
     connection.execute('INSERT INTO sources VALUES (?,?,?,?,?,?)',
                        (cut_id,sid,len(rows),digest(rows),lineage_text,source['lineage_sha256']))
     connection.executemany('INSERT INTO records VALUES (?,?,?,?,?,?)',
-        ((cut_id,sid,i,row['source_row_id'],source_dot(sid,row,parents),encode(row)) for i,row in enumerate(rows)))
+        ((cut_id,sid,i,row['source_row_id'],source_dot(sid,row,parents,dockets),encode(row)) for i,row in enumerate(rows)))
+
+
+def cut_eligible(manifest):
+    return manifest.get('source_profile')!='underwriting_evidence_v3' or manifest.get('identity_contract')==IDENTITY_CONTRACT
 
 
 def verify_cut(connection, cut_id):
@@ -86,6 +91,7 @@ def verify_cut(connection, cut_id):
         if hashlib.sha256(cut[f'{field}_json'].encode()).hexdigest() != cut[f'{field}_sha256']:
             raise ValueError('Stored manifest/cohort hash differs')
     manifest, cohort = json.loads(cut['manifest_json']), json.loads(cut['cohort_json'])
+    if not cut_eligible(manifest):raise ValueError('Legacy identity contract unavailable; cut retained for audit only')
     if manifest['cohort_sha256'] != cut['cohort_sha256']:
         raise ValueError('Stored cohort lineage differs from source manifest')
     profile = manifest.get('source_profile','baseline')
@@ -101,18 +107,20 @@ def verify_cut(connection, cut_id):
         raise ValueError('Stored required sources are incomplete')
     expected = {row['id']: row for row in manifest['datasets']}
     parents = parent_index([json.loads(r[0]) for r in connection.execute(
-        'SELECT payload FROM records WHERE cut_id=? AND source_id=? ORDER BY ordinal',(cut_id,PARENT))]) if profile=='underwriting_evidence_v2' else None
+        'SELECT payload FROM records WHERE cut_id=? AND source_id=? ORDER BY ordinal',(cut_id,PARENT))]) if profile in ('underwriting_evidence_v2','underwriting_evidence_v3') else None
+    dockets=docket_index([json.loads(r[0]) for r in connection.execute('SELECT payload FROM records WHERE cut_id=? AND source_id=? ORDER BY ordinal',(cut_id,BRIDGE))]) if profile=='underwriting_evidence_v3' else None
     counts = {}
     for source in sources:
         sid = source['source_id']
         if hashlib.sha256(source['lineage_json'].encode()).hexdigest() != source['lineage_sha256'] or source['lineage_sha256'] != expected[sid]['lineage_sha256']:
             raise ValueError('Stored source lineage hash differs')
+        if sid!='ypjt-5ydn' and sid not in ('wt8s-2hbx','876r-jsdb','qbt8-7vic','5qik-smay') and json.loads(source['lineage_json']).get('where')!=cohort_where(sid,cohort['dots']):raise ValueError('Stored query identity scope differs')
         records = connection.execute('SELECT * FROM records WHERE cut_id=? AND source_id=? ORDER BY ordinal',(cut_id,sid)).fetchall()
         rows = [json.loads(record['payload']) for record in records]
         if len(rows) != source['row_count'] or len(rows) != expected[sid]['row_count'] or digest(rows) != source['rows_sha256']:
             raise ValueError('Stored source row count/hash differs')
         for i,(record,row) in enumerate(zip(records,rows)):
-            if record['ordinal'] != i or record['dot'] != source_dot(sid,row,parents) or record['dot'] not in members or record['source_row_id'] != row['source_row_id']:
+            if record['ordinal'] != i or record['dot'] != source_dot(sid,row,parents,dockets) or record['dot'] not in members or record['source_row_id'] != row['source_row_id']:
                 raise ValueError('Stored record index differs from raw identity')
         counts[sid] = len(rows)
     return {'status':'VERIFIED','cut_id':cut_id,'profile':profile,'carriers':len(members),
@@ -145,9 +153,10 @@ def promote(folder, db=DEFAULT_DB):
             (cut_id,manifest_hash,manifest_text,cohort_text,manifest['cohort_sha256'],manifest.get('source_profile','baseline'),
              manifest['completed_at'],time_us(manifest['completed_at']),now()))
         connection.executemany('INSERT INTO members VALUES (?,?)',((cut_id,dot) for dot in cohort['dots']))
-        parents = parent_index(data[PARENT]) if manifest.get('source_profile')=='underwriting_evidence_v2' else None
+        parents = parent_index(data[PARENT]) if manifest.get('source_profile') in ('underwriting_evidence_v2','underwriting_evidence_v3') else None
+        dockets=docket_index(data[BRIDGE]) if manifest.get('source_profile')=='underwriting_evidence_v3' else None
         for source in manifest['datasets']:
-            insert_source(connection,folder,cut_id,source,data[source['id']],parents)
+            insert_source(connection,folder,cut_id,source,data[source['id']],parents,dockets)
         result = verify_cut(connection,cut_id)
         connection.commit()
         return {**result,'promotion':'INSERTED'}
@@ -164,10 +173,10 @@ def verify(db=DEFAULT_DB):
         connection.execute('BEGIN')
         if connection.execute('PRAGMA integrity_check').fetchone()[0] != 'ok' or connection.execute('PRAGMA foreign_key_check').fetchall():
             raise ValueError('SQLite integrity or relationship check failed')
-        cuts = connection.execute('SELECT cut_id FROM cuts ORDER BY available_us,cut_id').fetchall()
+        cuts = connection.execute('SELECT cut_id,manifest_json FROM cuts ORDER BY available_us,cut_id').fetchall()
         if not cuts:
             raise ValueError('Warehouse contains no complete cuts')
-        return {'status':'VERIFIED','cuts':[verify_cut(connection,row[0]) for row in cuts]}
+        return {'status':'VERIFIED','cuts':[verify_cut(connection,row[0]) for row in cuts if cut_eligible(json.loads(row[1]))], 'audit_only_cuts':[{'cut_id':row[0],'reason':'LEGACY_IDENTITY_CONTRACT_UNAVAILABLE'} for row in cuts if not cut_eligible(json.loads(row[1]))]}
     finally:
         connection.close()
 
@@ -185,7 +194,8 @@ def carrier_evidence(db, dot, as_of=None, profile=None, include_records=False):
         connection.execute('BEGIN')
         cuts = connection.execute('''SELECT cuts.* FROM cuts JOIN members USING(cut_id)
             WHERE dot=? AND available_us<=? AND (? IS NULL OR profile=?)
-            ORDER BY available_us DESC,cut_id DESC LIMIT 1''',(dot,time_us(as_of),profile,profile)).fetchall()
+            ORDER BY available_us DESC,cut_id DESC''',(dot,time_us(as_of),profile,profile)).fetchall()
+        cuts=[cut for cut in cuts if cut_eligible(json.loads(cut['manifest_json']))]
         if not cuts:
             raise ValueError('No preserved cohort cut was available for this USDOT and as-of time')
         cut = cuts[0]

@@ -38,7 +38,7 @@
   check(specs().textContent.includes('Check digit warning')&&specs().textContent.includes('Class 3'),'NHTSA warnings remain alongside provisional specifications');
   failDecode=true;specs().querySelector('button').click();await wait(()=>specs().textContent.includes('503'));check(!specs().textContent.includes('Class 3'),'Failed lookup clears previous specifications');
   failDecode=false;specs().querySelector('button').click();await wait(()=>specs().textContent.includes('Class 3'));check(true,'VIN specification retry recovers');
-  location.hash='#/sources';await wait(()=>document.querySelector('[data-testid="enrichment-sources"]'));check(document.querySelector('[data-testid="enrichment-sources"]').textContent.includes('Only NHTSA VIN specifications are integrated'),'Source catalog separates integrated enrichment from research candidates');
+  location.hash='#/sources';await wait(()=>document.querySelector('[data-testid="enrichment-sources"]'));check(document.querySelector('[data-testid="enrichment-sources"]').textContent.includes('NHTSA VIN specifications and Census map boundaries are integrated'),'Source catalog separates integrated enrichment from research candidates');
   result.status='PASS';
  }catch(error){result.status='FAIL';result.error=error.message;}
  finally{window.fetch=original;const pre=document.createElement('pre');pre.id='carrier-recovery-result';pre.textContent=JSON.stringify(result);document.body.append(pre);}
