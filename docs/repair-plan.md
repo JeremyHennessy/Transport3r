@@ -77,3 +77,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Official SMS summary display
 
 [SMS display repair](sms-display-repair.md) adds automatic official measures to the directory and carrier Summary, published passenger percentiles, and retry controls with strict population and carrier isolation. Missing official rows remain distinct from zero; TRI remains unreleased.
+
+## Continued custody, explanations and report exports
+
+See [continued custody acceptance log](custody-20260909.md) for the protected baseline, targeted drillthrough summaries, state-cluster maps and professional brief/detailed report routes. Later temporal/model phases remain separately gated.

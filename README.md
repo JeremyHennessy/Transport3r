@@ -102,7 +102,7 @@ The browser runtime deliberately limits public DataHub dependency:
 - Carrier 360 loads **only the source family needed by the selected tab** and caches successful carrier/source slices during the session.
 - Direct browser DataHub requests have a finite timeout and source failures are contained; unavailable evidence is never converted into a zero-risk value.
 - Inspection-child joins use a capped recent inspection-ID window and mark partial windows as such.
-- Only the explicit Carrier 360 **Evidence** tab performs the broad all-27-source sweep.
+- Only the explicit Carrier 360 **Evidence** tab performs the broad all-36-source sweep.
 - A top-level React error boundary provides a recovery surface instead of a blank page if an unexpected render failure occurs.
 
 This architecture keeps the static application responsive while preserving a path to a durable queryable warehouse and immutable historical snapshots before actuarial modelling.
@@ -116,7 +116,7 @@ CI gates include:
 - TypeScript typecheck;
 - production Vite build;
 - Python entrypoint compilation;
-- live query-shape validation across all 27 configured FMCSA datasets, including the inspection-child joins and fleet field contract;
+- live query-shape validation across all 36 configured FMCSA datasets, including the inspection-child joins and fleet field contract;
 - a live carrier-directory filter/sort query;
 - SMS v3.21 measure replay regression against official FMCSA output.
 
