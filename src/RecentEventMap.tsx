@@ -11,7 +11,7 @@ const KNOWN_STATES=new Set(boundaries.states.map(state=>state.code));
 const DETAIL_LIMIT=20;
 
 function stateFor(row:DataRow,kind:EventKind):{state?:string;precision:string}{
-  const primary=kind==='inspection'?readValue(row,['COUNTY_CODE_STATE','STATE'])?.trim().toUpperCase():readValue(row,['STATE','REPORT_STATE'])?.trim().toUpperCase();
+  const primary=kind==='inspection'?readValue(row,['COUNTY_CODE_STATE'])?.trim().toUpperCase():readValue(row,['STATE'])?.trim().toUpperCase();
   const fallback=kind==='inspection'?readValue(row,['REPORT_STATE'])?.trim().toUpperCase():undefined;
   if(primary&&KNOWN_STATES.has(primary))return{state:primary,precision:'source location state'};
   if(fallback&&KNOWN_STATES.has(fallback))return{state:fallback,precision:'reporting jurisdiction only'};
