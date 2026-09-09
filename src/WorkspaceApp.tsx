@@ -1,3 +1,4 @@
+import { EnrichmentSources } from './EnrichmentSources';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
 import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail, formatDateValue, fetchSourceJson, mileageYearLabel } from './datahub';
@@ -640,6 +641,7 @@ function SourcesPage({ health, schema }: { health: SourceHealthPayload | null; s
         </div>; })}
       </div>
     </section>)}</div>
+    <EnrichmentSources/>
   </main>;
 }
 

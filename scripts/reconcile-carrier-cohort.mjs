@@ -6,9 +6,20 @@ import {queryLiveSource} from './live-source-retry.mjs';
 const out=process.argv[2]??'outputs/reconciliation'; await mkdir(out,{recursive:true});
 const compiled=await build({stdin:{contents:"export * from './src/datahub'; export * from './src/evidenceCoverage'; export {carrierFromRow} from './src/CarrierRouteApp';",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.BASE_URL':'"/Transport3r/"'}});
 const app=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
+const acquisitionAttempts=[];
+async function fetchRecorded(url){
+ try{
+  const {slice,attempts}=await queryLiveSource(()=>app.fetchSourceJson(url,{},30000));
+  acquisitionAttempts.push({url,attempts});return slice;
+ }catch(error){
+  acquisitionAttempts.push({url,attempts:error.attempts??[],error:error.message});
+  await writeFile(`${out}/acquisition-attempts.json`,JSON.stringify(acquisitionAttempts,null,2));
+  throw new Error(`Source acquisition failed after bounded attempts: ${url}: ${error.message}`);
+ }
+}
 const registry=JSON.parse(await readFile('public/data/source-schemas.json','utf8'));
 const sourceIds=['az4n-8mr2','fx4q-ay7w','aayw-vxb3','rbkj-cgst','kjg3-diqy'];
-const metadata=async()=>Object.fromEntries(await Promise.all(sourceIds.map(async id=>{const m=await app.fetchSourceJson(`https://data.transportation.gov/api/views/${id}`,{},30000);return [id,{rowsUpdatedAt:m.rowsUpdatedAt??null,viewLastModified:m.viewLastModified??null}];})));
+const metadata=async()=>Object.fromEntries(await Promise.all(sourceIds.map(async id=>{const m=await fetchRecorded(`https://data.transportation.gov/api/views/${id}`);return [id,{rowsUpdatedAt:m.rowsUpdatedAt??null,viewLastModified:m.viewLastModified??null}];})));
 const before=await metadata();
 const strata=[['large_active',"status_code='A' AND power_units::number>=1000"],['inactive',"status_code='I'"],['passenger',"status_code='A' AND bus_units::number>0"],['small_active',"status_code='A' AND power_units::number between 1 and 5"],['intrastate',"status_code='A' AND carrier_operation='C'"]];
 const cohort=new Map(), selections=[];
@@ -16,7 +27,7 @@ for(const [name,where] of strata){
  for(const direction of ['ASC','DESC']){
  const params=new URLSearchParams({'$where':where,'$order':`dot_number ${direction}`,'$limit':'10'});
  const url=`https://data.transportation.gov/resource/az4n-8mr2.json?${params}`;
- const rows=await app.fetchSourceJson(url,{},30000);if(!Array.isArray(rows)||!rows.length)throw new Error(`No cohort rows for ${name}`);
+ const rows=await fetchRecorded(url);if(!Array.isArray(rows)||!rows.length)throw new Error(`No cohort rows for ${name}`);
  selections.push({stratum:name,direction,url,rows});
  for(const row of rows){const dot=String(row.dot_number);const prior=cohort.get(dot);cohort.set(dot,{row,strata:[...(prior?.strata??[]),name]});}
  }
@@ -56,6 +67,7 @@ for(const [dot,entry] of cohort){
  console.log(`${dot}: ${observation.detailed?'detailed':'Census'} ${discrepancies.length?'DISCREPANCY':'mapped'}`);
 }
 const after=await metadata();
+await writeFile(`${out}/acquisition-attempts.json`,JSON.stringify(acquisitionAttempts,null,2));
 const changedSources=sourceIds.filter(id=>JSON.stringify(before[id])!==JSON.stringify(after[id]));
 const payload=JSON.stringify({selections,carriers},null,2);await writeFile(`${out}/observations.json`,payload);
 const summary={version:1,checkedAt:new Date().toISOString(),status:errors.length||carriers.some(c=>c.discrepancies.length)?'FAIL':changedSources.length?'SOURCE_CHANGED':'PASS',censusCarriers:carriers.length,detailedCarriers:detailed.length,strata:selections.map(s=>({name:s.stratum,rows:s.rows.length})),errors,discrepancies:carriers.filter(c=>c.discrepancies.length).map(c=>({dot:c.dot,issues:c.discrepancies})),before,after,changedSources,observationsSha256:createHash('sha256').update(payload).digest('hex'),powerBi:'NOT_EXECUTED: imported Power BI source data and matching refresh cuts were not supplied.',limitations:'Deterministic engineering sample, not population certification. Stable metadata around acquisition is not a transactional or monthly historical snapshot. Full counts and bounded rows queried separately; acquisition races remain possible.'};

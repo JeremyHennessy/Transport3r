@@ -1,3 +1,4 @@
+import { DAILY_DATE_FIELDS, validateEventWindow, type EventWindow } from './eventWindow';
 export type DataRow = Record<string, unknown>;
 
 export type SchemaColumn = {
@@ -31,7 +32,8 @@ export type DataSlice = {
   rows: DataRow[];
   total: number | null;
   truncated: boolean;
-  scope?: 'carrier' | 'loaded_inspections' | 'dockets' | 'inspection';
+  scope?: 'carrier' | 'loaded_inspections' | 'dockets' | 'inspection' | 'carrier_date_window';
+  eventWindow?: EventWindow;
   acquiredAt?: string;
 };
 
@@ -229,13 +231,20 @@ export async function queryByDot(
   registry: SchemaRegistry,
   sourceId: string,
   dotNumber: string,
-  options: { limit?: number; orderAliases?: string[]; includeTotal?: boolean } = {},
+  options: { limit?: number; orderAliases?: string[]; includeTotal?: boolean; eventWindow?: EventWindow } = {},
 ): Promise<DataSlice> {
   const schema = sourceSchema(registry, sourceId);
   const dotColumn = findColumn(schema, USDOT_ALIASES);
   if (!dotColumn?.field_name) throw new Error(`${sourceId} has no registered USDOT field`);
 
-  const where = `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
+  let where = `${dotColumn.field_name}=${literal(dotColumn, dotNumber)}`;
+  const eventWindow = options.eventWindow && validateEventWindow(options.eventWindow);
+  if (eventWindow) {
+    const field = DAILY_DATE_FIELDS[sourceId];
+    const column = field && findColumn(schema,[field]);
+    if (!column || column.field_name !== field || column.data_type !== 'text') throw new Error('No verified date-window mapping for this source.');
+    where += ` AND ${field} between '${eventWindow.start.replaceAll('-','')}' and '${eventWindow.end.replaceAll('-','')}'`;
+  }
   const limit = options.limit ?? 500;
   const orderColumn = options.orderAliases ? findColumn(schema, options.orderAliases) : undefined;
   const [window, reportedTotal] = await Promise.all([
@@ -243,6 +252,11 @@ export async function queryByDot(
     options.includeTotal ? countWhere(sourceId, where) : Promise.resolve(null),
   ]);
   const { rows } = window;
+  if (eventWindow && rows.some(row => {
+    const raw = readValue(row,[DAILY_DATE_FIELDS[sourceId]]) ?? '';
+    const date = parseDateValue(raw)?.toISOString().slice(0,10);
+    return !/^\d{8}$/.test(raw) || !date || date < eventWindow.start || date > eventWindow.end || readValue(row,USDOT_ALIASES) !== dotNumber;
+  })) throw new Error('Date-window response contains an invalid date or unrelated carrier record.');
   // A separately queried count cannot override rows (including the lookahead) already observed.
   const total = reportedTotal !== null && reportedTotal >= rows.length + (window.truncated ? 1 : 0) ? reportedTotal : null;
   return {
@@ -250,7 +264,8 @@ export async function queryByDot(
     rows,
     total,
     truncated: window.truncated || (total !== null && rows.length < total),
-    scope: 'carrier',
+    scope: eventWindow ? 'carrier_date_window' : 'carrier',
+    ...(eventWindow ? { eventWindow } : {}),
     acquiredAt: new Date().toISOString(),
   };
 }
