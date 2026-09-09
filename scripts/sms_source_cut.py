@@ -1,5 +1,8 @@
 """Verify stable source observations around a query window, not a monthly SMS date."""
 from concurrent.futures import ThreadPoolExecutor
+from http.client import RemoteDisconnected
+import time
+from urllib.error import HTTPError, URLError
 from snapshot_store import source_state, now
 from verify_snapshot import timestamp
 
@@ -9,10 +12,19 @@ MARKERS = ['rows_updated_at', 'schema_sha256', 'table_id', 'row_count']
 
 def capture_sources(source_ids):
     def capture(sid):
-        try:
-            return {'source_id': sid, **source_state(sid)}
-        except Exception as error:
-            return {'source_id': sid, 'observed_at': now(), 'error': f'{type(error).__name__}: {error}'}
+        attempts = []
+        for attempt in range(1, 4):
+            try:
+                observation = source_state(sid)
+                attempts.append({'attempt': attempt, 'status': 'PASS', 'observed_at': observation.get('observed_at')})
+                return {'source_id': sid, **observation, 'acquisition_attempts': attempts}
+            except Exception as error:
+                failure = {'attempt': attempt, 'status': 'FAIL', 'observed_at': now(), 'error': f'{type(error).__name__}: {error}'}
+                attempts.append(failure)
+                transient = (error.code == 429 or 500 <= error.code < 600) if isinstance(error, HTTPError) else isinstance(error, (URLError, RemoteDisconnected, TimeoutError, ConnectionError))
+                if not transient or attempt == 3:
+                    return {'source_id': sid, 'observed_at': failure['observed_at'], 'error': failure['error'], 'acquisition_attempts': attempts}
+                time.sleep(attempt)
     with ThreadPoolExecutor(max_workers=6) as pool:
         return dict(zip(source_ids, pool.map(capture, source_ids)))
 
