@@ -9,6 +9,7 @@ import './workspace.css';
 import './coverage.css';
 import './insight.css';
 import './completeData.css';
+import './visualPolish.css';
 
 type ErrorBoundaryState = { error: Error | null };
 
