@@ -45,3 +45,7 @@ This initial repair does not certify Phase 1 complete or make TRI releasable. Br
 6. Evaluate score distributions and subgroups only with correct features; train and calibrate event-specific temporal baselines only after historical integrity passes. No insurance-loss model without actual insurance outcomes.
 
 No forecast, peer percentile, statistical confidence or actuarial validation is claimed by these changes.
+
+## Data and UI review follow-up
+
+[Data review and UI clarity](data-ui-review.md) reconciles the 36-source overview, exposes saved probe dates and failures, preserves unknown exposure in directory totals, and adds source search, registration filtering, visible report dates and accessible mobile navigation. Shared source deadlines now include response-body reads. All-source checks remain sampled contract checks; no historical/monthly alignment or model release is implied.

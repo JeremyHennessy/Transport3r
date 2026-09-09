@@ -103,3 +103,35 @@ test('the request deadline also bounds a slow response body and differs from can
   try {await assert.rejects(app.fetchDirectoryRows('https://example.invalid',undefined,5),{message:'FMCSA request timed out'});}
   finally {globalThis.fetch=previousFetch;globalThis.window=previousWindow;}
 });
+
+test('exposure summaries preserve unknown coverage, explicit zero and unsafe sums', () => {
+  assert.deepEqual(app.exposureTotal([{powerUnits:'10'},{powerUnits:'0'},{},{powerUnits:'bad'},{powerUnits:'-1'}], 'powerUnits'), {value:10,known:2,missing:3});
+  assert.deepEqual(app.exposureTotal([{drivers:''},{}], 'drivers'), {value:null,known:0,missing:2});
+  assert.deepEqual(app.exposureTotal([{drivers:'0'}], 'drivers'), {value:0,known:1,missing:0});
+  assert.deepEqual(app.exposureTotal([], 'drivers'), {value:0,known:0,missing:0});
+  assert.equal(app.exposureTotal([{drivers:'9007199254740991'},{drivers:'1'}], 'drivers').value,null);
+});
+
+test('configured family counts include all MOTUS deltas and the separate legacy archive', () => {
+  assert.equal(app.sourceFamilyCount('MOTUS','MOTUS Delta','MOTUS Legacy Archive'),20);
+  assert.equal(app.sourceFamilyCount('Census','Safety','Inspection'),7);
+  assert.equal(app.sourceFamilyCount('SMS Input','SMS Output'),8);
+  assert.equal(app.sourceFamilyCount('Enforcement'),1);
+});
+
+test('missing snapshot is unavailable, while measured zero healthy is retained', () => {
+  assert.equal(app.sourceHealthSummary(null).healthy,null);
+  assert.equal(app.sourceHealthSummary({generated_at:null,sources:[]}).failed,null);
+  const health=app.sourceHealthSummary({generated_at:'2026-09-09T00:00:00Z',healthy_count:36,sources:[{id:'az4n-8mr2',status:'failed'},{id:'invented',status:'healthy'}]});
+  assert.equal(health.healthy,0);
+  assert.equal(health.failed,1);
+  assert.equal(health.unknown,35);
+});
+
+test('registration filtering round trips and applies before the row limit', () => {
+  const filters=app.parseCarrierFilters('#/carriers?registration=i&minDrivers=100');
+  assert.equal(filters.registration,'I');
+  assert.deepEqual(app.parseCarrierFilters(app.carrierHash(filters)),filters);
+  assert.match(app.buildCarrierQuery(filters).get('$where'), /status_code='I' AND total_drivers::number>=100/);
+  assert.throws(()=>app.buildCarrierQuery(app.parseCarrierFilters('#/carriers?registration=garbage')),/registration/);
+});

@@ -133,3 +133,20 @@ test('SMS replay never reports a match after a required source failure', () => {
   const result = runtime.replayCarrierInspectionMeasures({ slices: { smsInspection: slice([]) }, errors: { smsViolation: 'HTTP 503' } });
   assert.ok(result.every((row) => row.status === 'PARTIAL_DATA'));
 });
+
+test('source deadline includes stalled body reads after headers arrive', async () => {
+  const previous=globalThis.fetch;
+  globalThis.fetch=async (_url,{signal})=>({ok:true,json:()=>new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(new DOMException('Aborted','AbortError')),{once:true}))});
+  try {await assert.rejects(runtime.fetchSourceJson('https://example.test/source',{},15),/timed out/);}
+  finally {globalThis.fetch=previous;}
+});
+
+test('source body parse failures and HTTP failures are not successful empty data', async () => {
+  const previous=globalThis.fetch;
+  try {
+    globalThis.fetch=async ()=>new Response('{broken');
+    await assert.rejects(runtime.fetchSourceJson('https://example.test/source'),SyntaxError);
+    globalThis.fetch=async ()=>new Response('{}',{status:503});
+    await assert.rejects(runtime.fetchSourceJson('https://example.test/source'),/HTTP 503/);
+  } finally {globalThis.fetch=previous;}
+});
