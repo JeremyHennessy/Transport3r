@@ -90,16 +90,17 @@ test('large-carrier driver exposure preserves Census totals and report date',asy
   }
 });
 
-test('Safety uses the full source count while Summary preserves its loaded-inspection label',()=>{
+test('Safety and Summary show file totals while disclosing their loaded row windows',()=>{
   const inspections={...slice(Array.from({length:500},(_,i)=>({inspection_id:String(i)})),true),total:30685};
   const carrier=r.carrierFromRow({dot_number:'80806',legal_name:'J B HUNT TRANSPORT INC',total_drivers:'24116'});
   const ev=evidence({...allSlices,inspections},'safety');
   const safety=render(r.Safety,{carrier,evidence:ev});
   assert.ok(safety.includes('30,685'));
-  assert.ok(safety.includes('Full available history · 500 recent rows loaded'));
+  assert.ok(safety.includes('Published daily file · 500 recent rows loaded; not a SAFER 24-month count'));
   const summary=render(r.Summary,{carrier,evidence:{...ev,mode:'summary'}});
-  assert.ok(summary.includes('Loaded inspections</span><strong>500</strong>'));
-  assert.ok(!summary.includes('30,685'));
+  assert.ok(summary.includes('Inspection file records</span><strong>30,685</strong>'));
+  assert.ok(summary.includes('500 recent rows loaded'));
+  assert.ok(summary.includes('not a SAFER 24-month count'));
 });
 
 test('empty inspection source is not presented as proof of no carrier inspections',()=>{
@@ -182,4 +183,37 @@ test('failed SMS inputs suppress numerical replay and no-denominator cases are n
   const rows=r.replayCarrierInspectionMeasures(evidence({smsInspection:slice([{unique_id:'1',fatigued_insp:'Y',time_weight:'1'}])},'sms',{smsViolation:'HTTP 503'}));
   assert.ok(rows.every((row)=>row.calculatedMeasure===null && row.status==='PARTIAL_DATA'));
   assert.equal(r.replaySummary([{officialMeasure:0,truncatedInput:false,status:'NO_DENOMINATOR'}]).validationCandidates,0);
+});
+
+test('inactive PG Trucking preserves raw counts but never presents empty evidence as reassuring',async()=>{
+  const raw=JSON.parse(await readFile('scripts/fixtures/inactive-carrier-2855794.json','utf8'));
+  const carrier=r.carrierFromRow(raw);
+  const ev=evidence({...allSlices,inspections:{...slice(),total:0}},'summary');
+  const html=render(r.Summary,{carrier,evidence:ev});
+  assert.equal(carrier.drivers,'110113');assert.equal(carrier.powerUnits,'92901');
+  assert.ok(html.includes('registration is inactive'));
+  assert.ok(html.includes('more than two years old'));
+  assert.ok(html.includes('No inspection rows returned for this USDOT'));
+  assert.ok(html.includes('Risk score unavailable'));
+  assert.ok(!html.includes('No hard-review flags'));
+  assert.ok(!html.includes('(0)'));
+});
+
+test('inspection absence, acquisition failure and a partial empty window stay distinct for any carrier',()=>{
+  const carrier=r.carrierFromRow({dot_number:'55',legal_name:'Any carrier',status_code:'A',mcs150_date:'20260101'});
+  for(const [kind,expected] of [['empty','No inspection rows returned'],['failed','Inspection source unavailable'],['partial','source coverage is incomplete']]) {
+    const ev=evidence({...allSlices,inspections:slice([],kind==='partial')},'summary');
+    if(kind==='failed'){delete ev.slices.inspections;ev.errors.inspections='HTTP 503';}
+    const html=render(r.Summary,{carrier,evidence:ev});
+    assert.ok(html.includes(expected),kind);assert.ok(!html.includes('No hard-review flags'),kind);
+    assert.ok(html.includes('Risk score unavailable'),kind);
+  }
+});
+
+test('Safety explains an empty successful source and links to the exact official USDOT',()=>{
+  const carrier=r.carrierFromRow({dot_number:'2855794',legal_name:'PG TRUCKING LLC'});
+  const html=render(r.Safety,{carrier,evidence:evidence({...allSlices},'safety')});
+  assert.ok(html.includes('No daily inspection records returned for this USDOT.'));
+  assert.ok(html.includes('query_string=2855794'));
+  assert.ok(html.includes('does not prove no inspections ever occurred'));
 });

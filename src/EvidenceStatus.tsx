@@ -1,5 +1,12 @@
 import type { CarrierEvidence } from './carrierEvidence';
 import { evidenceIssues } from './carrierEvidence';
+import { censusReviewNotes } from './datahub';
+
+export function ExposureContext({ date, status }: { date?: string; status?: string }) {
+  const notes = censusReviewNotes(date, status);
+  if (!notes.length) return null;
+  return <div className="c360-review warning"><strong>Reported exposure needs verification</strong>{notes.map(note => <p key={note}>{note}</p>)}</div>;
+}
 
 export function EvidenceStatus({ evidence }: { evidence: CarrierEvidence }) {
   const issues = evidenceIssues(evidence);

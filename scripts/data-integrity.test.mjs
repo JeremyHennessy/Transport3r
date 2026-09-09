@@ -83,7 +83,7 @@ test('large-carrier source totals remain distinct from bounded loaded rows', asy
   assert.equal(result.rows.length,500); assert.equal(result.total,30685); assert.equal(result.truncated,true);
   assert.equal(runtime.rowCountLabel(result),'30,685');
   assert.equal(runtime.loadedRowCountLabel(result),'500');
-  assert.equal(runtime.inspectionCountDetail(result),'Full available history · 500 recent rows loaded');
+  assert.equal(runtime.inspectionCountDetail(result),'Published daily file · 500 recent rows loaded; not a SAFER 24-month count');
 });
 
 test('malformed, failed or contradictory counts never override the observed inspection window', async (t) => {
@@ -149,4 +149,14 @@ test('source body parse failures and HTTP failures are not successful empty data
     globalThis.fetch=async ()=>new Response('{}',{status:503});
     await assert.rejects(runtime.fetchSourceJson('https://example.test/source'),/HTTP 503/);
   } finally {globalThis.fetch=previous;}
+});
+
+test('report freshness and mileage sentinels are data context, not invented exposure or risk',()=>{
+  const now=new Date('2026-09-09T00:00:00Z');
+  assert.equal(runtime.censusReviewNotes('20260101','A',now).length,0);
+  assert.equal(runtime.censusReviewNotes('20160219','I',now).length,2);
+  assert.match(runtime.censusReviewNotes(undefined,'A',now)[0],/unavailable/);
+  assert.match(runtime.censusReviewNotes('20270101','A',now)[0],/future/);
+  for(const raw of ['0','0000','bad',undefined])assert.equal(runtime.mileageYearLabel(raw),'Year unavailable');
+  assert.equal(runtime.mileageYearLabel('2024'),'2024');
 });

@@ -53,6 +53,15 @@ jobs:
           name: data-ui-${{ github.sha }}
           path: /tmp/transport3r-data-ui.json
           if-no-files-found: warn
+      - name: Verify all carrier evidence mappings for inactive and active registrations
+        run: node scripts/validate-carrier-mappings.mjs /tmp/transport3r-carrier-mappings.json
+      - name: Retain complete carrier mapping checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: carrier-mappings-${{ github.sha }}
+          path: /tmp/transport3r-carrier-mappings.json
+          if-no-files-found: warn
       - name: Verify large-carrier drivers and full inspection counts
         run: node scripts/validate-large-carriers.mjs /tmp/transport3r-large-carriers.json
       - name: Retain large-carrier count verification

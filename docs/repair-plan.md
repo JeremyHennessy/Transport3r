@@ -49,3 +49,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Data and UI review follow-up
 
 [Data review and UI clarity](data-ui-review.md) reconciles the 36-source overview, exposes saved probe dates and failures, preserves unknown exposure in directory totals, and adds source search, registration filtering, visible report dates and accessible mobile navigation. Shared source deadlines now include response-body reads. All-source checks remain sampled contract checks; no historical/monthly alignment or model release is implied.
+
+## Inspection and risk availability
+
+[Inspection and risk availability](inspection-risk-availability.md) addresses inactive/stale exposure and empty inspection evidence in Summary and Safety, explicitly shows risk availability, and validates all source mappings for active and inactive sample carriers. Source-reported counts are preserved; no historic inspections or numeric risk are invented when current sources cannot provide them.
