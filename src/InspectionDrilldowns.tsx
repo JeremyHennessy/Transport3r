@@ -2,6 +2,7 @@ import { UNIT_FIELD_ALIASES, rowCountLabel, type CarrierEvidence } from './carri
 import { EvidenceStatus } from './EvidenceStatus';
 import { formatDateValue, readValue, type DataRow } from './datahub';
 import { observedVinRows } from './inspectionEvidence';
+import { VinSpecifications } from './VinSpecificationsPanel';
 
 export function VinLink({ row, dot, inspection }: { row: DataRow; dot: string; inspection?: string }) {
   const vin = readValue(row, [...UNIT_FIELD_ALIASES.vin]);
@@ -43,6 +44,7 @@ export function ObservedVinDetail({ evidence, vin }: { evidence: CarrierEvidence
     {evidence.inspectionId && <p><a href={`#/carrier/${dot}/vin/${encodeURIComponent(vin)}`}>Search this VIN in the recent carrier inspection window →</a></p>}
     {(observed.incomplete || observed.rejected>0) && <p className="c360-review warning">Observation evidence is partial or unavailable. {observed.rejected} unit rows could not be matched to an unambiguous carrier inspection.</p>}
     {!observed.rows.length ? <p>No verified observations for this VIN in this request scope.</p> : <div className="t3-coverage-scroll"><table className="inspection-observations"><thead><tr><th>Date</th><th>Report</th><th>State</th><th>Unit / make</th><th>Inspection</th></tr></thead><tbody>{observed.rows.map(({unit,parent,inspectionId},i) => <tr key={i}><td>{formatDateValue(readValue(parent,['INSP_DATE']))}</td><td>{readValue(parent,['REPORT_NUMBER']) ?? '—'}</td><td>{readValue(parent,['REPORT_STATE']) ?? '—'}</td><td>{readValue(unit,[...UNIT_FIELD_ALIASES.unitNumber]) ?? '—'} / {readValue(unit,[...UNIT_FIELD_ALIASES.make]) ?? '—'}</td><td><a href={`#/carrier/${dot}/inspection/${inspectionId}`}>Open inspection {inspectionId} →</a></td></tr>)}</tbody></table></div>}
+    {observed.rows.length>0&&<VinSpecifications key={`${dot}:${vin}`} vin={vin}/>}
     <EvidenceStatus evidence={evidence}/>
   </section>;
 }

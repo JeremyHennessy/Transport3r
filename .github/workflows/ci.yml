@@ -79,6 +79,17 @@ jobs:
           name: inspection-drilldowns-${{ github.sha }}
           path: /tmp/transport3r-inspection-browser.json
           if-no-files-found: warn
+      - name: Verify date windows and VIN enrichment in the production browser bundle
+        env:
+          BROWSER_SCENARIO: date-enrichment
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-date-enrichment.json
+      - name: Retain date window and enrichment browser checks
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: date-enrichment-${{ github.sha }}
+          path: /tmp/transport3r-date-enrichment.json
+          if-no-files-found: warn
       - name: Reconcile stratified Census and detailed safety source windows
         run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-reconciliation
       - name: Retain coverage and reconciliation evidence

@@ -69,3 +69,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Complete inspection children and usable deep links
 
 [Inspection children and drilldowns](inspection-drilldowns.md) adds an 18-source verified profile, retains 102,861 daily child rows through the full 39,760-parent cohort, and reconciles 212,327 warehouse rows. Direct inspection routes verify carrier ownership before querying children; VIN links retain the exact inspection context or explicitly use the bounded recent carrier window. Missing/failed/partial evidence and old-response isolation have dedicated browser regressions. Remaining work includes source/exposure alignment, event-window controls, MOTUS/docket acquisition and temporal model validation.
+
+## Daily event windows and external enrichment
+
+[Data enrichment review](data-enrichment-review.md) adds source-side daily Safety date windows, full request counts with bounded monthly detail, publication-change rejection and observed-VIN NHTSA specifications with decoder warnings. The Data Sources page distinguishes the integrated vPIC lookup from PHMSA, recall, SmartWay and geographic candidates. Daily and SMS date encodings were checked separately; exact monthly SMS/exposure alignment remains unverified.
