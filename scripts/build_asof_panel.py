@@ -136,6 +136,7 @@ def build(cuts, as_of, output, month_end=False):
     report = {'feature_schema_version':VERSION,'as_of':as_of,'grain':'USDOT_MONTH_END' if month_end else 'USDOT_AS_OF',
               'created_at':now(), 'row_count':len(rows), 'source_cut':manifest['snapshot_id'],
               'source_cut_available_at':manifest['completed_at'],'source_manifest_sha256':hash_file(pathlib.Path(path)/'manifest.json'),
+              'source_profile':manifest.get('source_profile','baseline'),'feature_source_ids':list(SOURCES),
               'cohort_sha256':manifest['cohort_sha256'],'features_sha256':hash_file(output/'features.jsonl'),
               'code_sha256':{name:hash_file(pathlib.Path(__file__).parent/name) for name in
                              ['build_asof_panel.py','cohort_snapshot.py','snapshot_store.py','verify_snapshot.py','validate_fmcsa_data_contract.py']},

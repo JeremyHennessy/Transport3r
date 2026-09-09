@@ -4,6 +4,8 @@ The downloader creates a new current-source cut for every run. A date label cann
 
 ## Acquire and verify
 
+For complete carrier-cohort JSON paging, expanded SMS/MOTUS evidence and local SQLite promotion, see the [verified evidence warehouse](evidence-warehouse.md). The verifier also accepts complete v3/v4 cohort cuts; the commands below describe the original full-source CSV pipeline.
+
 Run from the repository root with Python 3.12 or newer:
 
 ```sh

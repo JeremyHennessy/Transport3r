@@ -57,3 +57,7 @@ No forecast, peer percentile, statistical confidence or actuarial validation is 
 ## Coverage and reconciliation follow-up
 
 [Coverage and reconciliation](coverage-reconciliation.md) adds a shared source coverage/date contract, carrier-tab filters and JSON exports, and a stratified live audit with retained raw observations and source-cut checks. Power BI definitions were reviewed; comparison of refreshed Power BI values remains explicitly unexecuted until matching source snapshots and exported measures are available.
+
+## Complete cohort warehouse
+
+[Verified evidence warehouse](evidence-warehouse.md) extends the preserved cohort from seven to 14 complete source extracts, adds verified atomic SQLite promotion and complete carrier exports, and retains the original baseline. The 62-carrier expanded cut contains 109,466 rows and passes 868 carrier/source count checks. Browser limits remain separate; historical monthly alignment, remaining source joins, feature eligibility and future-outcome validation are still required.
