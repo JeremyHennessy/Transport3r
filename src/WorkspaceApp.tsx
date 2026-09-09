@@ -615,7 +615,7 @@ function CarriersPage() {
 }
 
 function LocalWorkspaceLink() {
-  return <section className="t3-panel"><h2>Private workspace on this computer</h2><p>Manage policies and scheduled alerts, aggregate safety across approved corporate DOT relationships, and review shared-registration and inactive-DOT activity leads. Screening leads do not establish fraud or ownership. Private records stay on your computer.</p><a className="t3-button secondary" href="http://127.0.0.1:4789/" target="_blank" rel="noopener noreferrer">Open local private workspace</a><p>The local service must be running. It has its own password and does not upload private records to this public site.</p></section>;
+  return <section className="t3-panel"><h2>Private workspace on this computer</h2><p>Track compliance evidence and follow-up dates, refresh carrier records, manage policies and scheduled alerts, aggregate approved corporate DOTs, and review shared-registration and inactive-DOT activity leads. Screening leads do not establish fraud or ownership. Private records stay on your computer.</p><a className="t3-button secondary" href="http://127.0.0.1:4789/" target="_blank" rel="noopener noreferrer">Open local private workspace</a><p>The local service must be running. It has its own password and does not upload private records to this public site.</p></section>;
 }
 
 function PortfolioPage() {
@@ -631,6 +631,7 @@ function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
   const healthById = useMemo(() => new Map((health?.sources ?? []).map((source) => [source.id, source])), [health]);
   const events = [
     ['Review', 'New Entrant OOS history', 'p2mt-9ige', 'Available in carrier evidence; not a dedicated local alert rule. Current order effect requires review.'],
+    ['Review', 'Compliance review / OOS and rescission changes', 'p2mt-9ige', 'Local compliance reviews compare verified observations, retain dated follow-ups, and deliver assessment changes to subscribed inboxes.'],
     ['Review', 'Authority record-set change', 'inys-ebih', 'Local inbox compares verified authority evidence; a changed record set is not an automatic prohibition.'],
     ['Review', 'Insurance filing change', 'c5y8-a4uz', 'Local inbox compares verified filing records; a change does not establish an insurance coverage gap.'],
     ['Review', 'Newly observed crash report', 'aayw-vxb3', 'Absent from the prior complete query and present now; event dates can be earlier. Involvement does not establish fault.'],

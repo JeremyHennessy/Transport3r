@@ -18,6 +18,8 @@ This is a single-owner loopback service. It rejects other Host headers and cross
 
 ## Portfolio and inbox
 
+The [compliance tracking guide](compliance-tracking.md) covers dated compliance checks, individual carrier refreshes, per-DOT assessment-change alerts and private follow-up actions with due dates/history.
+
 Save/edit account-policy-USDOT records, import versioned `INSURER_PORTFOLIO_1` JSON or export saved records. Existing portfolio validation and append-only history remain authoritative. Renewals use distinct policy IDs. Editing in the form preserves imported fields not exposed by the form, including currency and premium. No private policy data is seeded.
 
 Subscribe to a USDOT from a policy or the Inbox. The service checks enabled subscriptions daily while running, whether or not a browser is open. “Check subscribed carriers now” requests an immediate background run. Each batch contains at most 140 carriers and uses the existing 36-source complete acquisition and promotion pipeline with a one-million-row per-source fail-closed ceiling. A failed acquisition cannot generate a clean result. Very large batches exceeding the ceiling remain failed and visible; operators should reduce subscription batch size before retrying.

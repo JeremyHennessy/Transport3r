@@ -35,7 +35,7 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.request('/api/setup',{'name':'Test owner','password':'fixture-only-password'})[0],200)
     def test_auth_origin_and_host_boundaries(self):
         self.assertEqual(self.request('/api/state')[0],401)
-        for path in ('/api/identity-screen?dot=3706','/api/ghost?dot=3706','/api/ghost-queue','/api/group?dot=3706','/api/screening-history?id=test'):
+        for path in ('/api/identity-screen?dot=3706','/api/ghost?dot=3706','/api/ghost-queue','/api/group?dot=3706','/api/screening-history?id=test','/api/compliance?dot=3706','/api/compliance-board','/api/compliance-history?id=test'):
             self.assertEqual(self.request(path)[0],401)
         self.assertEqual(self.request('/api/setup',{'name':'Test','password':'fixture-only-password'},origin=False)[0],403)
         self.assertEqual(self.request('/api/session',host='attacker.test')[0],403)
@@ -50,6 +50,24 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.request('/api/portfolio',{'records':[record]})[1]['changes'],0)
         self.assertEqual(self.request('/api/portfolio',{'records':[record,{**record,'policy_id':'P2','scheduled_units':-1}]})[0],400)
         saved=self.request('/api/state')[1]['portfolio'];self.assertEqual(len(saved),1);self.assertIsNone(saved[0]['insured_vmt'])
+    def test_compliance_followup_api_preserves_evidence_and_reports_busy_refresh(self):
+        from test_compliance_tracking import fixture
+        from compliance_tracking import assess,persist
+        from contextlib import closing
+        self.login();review=assess('1','api-fixture','2026-09-09T12:00:00Z',fixture(),'TEST_ONLY')
+        with closing(connect(self.app.path)) as db:persist(db,review)
+        self.assertEqual(self.request('/api/compliance?dot=1')[1]['review']['id'],review['id'])
+        body={'observation_id':review['id'],'check_id':'REGISTRATION','status':'in_review','due_date':'2020-01-01','notes':'TEST ONLY compliance follow-up'}
+        status,result=self.request('/api/compliance-action',body);self.assertEqual(status,200)
+        self.assertEqual(len(self.request('/api/compliance-history?id='+result['id'])[1]),1)
+        board=self.request('/api/compliance-board')[1];self.assertEqual(board['total'],1);self.assertTrue(board['actions'][0]['overdue'])
+        self.assertEqual(self.request('/api/compliance-observation?id='+review['id'])[1]['checks'],review['checks'])
+        self.assertEqual(self.request('/api/compliance-action',{**body,'check_id':'invented'})[0],400)
+        self.assertEqual(self.request('/api/compliance-action',body,origin=False)[0],403)
+        with patch.object(self.app,'request_check',return_value=False):
+            self.assertEqual(self.request('/api/compliance-refresh',{'dot':'1'})[0],409)
+        with patch.object(self.app,'request_check',return_value=True) as request:
+            self.assertEqual(self.request('/api/compliance-refresh',{'dot':'1'})[0],202);request.assert_called_once_with(['1'])
     def test_only_reviewed_ownership_edges_enter_group_and_revocations_take_effect(self):
         db=connect(self.app.path)
         try:
@@ -88,7 +106,7 @@ class WorkspaceTests(unittest.TestCase):
             db=sqlite3.connect(alerts);db.executescript(DDL)
             db.execute('INSERT OR IGNORE INTO alerts VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',('scheduled-test','3706','TEST_ONLY','source','cut1','cut2','2026-01-01','2026-01-02',now(),'null','{}','https://example.org','Test-only evidence change'))
             db.commit();db.close();return {'status':'COMPARED'}
-        with patch('cohort_snapshot.acquire',return_value=(self.root,{'status':'COMPLETE'})),patch('evidence_warehouse.promote'),patch('material_alerts.run',side_effect=compare):
+        with patch('cohort_snapshot.acquire',return_value=(self.root,{'status':'COMPLETE'})),patch('evidence_warehouse.promote'),patch('material_alerts.run',side_effect=compare),patch('compliance_tracking.capture_verified_cut',return_value={'observations':0,'delivered':0}):
             self.app.tick(force=True);self.app.tick(force=True)
         saved=self.request('/api/state')[1]
         self.assertEqual(len(saved['inbox']),1);self.assertEqual(saved['jobs'][0]['status'],'COMPLETE')

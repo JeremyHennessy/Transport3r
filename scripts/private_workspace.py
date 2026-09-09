@@ -24,20 +24,28 @@ class Workspace:
         self.warehouse=warehouse;self.lock=threading.Lock();self.stop=threading.Event()
         with closing(connect(self.path)) as db:pass
 
-    def tick(self,force=False):
-        if not self.lock.acquire(blocking=False):return
+    def request_check(self,dots=None):
+        if not self.lock.acquire(blocking=False):return False
+        try:threading.Thread(target=self.tick,kwargs={'force':True,'dots_override':dots,'lock_reserved':True},daemon=True).start()
+        except Exception:self.lock.release();raise
+        return True
+
+    def tick(self,force=False,dots_override=None,lock_reserved=False):
+        if not lock_reserved and not self.lock.acquire(blocking=False):return
         try:
             with closing(connect(self.path)) as db:
-                dots=[r[0] for r in db.execute('SELECT dot FROM subscriptions WHERE enabled=1 ORDER BY dot')]
+                dots=sorted({dot(x) for x in dots_override},key=int) if dots_override is not None else [r[0] for r in db.execute('SELECT dot FROM subscriptions WHERE enabled=1 ORDER BY dot')]
                 due=db.execute("SELECT value FROM settings WHERE key='next_run'").fetchone()
                 if not dots or (not force and due and float(due[0])>time.time()):return
                 if not db.execute('SELECT 1 FROM owner').fetchone():return
                 job=db.execute("INSERT INTO jobs(started_at,status) VALUES (?,'RUNNING')",(now(),)).lastrowid
-                db.execute("INSERT OR REPLACE INTO settings VALUES ('next_run',?)",(str(time.time()+86400),));db.commit()
+                if dots_override is None:db.execute("INSERT OR REPLACE INTO settings VALUES ('next_run',?)",(str(time.time()+86400),))
+                db.commit()
                 try:
                     from cohort_snapshot import acquire
                     from evidence_warehouse import promote
                     from material_alerts import run
+                    from compliance_tracking import capture_verified_cut
                     detail=[]
                     # Stable membership-specific evidence stores prevent comparison across changed cohorts.
                     for start in range(0,len(dots),140):
@@ -47,12 +55,13 @@ class Workspace:
                         cut,manifest=acquire(folder/'raw',cohort_path=cohort,profile='underwriting_evidence_v3',max_rows=1000000)
                         if manifest['status']!='COMPLETE':raise ValueError('Acquisition incomplete; no comparisons or clean-carrier inference produced')
                         promote(cut,folder/'evidence.sqlite')
+                        compliance=capture_verified_cut(folder/'evidence.sqlite',db)
                         result=run(folder/'evidence.sqlite',folder/'alerts.sqlite')
-                        result['delivered']=deliver(db,folder/'alerts.sqlite');detail.append(result)
+                        result['delivered']=deliver(db,folder/'alerts.sqlite');result['compliance']=compliance;detail.append(result)
                     db.execute('UPDATE jobs SET finished_at=?,status=?,detail=? WHERE id=?',(now(),'COMPLETE',json.dumps(detail),job))
                 except Exception as error:
                     db.execute('UPDATE jobs SET finished_at=?,status=?,detail=? WHERE id=?',(now(),'FAILED',f'{type(error).__name__}: {error}'[:4000],job))
-                    db.execute("INSERT OR REPLACE INTO settings VALUES ('next_run',?)",(str(time.time()+3600),))
+                    if dots_override is None:db.execute("INSERT OR REPLACE INTO settings VALUES ('next_run',?)",(str(time.time()+3600),))
                 db.commit()
         finally:self.lock.release()
 
@@ -154,7 +163,7 @@ class Handler(BaseHTTPRequestHandler):
                 with db:db.execute('UPDATE inbox SET read_at=? WHERE alert_id=?',(now(),body.get('id')))
                 return self.send(200,{'status':'READ'})
             if route=='/api/run' and self.command=='POST':
-                threading.Thread(target=self.app.tick,kwargs={'force':True},daemon=True).start()
+                if not self.app.request_check():return self.send(409,{'error':'Another evidence refresh is running. Check its status before retrying.'})
                 return self.send(202,{'status':'REQUESTED','note':'First complete observation establishes a baseline. Later comparable complete observations produce changes.'})
             if route=='/api/relationship' and self.command=='POST':return self.send(200,{'id':relationship(db,body,owner)})
             if route=='/api/review' and self.command=='POST':
@@ -162,6 +171,37 @@ class Handler(BaseHTTPRequestHandler):
             if route=='/api/history' and self.command=='GET':
                 return self.send(200,[dict(r) for r in db.execute('SELECT * FROM relationship_history ORDER BY id')])
             query=urllib.parse.parse_qs(request.query)
+            if route.startswith('/api/compliance'):
+                from compliance_tracking import latest,nationwide_baseline,persist,save_action,actions
+                if route=='/api/compliance' and self.command=='GET':
+                    seed=dot(query.get('dot',[''])[0]);result=latest(db,seed)
+                    if result is None:
+                        if not self.app.warehouse:raise ValueError('No preserved evidence or verified nationwide warehouse is configured')
+                        result=nationwide_baseline(self.app.warehouse,seed);persist(db,result)
+                    return self.send(200,{'review':result,'actions':actions(db,seed),'checked_at':now()})
+                if route=='/api/compliance-refresh' and self.command=='POST':
+                    seed=dot(body.get('dot'))
+                    if not self.app.request_check([seed]):return self.send(409,{'error':'Another evidence refresh is running. Check its status before retrying.'})
+                    return self.send(202,{'status':'REQUESTED','note':'A complete 36-source carrier refresh has started. Saved evidence remains dated until the verified refresh succeeds. Subscribe separately for daily checks.'})
+                if route=='/api/compliance-action' and self.command=='POST':
+                    return self.send(200,{'id':save_action(db,body,owner)})
+                if route=='/api/compliance-history' and self.command=='GET':
+                    return self.send(200,[dict(r) for r in db.execute('SELECT * FROM compliance_action_history WHERE action_id=? ORDER BY id',(query.get('id',[''])[0],))])
+                if route=='/api/compliance-observation' and self.command=='GET':
+                    row=db.execute('SELECT payload FROM compliance_observations WHERE id=?',(query.get('id',[''])[0],)).fetchone()
+                    if not row:raise ValueError('Observation not found')
+                    return self.send(200,json.loads(row[0]))
+                if route=='/api/compliance-board' and self.command=='GET':
+                    page=int(query.get('page',['1'])[0])
+                    if not 1<=page<=100000:raise ValueError('Invalid page')
+                    seeds={r['dot_number'] for r in portfolio(self.app.folder)}|{r[0] for r in db.execute('SELECT dot FROM subscriptions')}|{r[0] for r in db.execute('SELECT DISTINCT dot FROM compliance_observations')}
+                    rows=[]
+                    for seed in sorted(seeds,key=int)[(page-1)*50:page*50]:
+                        result=latest(db,seed);sub=db.execute('SELECT enabled FROM subscriptions WHERE dot=?',(seed,)).fetchone()
+                        rows.append({'dot':seed,'subscribed':bool(sub and sub[0]),'name':result['name'] if result else None,'status':result['status'] if result else 'NOT_REVIEWED',
+                                     'observed_at':result['observed_at'] if result else None,'reviews':result['review_count'] if result else None,'gaps':result['gap_count'] if result else None})
+                    return self.send(200,{'page':page,'total':len(seeds),'has_next':page*50<len(seeds),'rows':rows,'actions':actions(db),'checked_at':now()})
+                return self.send(405,{'error':'Unsupported compliance operation'})
             if route=='/api/screening-history' and self.command=='GET':
                 return self.send(200,[dict(r) for r in db.execute('SELECT * FROM screening_history WHERE case_id=? ORDER BY id',(query.get('id',[''])[0],))])
             if route in ('/api/identity-screen','/api/ghost','/api/ghost-queue','/api/screening-case'):
