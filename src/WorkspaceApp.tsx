@@ -619,10 +619,10 @@ function LocalWorkspaceLink() {
 }
 
 function PortfolioPage() {
-  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Book-of-business workflow" title="Portfolio" copy="The monitoring layer is designed for insured, quoted and watched carriers. No policy or premium values are fabricated until an insurer account spine is supplied or a carrier is explicitly saved." />
+  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Book-of-business workflow" title="Portfolio" copy="Save and review insured, quoted and watched carriers in the local private workspace. This public page does not read your private policies or portfolio counts." />
     <section className="t3-two-col">
-      <article className="t3-panel t3-empty-workspace"><div className="t3-empty-icon">P</div><h2>No portfolio records yet.</h2><p>The public FMCSA layer can resolve and evaluate carriers now. Portfolio persistence is the boundary between public intelligence and insurer-owned exposure data.</p><a className="t3-button primary" href="#/carriers">Find carriers</a></article>
-      <article className="t3-panel"><div className="t3-eyebrow">Planned account spine</div><h2>What belongs here</h2><div className="t3-definition-list"><div><strong>Exposure</strong><span>Policy, limits, premium, class, territory, scheduled power units and VMT.</span></div><div><strong>Public intelligence</strong><span>Current census, inspections, crashes, authority, insurance filings and SMS.</span></div><div><strong>Monitoring</strong><span>Daily authority/insurance/OOS changes and monthly safety movement.</span></div><div><strong>Validation</strong><span>Actual claims frequency and severity to evaluate future TRI deciles.</span></div></div></article>
+      <article className="t3-panel t3-empty-workspace"><div className="t3-empty-icon">P</div><h2>Private records stay in your local workspace.</h2><p>Open the local workspace above to save policies, import or export portfolio records, and subscribe to evidence changes. Use the public directory to explore carrier evidence.</p><a className="t3-button primary" href="#/carriers">Find carriers</a></article>
+      <article className="t3-panel"><div className="t3-eyebrow">Private account records</div><h2>Evidence and exposure</h2><div className="t3-definition-list"><div><strong>Exposure</strong><span>Policy, limits, premium, class, territory, scheduled power units and VMT.</span></div><div><strong>Public intelligence</strong><span>Current census, inspections, crashes, authority, insurance filings and SMS.</span></div><div><strong>Monitoring</strong><span>Scheduled evidence comparisons and a durable local inbox. SMS movement remains gated.</span></div><div><strong>Validation</strong><span>Predictive insurance models require claims outcomes, mature follow-up and calibration.</span></div></div></article>
     </section>
   </main>;
 }
@@ -630,17 +630,18 @@ function PortfolioPage() {
 function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
   const healthById = useMemo(() => new Map((health?.sources ?? []).map((source) => [source.id, source])), [health]);
   const events = [
-    ['Critical', 'Operational OOS order', 'p2mt-9ige', 'New Entrant federal OOS history; current effect must be verified from the record.'],
-    ['Critical', 'Authority suspension / revocation', 'e67p-xyd5', '24-hour RevokeSuspend differences plus baseline authority state.'],
-    ['Critical', 'Insurance filing change', 'x96h-evps', 'Active/pending policy changes, backed by insurance-history differences.'],
-    ['High', 'New serious crash', 'aayw-vxb3', 'Daily crash involvement; fault is not inferred from the public record.'],
-    ['High', 'OOS / violation deterioration', '876r-jsdb', 'Requires persisted daily snapshots to detect worsening rates rather than one-time counts.'],
-    ['Watch', 'Fleet / mileage change', 'az4n-8mr2', 'Requires historical census snapshots to distinguish real exposure movement from stale MCS-150 data.'],
-    ['Watch', 'Monthly SMS deterioration', '4y6x-dmck', 'Official output plus deterministic replay; portfolio-level deltas require monthly persistence.'],
+    ['Review', 'New Entrant OOS history', 'p2mt-9ige', 'Available in carrier evidence; not a dedicated local alert rule. Current order effect requires review.'],
+    ['Review', 'Authority record-set change', 'inys-ebih', 'Local inbox compares verified authority evidence; a changed record set is not an automatic prohibition.'],
+    ['Review', 'Insurance filing change', 'c5y8-a4uz', 'Local inbox compares verified filing records; a change does not establish an insurance coverage gap.'],
+    ['Review', 'Newly observed crash report', 'aayw-vxb3', 'Absent from the prior complete query and present now; event dates can be earlier. Involvement does not establish fault.'],
+    ['Review', 'Violation evidence change', '876r-jsdb', 'Local inbox preserves previous and current violation record sets. A change is not established deterioration.'],
+    ['Review', 'Newly observed OOS inspection', 'fx4q-ay7w', 'Newly observed inspection with a known positive OOS count; reviewed against two complete source observations.'],
+    ['Review', 'Reported exposure or status change', 'az4n-8mr2', 'Local inbox flags known exposure changes of at least 10% and one unit, plus reported status/date changes.'],
+    ['Gated', 'Monthly SMS movement', '4y6x-dmck', 'Not evaluated by the inbox until exact comparable releases are bound.'],
   ];
-  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Material change detection" title="Alerts" copy="Alerts are facts or deterministic changes, not score decorations. Daily MOTUS difference feeds are the near-current event layer; portfolio persistence is still required to evaluate insured-carrier changes continuously." />
-    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Priority</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${source?.status ?? 'pending'}`}/>{source?.status ?? 'pending'}</span></div>; })}</div></section>
-    <section className="t3-note-panel"><strong>Current constraint</strong><p>Source statuses describe the saved probe snapshot, not a continuous live check. Transport3r does not yet persist a durable insured-carrier snapshot history. Until that layer exists, the app will not invent “new since yesterday” events from a single current lookup.</p></section>
+  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Material change detection" title="Alerts" copy="Subscribe to USDOTs in the local workspace for daily complete-source checks and delivered inbox entries. This page explains the rules and saved source health; private alerts are shown only after signing in locally." />
+    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${source?.status ?? 'pending'}`}/>{source?.status ?? 'pending'}</span></div>; })}</div></section>
+    <section className="t3-note-panel"><strong>Current constraint</strong><p>Source statuses here describe the saved probe snapshot. The local service persists verified observations and compares matching cohorts; the first observation is a baseline. Checks require the service to remain running and the computer awake. Failed checks and newly observed records are kept distinct from no change and newly occurring events.</p></section>
   </main>;
 }
 
