@@ -1,0 +1,12 @@
+[data-testid="all-source-records"] {min-width:0}
+[data-testid="all-source-records"]>label {display:block;margin-top:18px}
+[data-testid="all-source-records"] select {box-sizing:border-box;max-width:100%;width:100%;margin:8px 0;padding:10px;border:1px solid #b9c8d9;border-radius:8px;background:#f7f9fc;color:#17385f}
+[data-testid="all-source-records"] input {width:65px;box-sizing:border-box;padding:8px;border:1px solid #b9c8d9;border-radius:6px}
+[data-testid="all-source-records"] button,[data-testid="complete-data-status"] button {max-width:100%;min-height:36px;margin:4px 6px 4px 0;padding:8px 12px;border:1px solid #b9c8d9;border-radius:8px;background:#f5f8fb;color:#17385f;font:600 12px system-ui;cursor:pointer;white-space:normal}
+[data-testid="all-source-records"] button:disabled {opacity:.45;cursor:default}
+[data-testid="all-source-records"] details {padding:12px 0;border-bottom:1px solid #dce3eb;overflow-wrap:anywhere;font-size:12px;line-height:1.6}
+[data-testid="all-source-records"] summary {cursor:pointer}
+[data-testid="all-source-records"] dl {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:12px}
+[data-testid="all-source-records"] dd {margin:4px 0}
+[data-testid="complete-data-status"] [role="alert"] {overflow-wrap:anywhere;color:#954a1b}
+[data-testid="complete-data-status"] progress {display:block;width:100%;accent-color:#ec631d;margin:12px 0}

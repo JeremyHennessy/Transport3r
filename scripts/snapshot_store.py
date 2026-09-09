@@ -79,7 +79,7 @@ def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | 
     checksum, size = hashlib.sha256(), 0
     with urllib.request.urlopen(request, timeout=120) as response, partial.open('xb') as handle:
         expected_bytes = response.headers.get('Content-Length')
-        while chunk := response.read(1024 * 1024):
+        while chunk := getattr(response, 'read1', response.read)(64 * 1024):
             size += len(chunk)
             if max_bytes is not None and size > max_bytes:
                 raise ValueError(f'{dataset_id} exceeded --max-bytes={max_bytes}')

@@ -1,9 +1,10 @@
 import { SOURCE_IDS, UNIT_FIELD_ALIASES, type CarrierEvidence, type EvidenceKey } from './carrierEvidence';
 import { inspectionId, loadSchemaRegistry, queryByInspectionIds, readValue, type DataRow } from './datahub';
+import {completeQuery} from './completeEvidence';
 
 const CHILD_KEYS = ['units', 'violations', 'citations', 'specialStudies'] as const;
 
-export async function loadInspectionEvidence(dotNumber: string, id: string): Promise<CarrierEvidence> {
+export async function loadInspectionEvidence(dotNumber: string, id: string, complete = false): Promise<CarrierEvidence> {
   if (!/^[1-9]\d*$/.test(dotNumber) || !/^[1-9]\d*$/.test(id)) throw new Error('Positive USDOT and inspection identifiers are required.');
   const registry = await loadSchemaRegistry();
   const result: CarrierEvidence = { dotNumber, inspectionId: id, mode: 'inspection', registry, slices: {}, errors: {}, loadedAt: '' };
@@ -19,7 +20,7 @@ export async function loadInspectionEvidence(dotNumber: string, id: string): Pro
     } else {
       await Promise.all(CHILD_KEYS.map(async key => {
         try {
-          const slice = await queryByInspectionIds(registry, SOURCE_IDS[key], [id], { maxInspectionIds: 1, limitPerChunk: 5000 });
+          const slice = complete ? await completeQuery(SOURCE_IDS[key],[`inspection_id='${id}'`],row=>inspectionId(row)===id&&(!readValue(row,['DOT_NUMBER'])||readValue(row,['DOT_NUMBER'])===dotNumber),new AbortController().signal) : await queryByInspectionIds(registry, SOURCE_IDS[key], [id], { maxInspectionIds: 1, limitPerChunk: 5000 });
           if (slice.rows.some(row => inspectionId(row) !== id || (readValue(row,['DOT_NUMBER']) !== undefined && readValue(row,['DOT_NUMBER']) !== dotNumber))) {
             throw new Error('Child source returned an unrelated inspection or carrier.');
           }
