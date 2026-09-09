@@ -1,0 +1,9 @@
+# Carrier summary filters
+
+The requested table changes add minimum/maximum reported drivers, numeric ascending/descending driver sorting, a clickable Drivers header, and a risk-score availability column/filter. All controls retain existing filters and round-trip through the shareable URL. Sorting and numeric ranges run against Company Census before its 100-row limit, not just within a previously loaded page. The source stores `total_drivers` as text, so the queries cast it to a number and put nulls last. Explicit zero is distinct from a blank/unknown count. Invalid or reversed ranges fail visibly.
+
+No production risk-score model or score artifact is released. The risk column therefore displays Unavailable; the Available filter returns an explicit no-released-scores state. No numeric risk range or risk ranking is claimed. TRI v0.1 and PR #17 remain separate. A later released score source must supply model identity, lineage and eligibility before this availability policy can change.
+
+The current production baseline was `15b76f46061c65cf96d49116ae53191e97fbca0e`; the older visual checkpoint `25157fb` remains unresolved. The user's explicit table/filter request authorizes these scoped presentation changes. The added controls require a second desktop filter row and one extra horizontally scrollable table column. Existing typography, colors, navigation and Carrier 360 detail layouts are preserved. Desktop/mobile before/after checks and live numeric query examples accompany the release.
+
+Query behavior follows the [Socrata ordering contract](https://dev.socrata.com/docs/queries/order.html), with numeric casting/null ordering additionally exercised against the live Company Census endpoint. Driver values remain carrier-reported exposures with their report date and registration context; they are not independently verified current staffing.
