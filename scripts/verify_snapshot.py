@@ -16,6 +16,14 @@ def timestamp(value):
 def verify(folder, as_of=None):
     root = pathlib.Path(folder).resolve()
     manifest = json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+    if manifest.get('schema_version') in (3,4):
+        # Imported here because cohort acquisition shares this module's timestamp parser.
+        from cohort_snapshot import load_verified
+        verified, cohort, data = load_verified(root,as_of)
+        return {'status':'VERIFIED','snapshot_id':verified['snapshot_id'],
+                'source_profile':verified.get('source_profile','baseline'),'source_count':len(data),
+                'carrier_count':len(cohort['dots']),'row_count':sum(len(rows) for rows in data.values()),
+                'available_at':verified['completed_at'],'as_of':as_of,'historical_feature_validity':'NOT_CERTIFIED'}
     if manifest.get('schema_version') != 2 or manifest.get('status') != 'COMPLETE' or manifest.get('failure_count') != 0:
         raise ValueError('Only a completed v2 acquisition cut is eligible')
     if manifest.get('historical_reconstruction') is not False or manifest.get('acquisition_kind') != 'CURRENT_PUBLIC_SOURCE':

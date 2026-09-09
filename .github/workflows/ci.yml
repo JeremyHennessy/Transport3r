@@ -23,6 +23,15 @@ jobs:
         run: python scripts/refresh_fmcsa.py --workers 6
       - name: Test data integrity and snapshot gates
         run: python -m unittest discover -s scripts -p "test_*.py"
+      - name: Verify complete cohort acquisition and SQLite promotion
+        run: python scripts/validate_evidence_warehouse.py --output /tmp/transport3r-warehouse --per-stratum 1
+      - name: Retain warehouse acquisition and reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-warehouse-${{ github.sha }}
+          path: /tmp/transport3r-warehouse/
+          if-no-files-found: warn
       - name: Audit live fleet consistency
         run: python scripts/audit_fleet_consistency.py
       - name: Validate source registry alignment

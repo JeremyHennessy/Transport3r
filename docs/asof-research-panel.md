@@ -2,6 +2,8 @@
 
 This offline pipeline establishes a current baseline and supports future month-end feature construction from preserved cuts. It does not reconstruct historical features from current downloads or fit a model. It has no production UI integration.
 
+The [verified evidence warehouse](evidence-warehouse.md) now adds a 14-source v4 acquisition profile and complete SQLite carrier exports. This feature builder accepts verified v3/v4 cuts but continues to use only its original seven source families and unchanged feature schema. New raw sources are not automatically eligible model features.
+
 ## Reproducible workflow
 
 ```sh
