@@ -43,7 +43,7 @@
   check(!document.body.textContent.includes('REPORT-900004'),'Late inspection response cannot overwrite a newer route');
   unitFailure=true;document.querySelector('[data-testid="inspection-detail"] button').click();
   await wait(()=>document.querySelector('[data-testid="inspection-detail"]')?.textContent.includes('503'));
-  check(document.querySelector('[data-testid="inspection-detail"] .c360-metric strong').textContent==='—','Failed unit request shows unavailable instead of zero');
+  check(document.querySelector('[data-testid="inspection-detail"] [data-metric="Observed units"] strong').textContent==='—','Failed unit request shows unavailable instead of zero');
   unitFailure=false;document.querySelector('[data-testid="inspection-detail"] button').click();
   await wait(()=>document.querySelector('[data-testid="inspection-detail"] a[href*="/vin/"]'));
   check(!document.querySelector('[data-testid="inspection-detail"]').textContent.includes('503'),'Refresh recovers a failed child request');

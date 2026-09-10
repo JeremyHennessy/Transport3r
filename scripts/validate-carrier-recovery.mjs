@@ -45,7 +45,7 @@ try {
   console.log(JSON.stringify(result,null,2));
   if(process.argv[2]) await writeFile(process.argv[2],JSON.stringify(result,null,2));
   assert.equal(result.status,'PASS',result.error);
-  assert.equal(result.checks.length,scenario==='inspection'?9:scenario==='coverage'?7:scenario==='data-ui'?10:11);
+  assert.equal(result.checks.length,scenario==='inspection'?9:scenario==='coverage'?7:scenario==='data-ui'?10:scenario==='insight'?13:11);
 } finally {
   await new Promise(resolve=>server.close(resolve));
   // This tool-created temporary profile is the only directory removed.
