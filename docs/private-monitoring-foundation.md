@@ -1,5 +1,7 @@
 # Private portfolio and durable change monitoring
 
+This document describes the original local foundations. The subsequent password-protected loopback UI, acquisition scheduler, durable inbox, reviewed relationships and descriptive peers are documented in [Local private workspace](local-private-workspace.md). The public Pages site still does not host private records.
+
 Implemented local foundations; neither is a hosted multi-user service. GitHub Pages continues to display the product boundary. No insurer policies have been invented, imported into public data, or committed.
 
 ## Portfolio contract and storage

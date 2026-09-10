@@ -5,6 +5,35 @@ import { build } from 'esbuild';
 const compiled = await build({stdin:{contents:"export * from './src/WorkspaceApp';",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.BASE_URL':'"/Transport3r/"'}});
 const app = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 
+test('country, province and page persist; source paging uses deterministic order', () => {
+  const f=app.parseCarrierFilters('#/carriers?country=ca&state=on&page=3');
+  assert.deepEqual(app.parseCarrierFilters(app.carrierHash(f)),f);
+  const q=app.buildCarrierQuery(f);
+  assert.equal(q.get('$offset'),'200');
+  assert.equal(q.get('$where'),"phy_state='ON' AND phy_country='CA'");
+  assert.equal(q.get('$order'),'fleetsize DESC NULLS LAST, dot_number DESC');
+  assert.match(app.buildCarrierQuery({...f,sort:'name_asc'}).get('$order'), /NULLS LAST/);
+  for(const page of ['0','-1','1.5','garbage','Infinity','9007199254740991']) assert.throws(()=>app.buildCarrierQuery(app.parseCarrierFilters(`#/carriers?page=${page}`)),/Page/);
+});
+
+test('lookahead enables next only for another real row without showing it on both pages', async () => {
+  const oldFetch=globalThis.fetch,oldWindow=globalThis.window;globalThis.window={setTimeout,clearTimeout};
+  const requested=[];
+  globalThis.fetch=async url=>{
+    const q=new URL(url).searchParams;requested.push(q);
+    const offset=Number(q.get('$offset')??0);
+    return new Response(JSON.stringify(Array.from({length:offset===0?101:1},(_,i)=>({dot_number:String(offset+i+1)}))));
+  };
+  try {
+    const a=await app.loadCarrierPage(app.parseCarrierFilters('#/carriers'));
+    const b=await app.loadCarrierPage(app.parseCarrierFilters('#/carriers?page=2'));
+    assert.equal(a.rows.length,100);assert.equal(a.hasNext,true);
+    assert.equal(b.rows[0].dotNumber,'101');assert.equal(b.hasNext,false);
+    assert.equal(requested[0].get('$limit'),'101');
+    assert.equal(new Set([...a.rows,...b.rows].map(r=>r.dotNumber)).size,101);
+  } finally {globalThis.fetch=oldFetch;globalThis.window=oldWindow;}
+});
+
 test('driver range and risk availability survive a shared URL with existing filters', () => {
   const filters = app.parseCarrierFilters('#/carriers?q=ACME&state=tx&operation=a&hazmat=Y&minFleet=Q&minDrivers=10&maxDrivers=1000&risk=unavailable&sort=drivers_desc');
   assert.deepEqual(app.parseCarrierFilters(app.carrierHash(filters)), filters);

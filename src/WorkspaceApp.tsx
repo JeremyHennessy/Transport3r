@@ -1,3 +1,4 @@
+import { exposureQualityFlags } from './exposureQuality';
 import {SmsDirectoryCell} from './OfficialSmsPanel';
 import {loadOfficialSmsBatch,officialSmsView,type OfficialSmsView} from './officialSms';
 import { EnrichmentSources } from './EnrichmentSources';
@@ -48,6 +49,7 @@ type Carrier = {
   dbaName?: string;
   city?: string;
   state?: string;
+  country?: string;
   operation?: string;
   powerUnits?: string;
   drivers?: string;
@@ -62,6 +64,8 @@ type Carrier = {
 type CarrierFilters = {
   q: string;
   state: string;
+  country: string;
+  page: number;
   operation: string;
   hazmat: string;
   minFleetCode: string;
@@ -107,6 +111,8 @@ const NAV: Array<{ id: Page; label: string; short: string }> = [
 const DEFAULT_FILTERS: CarrierFilters = {
   q: '',
   state: '',
+  country: '',
+  page: 1,
   operation: '',
   hazmat: '',
   minFleetCode: '',
@@ -212,6 +218,8 @@ export function parseCarrierFilters(hash = window.location.hash): CarrierFilters
   return {
     q: params.get('q') ?? '',
     state: (params.get('state') ?? '').toUpperCase(),
+    country: (params.get('country') ?? '').toUpperCase(),
+    page: params.has('page') ? Number(params.get('page')) : 1,
     operation: (params.get('operation') ?? '').toUpperCase(),
     hazmat: (params.get('hazmat') ?? '').toUpperCase(),
     minFleetCode: FLEET_THRESHOLDS.some((option) => option.code === minFleetCode) ? minFleetCode : '',
@@ -228,6 +236,8 @@ export function carrierHash(filters: CarrierFilters): string {
   const q = filters.q.trim();
   if (q) params.set('q', q);
   if (filters.state) params.set('state', filters.state);
+  if (filters.country) params.set('country', filters.country);
+  if (filters.page > 1) params.set('page', String(filters.page));
   if (filters.operation) params.set('operation', filters.operation);
   if (filters.hazmat) params.set('hazmat', filters.hazmat);
   if (filters.minFleetCode) params.set('minFleet', filters.minFleetCode);
@@ -264,6 +274,7 @@ function carrierFromRow(row: DataRow): Carrier {
     dbaName: readValue(row, ['DBA_NAME', 'DBA']),
     city: readValue(row, ['PHY_CITY', 'PHYSICAL_CITY', 'CITY']),
     state: readValue(row, ['PHY_STATE', 'PHYSICAL_STATE', 'STATE']),
+    country: readValue(row, ['PHY_COUNTRY']),
     operation: readValue(row, ['CARRIER_OPERATION', 'CARRIER_OPERATION_DESC', 'OPERATION']),
     powerUnits: readValue(row, ['POWER_UNITS', 'NBR_POWER_UNIT', 'TOTAL_POWER_UNITS']),
     drivers: readValue(row, ['TOTAL_DRIVERS', 'DRIVER_TOTAL', 'DRIVERS']),
@@ -280,8 +291,8 @@ function sortExpression(sort: SortMode): string {
   if (sort === 'drivers_desc') return 'total_drivers::number DESC NULLS LAST, dot_number DESC';
   if (sort === 'drivers_asc') return 'total_drivers::number ASC NULLS LAST, dot_number DESC';
   if (sort === 'dot_desc') return 'dot_number DESC';
-  if (sort === 'name_asc') return 'legal_name ASC, dot_number DESC';
-  return 'fleetsize DESC, dot_number DESC';
+  if (sort === 'name_asc') return 'legal_name ASC NULLS LAST, dot_number DESC';
+  return 'fleetsize DESC NULLS LAST, dot_number DESC';
 }
 
 export async function fetchDirectoryRows(url: string, signal?: AbortSignal, timeoutMs = 9000): Promise<unknown> {
@@ -304,6 +315,9 @@ export async function fetchDirectoryRows(url: string, signal?: AbortSignal, time
 }
 
 export function carrierFilterError(filters: CarrierFilters): string | null {
+  if (!Number.isSafeInteger(filters.page) || filters.page < 1 || !Number.isSafeInteger((filters.page - 1) * PAGE_SIZE)) return 'Page must be a positive safe whole number.';
+  if (filters.country && !/^[A-Z]{2}$/.test(filters.country)) return 'Country must be a two-letter source code.';
+  if (filters.state && !/^[A-Z]{2,3}$/.test(filters.state)) return 'State/province must be a two- or three-letter source code.';
   if (filters.registration && !['A', 'I', 'P'].includes(filters.registration)) return 'Choose Active, Inactive or Pending registration.';
   for (const raw of [filters.minDrivers, filters.maxDrivers]) {
     const value = raw.trim();
@@ -317,11 +331,13 @@ export function buildCarrierQuery(filters: CarrierFilters): URLSearchParams {
   const error = carrierFilterError(filters);
   if (error) throw new Error(error);
   const params = new URLSearchParams({ '$limit': String(PAGE_SIZE), '$order': sortExpression(filters.sort) });
+  if (filters.page > 1) params.set('$offset', String((filters.page - 1) * PAGE_SIZE));
   const where: string[] = [];
   const q = filters.q.trim();
   if (/^\d+$/.test(q)) where.push(`dot_number=${Number(q)}`);
   else if (q) params.set('$q', q);
   if (filters.state) where.push(`phy_state='${escapeSoql(filters.state)}'`);
+  if (filters.country) where.push(`phy_country='${filters.country}'`);
   if (filters.operation) where.push(`carrier_operation='${escapeSoql(filters.operation)}'`);
   if (filters.hazmat === 'Y' || filters.hazmat === 'N') where.push(`hm_ind='${filters.hazmat}'`);
   if (filters.registration) where.push(`status_code='${filters.registration}'`);
@@ -339,6 +355,15 @@ export async function loadCarriers(filters: CarrierFilters, signal?: AbortSignal
   const payload = await fetchDirectoryRows(`${DATAHUB}/az4n-8mr2.json?${params.toString()}`, signal);
   if (!Array.isArray(payload)) throw new Error('Company Census returned an unexpected payload');
   return (payload as DataRow[]).map(carrierFromRow);
+}
+
+export async function loadCarrierPage(filters: CarrierFilters, signal?: AbortSignal) {
+  const params = buildCarrierQuery(filters);
+  if (filters.risk === 'available') return { rows: [], hasNext: false };
+  params.set('$limit', String(PAGE_SIZE + 1));
+  const payload = await fetchDirectoryRows(`${DATAHUB}/az4n-8mr2.json?${params}`, signal);
+  if (!Array.isArray(payload)) throw new Error('Company Census returned an unexpected payload');
+  return { rows: (payload as DataRow[]).slice(0, PAGE_SIZE).map(carrierFromRow), hasNext: payload.length > PAGE_SIZE };
 }
 
 function Brand() {
@@ -446,6 +471,7 @@ function CarriersPage() {
   const [draft, setDraft] = useState<CarrierFilters>(() => parseCarrierFilters());
   const [rows, setRows] = useState<Carrier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
   const [reloadVersion, setReloadVersion] = useState(0);
@@ -480,8 +506,9 @@ function CarriersPage() {
     setLoading(true);
     setError(null);
     setRows([]);
-    loadCarriers(applied, controller.signal)
-      .then((loaded) => { if (current) setRows(loaded); })
+    setHasNext(false);
+    loadCarrierPage(applied, controller.signal)
+      .then((loaded) => { if (current) { setRows(loaded.rows); setHasNext(loaded.hasNext); } })
       .catch((cause) => { if (current) { setRows([]); setError(cause instanceof Error ? cause.message : String(cause)); } })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; controller.abort(); };
@@ -490,13 +517,13 @@ function CarriersPage() {
   const loadedStates = useMemo(() => new Set(rows.map((row) => row.state).filter(Boolean)).size, [rows]);
   const loadedUnits = useMemo(() => exposureTotal(rows, 'powerUnits'), [rows]);
   const loadedDrivers = useMemo(() => exposureTotal(rows, 'drivers'), [rows]);
-  const activeFilters = [applied.q, applied.state, applied.operation, applied.hazmat, applied.minFleetCode, applied.minDrivers, applied.maxDrivers, applied.risk, applied.registration].filter(Boolean).length;
+  const activeFilters = [applied.q, applied.country, applied.state, applied.operation, applied.hazmat, applied.minFleetCode, applied.minDrivers, applied.maxDrivers, applied.risk, applied.registration].filter(Boolean).length;
   const filterError = carrierFilterError(draft);
 
   function apply(event: FormEvent) {
     event.preventDefault();
     if (filterError) return;
-    const next = carrierHash(draft);
+    const next = carrierHash({ ...draft, page: 1 });
     if (carrierHash(applied) === next) setReloadVersion(version => version + 1);
     if (window.location.hash !== next) window.location.hash = next;
   }
@@ -508,7 +535,7 @@ function CarriersPage() {
   }
 
   function sortDrivers() {
-    const next: CarrierFilters = { ...applied, sort: applied.sort === 'drivers_desc' ? 'drivers_asc' : 'drivers_desc' };
+    const next: CarrierFilters = { ...applied, page: 1, sort: applied.sort === 'drivers_desc' ? 'drivers_asc' : 'drivers_desc' };
     setDraft(next);
     window.location.hash = carrierHash(next);
   }
@@ -530,7 +557,8 @@ function CarriersPage() {
     <section className="t3-panel t3-filter-panel">
       <form className="t3-filter-grid t3-carrier-filters" onSubmit={apply}>
         <label className="span-2"><span>Carrier / USDOT</span><input value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} placeholder="Legal name, DBA or USDOT number" /></label>
-        <label><span>State</span><select value={draft.state} onChange={(event) => setDraft({ ...draft, state: event.target.value })}><option value="">All states</option>{STATES.map((state) => <option key={state}>{state}</option>)}</select></label>
+        <label><span>Country</span><input list="carrier-countries" maxLength={2} value={draft.country} onChange={event => setDraft({ ...draft, country: event.target.value.toUpperCase(), state: '' })} placeholder="All countries"/><datalist id="carrier-countries"><option value="US">United States</option><option value="CA">Canada</option><option value="MX">Mexico</option></datalist></label>
+        <label><span>State / province</span><input list="carrier-regions" maxLength={3} value={draft.state} onChange={event => setDraft({ ...draft, state: event.target.value.toUpperCase() })} placeholder="All regions"/><datalist id="carrier-regions">{(draft.country === 'CA' ? ['AB','BC','MB','NB','NL','NS','NT','NU','ON','PE','QC','SK','YT'] : draft.country === 'MX' ? ['AG','BN','BS','CH','CI','CL','CP','CS','DF','DG','GE','GJ','HD','JA','MC','MR','MX','NA','NL','OA','PU','QE','QI','SI','SL','SO','TA','TB','TL','VC','YU','ZA'] : STATES).map(state => <option key={state} value={state}/>)}</datalist></label>
         <label><span>Operation</span><select value={draft.operation} onChange={(event) => setDraft({ ...draft, operation: event.target.value })}><option value="">All operations</option><option value="A">Interstate</option><option value="B">Intrastate hazmat</option><option value="C">Intrastate non-hazmat</option></select></label>
         <label><span>Hazmat</span><select value={draft.hazmat} onChange={(event) => setDraft({ ...draft, hazmat: event.target.value })}><option value="">Any</option><option value="Y">Hazmat</option><option value="N">Non-hazmat</option></select></label>
         <label><span>Registration</span><select value={draft.registration} onChange={event => setDraft({ ...draft, registration: event.target.value })}><option value="">All registrations</option><option value="A">Active</option><option value="I">Inactive</option><option value="P">Pending</option></select></label>
@@ -542,13 +570,13 @@ function CarriersPage() {
         <div className="t3-filter-actions"><button className="t3-button primary" disabled={loading}>{loading ? 'Loading…' : 'Apply filters'}</button><button className="t3-button text" type="button" onClick={reset}>Reset</button></div>
       </form>
       {filterError && <div className="t3-error" role="alert">{filterError}</div>}
-      <div className="t3-query-note"><span className="t3-live-dot"/>Live FMCSA Company Census · filters and sorting apply before the {PAGE_SIZE}-row limit · official SMS measures load automatically for these rows; other detailed evidence loads in carrier tabs.</div>
+      <div className="t3-query-note"><span className="t3-live-dot"/>Live FMCSA Company Census · filters and sorting apply before each {PAGE_SIZE}-row page · official SMS measures load automatically for these rows; other detailed evidence loads in carrier tabs.</div>
       <div className="t3-query-note">Risk scores are unavailable: no scoring model has been released. Driver limits use reported counts; unknown counts do not match a numeric range.</div>
     </section>
 
     <section className="t3-mini-stats t3-directory-stats" aria-live="polite">
-      <div><span>Rows loaded</span><strong>{loading || error ? '—' : rows.length.toLocaleString()}</strong><small>Current screened slice</small></div>
-      <div><span>States represented</span><strong>{loading || error ? '—' : loadedStates.toLocaleString()}</strong><small>Within loaded slice</small></div>
+      <div><span>Rows loaded</span><strong>{loading || error ? '—' : rows.length.toLocaleString()}</strong><small>Current page</small></div>
+      <div><span>Regions represented</span><strong>{loading || error ? '—' : loadedStates.toLocaleString()}</strong><small>Within current page</small></div>
       <div><span>Reported power units</span><strong>{loading || error ? '—' : formatNumber(loadedUnits.value)}</strong><small>{loadedUnits.missing ? `${loadedUnits.known}/${rows.length} rows reported · partial sum` : 'Sum of reported counts in loaded rows'}</small></div>
       <div><span>Reported drivers</span><strong>{loading || error ? '—' : formatNumber(loadedDrivers.value)}</strong><small>{loadedDrivers.missing ? `${loadedDrivers.known}/${rows.length} rows reported · partial sum` : 'Sum of reported counts in loaded rows'}</small></div>
       <div><span>Active filters</span><strong>{activeFilters}</strong><small>Encoded in shareable URL</small></div>
@@ -557,7 +585,9 @@ function CarriersPage() {
     {error && <div className="t3-error"><strong>FMCSA carrier table unavailable.</strong><span>{error}</span><button onClick={() => setReloadVersion(version => version + 1)}>Retry</button></div>}
 
     <section className="t3-panel t3-table-panel">
-      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : rows.length === PAGE_SIZE ? `First ${PAGE_SIZE} matching rows` : `${rows.length} matching rows loaded`}</span></div>
+      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
+      <nav className="t3-directory-paging t3-actions" aria-label="Directory pages"><button className="t3-button secondary" disabled={loading || applied.page <= 1} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page - 1 }); }}>Previous page</button><span role="status">Page {Number.isSafeInteger(applied.page) ? applied.page : 'invalid'}</span><button className="t3-button secondary" disabled={loading || Boolean(error) || !hasNext} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page + 1 }); }}>Next page</button></nav>
+      <p className="t3-table-scroll-note">Pages use a stable USDOT tie-breaker. The live source can change between requests; page totals describe only the displayed records.</p>
       <p className="t3-table-scroll-note" id="carrier-scroll-help">Scroll horizontally for all columns and evidence links. Counts may come from different MCS-150 report dates.</p>
       <div className="t3-sms-directory-controls"><button className="t3-button secondary" type="button" disabled={loading||!rows.length} onClick={()=>setSmsRefresh(value=>value+1)}>Refresh table SMS</button><span role="status">{rows.length ? !currentSms ? 'Loading official SMS measures...' : currentSms.error ? 'SMS request failed. Refresh to retry.' : `${Object.values(currentSms.views).filter(view=>view.status==='available').length}/${rows.length} rows have public SMS outputs; ${Object.values(currentSms.views).filter(view=>view.status==='unavailable').length} unavailable` : ''}</span><small>Separate BASIC measures; no combined SMS score. Passenger percentiles are shown in each carrier's SMS tab.</small></div>
       <div className="t3-carrier-table-wrap" role="region" aria-label="Carrier summary table" aria-describedby="carrier-scroll-help" tabIndex={0}>
@@ -566,9 +596,9 @@ function CarriersPage() {
           {!loading && !error && rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
             <span className="carrier-name"><a href={`#/carrier/${carrier.dotNumber}/summary`}>{carrier.legalName}</a>{carrier.dbaName && <small>DBA {carrier.dbaName}</small>}</span>
             <span className="mono">{carrier.dotNumber}</span>
-            <span>{[carrier.city, carrier.state].filter(Boolean).join(', ') || '—'}</span>
+            <span>{[carrier.city, carrier.state, carrier.country].filter(Boolean).join(', ') || '—'}</span>
             <span>{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
-            <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small></span>
+            <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small><details className="t3-exposure-flags"><summary>{exposureQualityFlags(carrier).length ? `${exposureQualityFlags(carrier).length} exposure review flags` : 'Exposure checks'}</summary>{exposureQualityFlags(carrier).map(flag => <small key={flag}>{flag}</small>)}<small>Source-reported values retained. Review flags are not safety or fraud findings.</small></details></span>
             <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
             <span title="No released scoring model is available for this carrier.">Unavailable</span>
             <SmsDirectoryCell dot={carrier.dotNumber} view={currentSms?.views[carrier.dotNumber]} failed={Boolean(currentSms?.error)}/>
@@ -584,11 +614,15 @@ function CarriersPage() {
   </main>;
 }
 
+function LocalWorkspaceLink() {
+  return <section className="t3-panel"><h2>Private workspace on this computer</h2><p>Track compliance evidence and follow-up dates, refresh carrier records, manage policies and scheduled alerts, aggregate approved corporate DOTs, and review shared-registration and inactive-DOT activity leads. Screening leads do not establish fraud or ownership. Private records stay on your computer.</p><a className="t3-button secondary" href="http://127.0.0.1:4789/" target="_blank" rel="noopener noreferrer">Open local private workspace</a><p>The local service must be running. It has its own password and does not upload private records to this public site.</p></section>;
+}
+
 function PortfolioPage() {
-  return <main className="t3-main"><PageHeading eyebrow="Book-of-business workflow" title="Portfolio" copy="The monitoring layer is designed for insured, quoted and watched carriers. No policy or premium values are fabricated until an insurer account spine is supplied or a carrier is explicitly saved." />
+  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Book-of-business workflow" title="Portfolio" copy="Save and review insured, quoted and watched carriers in the local private workspace. This public page does not read your private policies or portfolio counts." />
     <section className="t3-two-col">
-      <article className="t3-panel t3-empty-workspace"><div className="t3-empty-icon">P</div><h2>No portfolio records yet.</h2><p>The public FMCSA layer can resolve and evaluate carriers now. Portfolio persistence is the boundary between public intelligence and insurer-owned exposure data.</p><a className="t3-button primary" href="#/carriers">Find carriers</a></article>
-      <article className="t3-panel"><div className="t3-eyebrow">Planned account spine</div><h2>What belongs here</h2><div className="t3-definition-list"><div><strong>Exposure</strong><span>Policy, limits, premium, class, territory, scheduled power units and VMT.</span></div><div><strong>Public intelligence</strong><span>Current census, inspections, crashes, authority, insurance filings and SMS.</span></div><div><strong>Monitoring</strong><span>Daily authority/insurance/OOS changes and monthly safety movement.</span></div><div><strong>Validation</strong><span>Actual claims frequency and severity to evaluate future TRI deciles.</span></div></div></article>
+      <article className="t3-panel t3-empty-workspace"><div className="t3-empty-icon">P</div><h2>Private records stay in your local workspace.</h2><p>Open the local workspace above to save policies, import or export portfolio records, and subscribe to evidence changes. Use the public directory to explore carrier evidence.</p><a className="t3-button primary" href="#/carriers">Find carriers</a></article>
+      <article className="t3-panel"><div className="t3-eyebrow">Private account records</div><h2>Evidence and exposure</h2><div className="t3-definition-list"><div><strong>Exposure</strong><span>Policy, limits, premium, class, territory, scheduled power units and VMT.</span></div><div><strong>Public intelligence</strong><span>Current census, inspections, crashes, authority, insurance filings and SMS.</span></div><div><strong>Monitoring</strong><span>Scheduled evidence comparisons and a durable local inbox. SMS movement remains gated.</span></div><div><strong>Validation</strong><span>Predictive insurance models require claims outcomes, mature follow-up and calibration.</span></div></div></article>
     </section>
   </main>;
 }
@@ -596,17 +630,19 @@ function PortfolioPage() {
 function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
   const healthById = useMemo(() => new Map((health?.sources ?? []).map((source) => [source.id, source])), [health]);
   const events = [
-    ['Critical', 'Operational OOS order', 'p2mt-9ige', 'New Entrant federal OOS history; current effect must be verified from the record.'],
-    ['Critical', 'Authority suspension / revocation', 'e67p-xyd5', '24-hour RevokeSuspend differences plus baseline authority state.'],
-    ['Critical', 'Insurance filing change', 'x96h-evps', 'Active/pending policy changes, backed by insurance-history differences.'],
-    ['High', 'New serious crash', 'aayw-vxb3', 'Daily crash involvement; fault is not inferred from the public record.'],
-    ['High', 'OOS / violation deterioration', '876r-jsdb', 'Requires persisted daily snapshots to detect worsening rates rather than one-time counts.'],
-    ['Watch', 'Fleet / mileage change', 'az4n-8mr2', 'Requires historical census snapshots to distinguish real exposure movement from stale MCS-150 data.'],
-    ['Watch', 'Monthly SMS deterioration', '4y6x-dmck', 'Official output plus deterministic replay; portfolio-level deltas require monthly persistence.'],
+    ['Review', 'New Entrant OOS history', 'p2mt-9ige', 'Available in carrier evidence; not a dedicated local alert rule. Current order effect requires review.'],
+    ['Review', 'Compliance review / OOS and rescission changes', 'p2mt-9ige', 'Local compliance reviews compare verified observations, retain dated follow-ups, and deliver assessment changes to subscribed inboxes.'],
+    ['Review', 'Authority record-set change', 'inys-ebih', 'Local inbox compares verified authority evidence; a changed record set is not an automatic prohibition.'],
+    ['Review', 'Insurance filing change', 'c5y8-a4uz', 'Local inbox compares verified filing records; a change does not establish an insurance coverage gap.'],
+    ['Review', 'Newly observed crash report', 'aayw-vxb3', 'Absent from the prior complete query and present now; event dates can be earlier. Involvement does not establish fault.'],
+    ['Review', 'Violation evidence change', '876r-jsdb', 'Local inbox preserves previous and current violation record sets. A change is not established deterioration.'],
+    ['Review', 'Newly observed OOS inspection', 'fx4q-ay7w', 'Newly observed inspection with a known positive OOS count; reviewed against two complete source observations.'],
+    ['Review', 'Reported exposure or status change', 'az4n-8mr2', 'Local inbox flags known exposure changes of at least 10% and one unit, plus reported status/date changes.'],
+    ['Gated', 'Monthly SMS movement', '4y6x-dmck', 'Not evaluated by the inbox until exact comparable releases are bound.'],
   ];
-  return <main className="t3-main"><PageHeading eyebrow="Material change detection" title="Alerts" copy="Alerts are facts or deterministic changes, not score decorations. Daily MOTUS difference feeds are the near-current event layer; portfolio persistence is still required to evaluate insured-carrier changes continuously." />
-    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Priority</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${source?.status ?? 'pending'}`}/>{source?.status ?? 'pending'}</span></div>; })}</div></section>
-    <section className="t3-note-panel"><strong>Current constraint</strong><p>Source statuses describe the saved probe snapshot, not a continuous live check. Transport3r does not yet persist a durable insured-carrier snapshot history. Until that layer exists, the app will not invent “new since yesterday” events from a single current lookup.</p></section>
+  return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Material change detection" title="Alerts" copy="Subscribe to USDOTs in the local workspace for daily complete-source checks and delivered inbox entries. This page explains the rules and saved source health; private alerts are shown only after signing in locally." />
+    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${source?.status ?? 'pending'}`}/>{source?.status ?? 'pending'}</span></div>; })}</div></section>
+    <section className="t3-note-panel"><strong>Current constraint</strong><p>Source statuses here describe the saved probe snapshot. The local service persists verified observations and compares matching cohorts; the first observation is a baseline. Checks require the service to remain running and the computer awake. Failed checks and newly observed records are kept distinct from no change and newly occurring events.</p></section>
   </main>;
 }
 
