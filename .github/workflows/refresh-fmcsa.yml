@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 concurrency:
   group: fmcsa-source-health
@@ -26,6 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.TRANSPORT3R_BOT_TOKEN || github.token }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,15 +37,83 @@ jobs:
       - name: Probe official FMCSA/DOT sources
         run: python scripts/refresh_fmcsa.py --workers 6
 
-      - name: Commit refreshed FMCSA lineage
+      - name: Commit refreshed FMCSA lineage to a PR branch
+        id: lineage
+        env:
+          REFRESH_BRANCH: data/fmcsa-source-lineage
         run: |
           if git diff --quiet -- public/data/source-health.json public/data/source-schemas.json; then
             echo 'No FMCSA lineage changes.'
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
             exit 0
           fi
           git config user.name 'transport3r-data-bot'
           git config user.email 'actions@users.noreply.github.com'
+          git branch --force "$REFRESH_BRANCH" HEAD
+          git switch "$REFRESH_BRANCH"
           git add public/data/source-health.json public/data/source-schemas.json
           git commit -m 'data: refresh FMCSA source lineage'
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git fetch origin "refs/heads/$REFRESH_BRANCH:refs/remotes/origin/$REFRESH_BRANCH" || true
+          git push --force-with-lease origin "$REFRESH_BRANCH"
+          echo 'changed=true' >> "$GITHUB_OUTPUT"
+          echo "branch=$REFRESH_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open or update refresh pull request
+        if: steps.lineage.outputs.changed == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.TRANSPORT3R_BOT_TOKEN || github.token }}
+          REFRESH_BRANCH: ${{ steps.lineage.outputs.branch }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          owner = repo.split("/", 1)[0]
+          branch = os.environ["REFRESH_BRANCH"]
+          token = os.environ["GITHUB_TOKEN"]
+          api = f"https://api.github.com/repos/{repo}"
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          def request(method, url, payload=None):
+              data = json.dumps(payload).encode("utf-8") if payload is not None else None
+              req = urllib.request.Request(url, data=data, headers=headers, method=method)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  body = response.read().decode("utf-8")
+                  return json.loads(body) if body else None
+
+          head = urllib.parse.quote(f"{owner}:{branch}", safe="")
+          pulls = request("GET", f"{api}/pulls?state=open&base=main&head={head}")
+          if pulls:
+              print(f"Refresh pull request already open: {pulls[0]['html_url']}")
+              raise SystemExit(0)
+
+          body = "\n".join([
+              "Automated FMCSA DataHub lineage refresh.",
+              "",
+              "This PR is opened by the scheduled refresh workflow instead of pushing directly",
+              "to protected main. It should pass the normal PR validation gates before merge.",
+              "",
+              "If required checks do not start automatically from the default GitHub Actions",
+              "token, configure TRANSPORT3R_BOT_TOKEN as a fine-grained repository token with",
+              "contents and pull-request write access, then rerun the refresh workflow.",
+          ])
+          try:
+              pull = request("POST", f"{api}/pulls", {
+                  "title": "data: refresh FMCSA source lineage",
+                  "head": branch,
+                  "base": "main",
+                  "body": body,
+              })
+          except urllib.error.HTTPError as error:
+              detail = error.read().decode("utf-8")
+              raise RuntimeError(f"Could not create refresh PR: {detail}") from error
+          print(f"Opened refresh pull request: {pull['html_url']}")
+          PY
