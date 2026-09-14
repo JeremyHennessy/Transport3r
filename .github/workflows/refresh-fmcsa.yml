@@ -114,6 +114,13 @@ jobs:
               })
           except urllib.error.HTTPError as error:
               detail = error.read().decode("utf-8")
+              if error.code == 403:
+                  compare_url = f"https://github.com/{repo}/compare/main...{branch}"
+                  print("::warning::Could not create the refresh PR with the workflow token. "
+                        "Enable GitHub Actions PR creation for this repository or configure "
+                        "TRANSPORT3R_BOT_TOKEN with contents and pull-request write access.")
+                  print(f"Refresh branch is ready: {compare_url}")
+                  raise SystemExit(0)
               raise RuntimeError(f"Could not create refresh PR: {detail}") from error
           print(f"Opened refresh pull request: {pull['html_url']}")
           PY
