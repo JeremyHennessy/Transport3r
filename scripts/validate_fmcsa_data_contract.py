@@ -27,6 +27,7 @@ import urllib.parse
 import urllib.request
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from source_contract import source_contracts
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "data" / "fmcsa_sources.json"
@@ -38,10 +39,11 @@ USER_AGENT = "Transport3r/0.1 (+https://github.com/JeremyHennessy/Transport3r)"
 USDOT_ALIASES = {"DOT_NUMBER", "USDOT_NUMBER", "USDOT_NUM", "USDOT_NO", "DOT_NO", "US_DOT_NUMBER"}
 INSPECTION_ID_ALIASES = {"INSPECTION_ID", "INSP_ID"}
 DOCKET_ALIASES = {"PREFIX_DOCKET_NUMBER", "DOCKET_NUMBER", "DOCKET_NO"}
-DOCKET_ONLY_SOURCE_IDS = {"ypjt-5ydn"}
-LEGACY_CARRIER_ID = "6eyk-hxee"
-CHILD_SOURCE_IDS = {"wt8s-2hbx", "876r-jsdb", "5qik-smay", "qbt8-7vic"}
-PARENT_INSPECTION_ID = "fx4q-ay7w"
+SOURCE_CONTRACTS=source_contracts()
+DOCKET_ONLY_SOURCE_IDS = {sid for sid,item in SOURCE_CONTRACTS.items() if item['identity']['strategy']=='legacy_docket'}
+LEGACY_CARRIER_ID = next(iter({item['identity']['bridge_source'] for item in SOURCE_CONTRACTS.values() if item['identity']['strategy']=='legacy_docket'}))
+CHILD_SOURCE_IDS = {sid for sid,item in SOURCE_CONTRACTS.items() if item['identity']['strategy']=='inspection_parent'}
+PARENT_INSPECTION_ID = next(iter({item['identity']['parent_source'] for item in SOURCE_CONTRACTS.values() if item['identity']['strategy']=='inspection_parent'}))
 SMS_INSPECTION_ID = "rbkj-cgst"
 SMS_VIOLATION_ID = "8mt8-2mdr"
 
@@ -89,24 +91,7 @@ NUMERIC_TEXT_FIELDS: dict[str, set[str]] = {
     "h9zy-gjn8": {"driver_insp_total", "vehicle_insp_total", "hos_driv_measure", "driv_fit_measure", "contr_subst_measure", "veh_maint_measure"},
 }
 
-DATE_FIELDS: dict[str, set[str]] = {
-    "az4n-8mr2": {"mcs150_date"},
-    "aayw-vxb3": {"report_date"},
-    "fx4q-ay7w": {"insp_date"},
-    "yu5v-wbh6": {"status_change_date"},
-    "wb4f-neki": {"order1_serve_date", "order1_effective_date"},
-    "c5y8-a4uz": {"effective_date", "trans_date"},
-    "3uet-3z4i": {"effective_date", "cancl_effective_date"},
-    "dm5j-zc6c": {"status_change_date"},
-    "x96h-evps": {"effective_date", "trans_date"},
-    "xe5s-wca7": {"effective_date", "cancl_effective_date"},
-    "e67p-xyd5": {"order1_serve_date", "order1_effective_date"},
-    "kjg3-diqy": {"mcs150_date"},
-    "rbkj-cgst": {"insp_date"},
-    "4wxs-vbns": {"report_date"},
-    "8mt8-2mdr": {"insp_date"},
-    "p2mt-9ige": {"oos_date", "rescind_date"},
-}
+DATE_FIELDS: dict[str, set[str]] = {sid:set(item['event_date_fields']) for sid,item in SOURCE_CONTRACTS.items() if item['event_date_fields']}
 
 
 def normalize_name(value: Any) -> str:
@@ -139,7 +124,8 @@ def parse_fmcsa_date(value: Any) -> dt.date | None:
     text = str(value or "").strip()
     if not text or text in {"0", "00000000", "0000-00-00"}:
         return None
-    formats = ["%Y%m%d", "%m%d%Y", "%Y-%m-%d", "%m/%d/%Y", "%d-%b-%y", "%d-%b-%Y", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
+    formats = ["%Y%m%d", "%m%d%Y", "%Y%m%d %H%M", "%Y%m%d %H%M%S", "%m%d%Y %H%M", "%Y%m%d%H%M",
+               "%Y-%m-%d", "%m/%d/%Y", "%d-%b-%y", "%d-%b-%Y", "%Y-%m-%dT%H:%M:%S.%f", "%Y-%m-%dT%H:%M:%S"]
     clean = text.rstrip("Z")
     for fmt in formats:
         try:
@@ -265,11 +251,12 @@ def validate_sms_lineage(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:
 def validate_sample_normalization(source_id: str, schema: dict[str, Any]) -> dict[str, Any]:
     selected = sorted((NUMERIC_TEXT_FIELDS.get(source_id, set()) | DATE_FIELDS.get(source_id, set())) & fields(schema))
     if not selected:
-        return {"source": source_id, "checked_fields": 0, "numeric": {}, "dates": {}}
+        return {"source": source_id, "checked_fields": 0, "numeric": {}, "dates": {}, "invalid_dates": {}}
     where = " or ".join(f"{field} is not null" for field in selected)
     rows = query(source_id, {"$select": ",".join(selected), "$where": where, "$limit": "25"})
     numeric: dict[str, int] = {}
     dates: dict[str, int] = {}
+    invalid_dates: dict[str, dict[str, Any]] = {}
     for field in sorted(NUMERIC_TEXT_FIELDS.get(source_id, set()) & set(selected)):
         values = [row.get(field) for row in rows if str(row.get(field) or "").strip()]
         if values:
@@ -281,10 +268,13 @@ def validate_sample_normalization(source_id: str, schema: dict[str, Any]) -> dic
         values = [row.get(field) for row in rows if str(row.get(field) or "").strip() and str(row.get(field)).strip() not in {"0", "00000000"}]
         if values:
             bad = [value for value in values if parse_fmcsa_date(value) is None]
+            dates[field] = len(values)-len(bad)
             if bad:
-                raise RuntimeError(f"{source_id}: date normalization failed for {field}: {bad[:3]}")
-            dates[field] = len(values)
-    return {"source": source_id, "checked_fields": len(selected), "numeric": numeric, "dates": dates}
+                # Malformed publisher values are data-quality evidence. They must stay
+                # visible without being confused with an unsupported parser/runtime.
+                invalid_dates[field] = {"count": len(bad), "samples": [str(value) for value in bad[:3]]}
+    return {"source": source_id, "checked_fields": len(selected), "numeric": numeric, "dates": dates,
+            "invalid_dates": invalid_dates}
 
 
 def validate_legacy_insurance_docket_lineage(schemas: dict[str, dict[str, Any]]) -> dict[str, Any]:

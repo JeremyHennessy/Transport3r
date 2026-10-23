@@ -68,6 +68,21 @@ export const VIOLATION_FIELD_ALIASES = {
 
 export type EvidenceKey = keyof typeof SOURCE_IDS;
 export type CarrierEvidenceMode = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence' | 'inspection';
+export type CompletenessReceipt = {
+  backend: 'verified_nationwide_warehouse' | 'live_public_sources';
+  status: 'VERIFIED' | 'LIVE_SOURCE_WINDOW' | 'PARTIAL' | 'UNAVAILABLE';
+  cutId: string | null;
+  cutAvailableAt: string | null;
+  warehouseSha256: string | null;
+  identityContract: string | null;
+  sourcesExpected: number;
+  sourcesReturned: number;
+  carrierRows: number;
+  unresolvedRowsExcluded: boolean;
+  mappingTotals: { resolved: number; identifiedOnly: number; unresolved: number } | null;
+  smsReleaseBinding: 'VERIFIED' | 'UNVERIFIED';
+  historicalFeatureValidity: 'CERTIFIED' | 'NOT_CERTIFIED';
+};
 
 export type CarrierEvidence = {
   dotNumber: string;
@@ -80,6 +95,7 @@ export type CarrierEvidence = {
   slices: Partial<Record<EvidenceKey, DataSlice>>;
   errors: Partial<Record<EvidenceKey, string>>;
   census?: DataRow;
+  completenessReceipt?: CompletenessReceipt;
 };
 
 const CHILD_KEYS = new Set<EvidenceKey>(['units', 'violations', 'specialStudies', 'citations']);

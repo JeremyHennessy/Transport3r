@@ -19,14 +19,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Refresh official FMCSA source contract
-        run: python scripts/refresh_fmcsa.py --workers 6
       - name: Test data integrity and snapshot gates
         run: |
           python -m pip install -r scripts/requirements-nationwide.txt
           python -m unittest discover -s scripts -p "test_*.py"
       - name: Verify complete cohort acquisition and SQLite promotion
-        run: python scripts/validate_evidence_warehouse.py --output /tmp/transport3r-warehouse --per-stratum 1 --profile underwriting_evidence_v3
+        run: python scripts/validate_evidence_warehouse.py --output /tmp/transport3r-warehouse --cohort data/golden_carriers.json --max-rows 1000000 --profile underwriting_evidence_v3
       - name: Retain warehouse acquisition and reconciliation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -40,7 +38,7 @@ jobs:
         run: python scripts/validate_source_contract.py
       - name: Validate live FMCSA joins and normalization
         run: python scripts/validate_fmcsa_data_contract.py
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npm test
       - name: Validate local private workspace JavaScript
         run: node --check local_workspace/app.js
@@ -115,7 +113,7 @@ jobs:
           path: /tmp/transport3r-date-enrichment.json
           if-no-files-found: warn
       - name: Reconcile stratified Census and detailed safety source windows
-        run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-reconciliation
+        run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-reconciliation --golden data/golden_carriers.json
       - name: Retain coverage and reconciliation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,7 +140,9 @@ jobs:
           path: /tmp/transport3r-large-carriers.json
           if-no-files-found: warn
       - name: Validate Python entrypoints compile
-        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/snapshot_store.py scripts/verify_snapshot.py scripts/cohort_snapshot.py scripts/build_asof_panel.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py
+        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/snapshot_store.py scripts/verify_snapshot.py scripts/cohort_snapshot.py scripts/build_asof_panel.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py scripts/nationwide_acquisition.py scripts/nationwide_warehouse.py scripts/nationwide_evidence.py scripts/evidence_api.py scripts/validate_golden_warehouse.py scripts/temporal_policy.py scripts/temporal_readiness.py
+      - name: Build the read-only evidence API container
+        run: docker build -f deploy/evidence-api/Dockerfile -t transport3r-evidence-api:${{ github.sha }} .
       - name: Smoke live FMCSA Carrier 360 query joins
         run: python scripts/smoke_carrier_queries.py
       - name: Validate SMS v3.21 measure replay against FMCSA

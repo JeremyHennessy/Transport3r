@@ -4,6 +4,7 @@ import collections
 import datetime as dt
 import json
 import pathlib
+import re
 
 from cohort_snapshot import acquire, hash_file, load_verified, source_dot
 from evidence_warehouse import carrier_evidence, connect, promote, verify
@@ -23,33 +24,39 @@ def acquisition_failures(manifest):
             for source in manifest.get('datasets',[]) if source.get('status')=='FAILED']
 
 
-def retryable_source_change(manifest):
+def retryable_acquisition(manifest):
     failures=acquisition_failures(manifest)
-    return bool(failures) and all(failure['error'].startswith('SourceChangedError:') for failure in failures)
+    dependencies=('ValueError: Verified inspection parent acquisition unavailable',
+                  'ValueError: Verified legacy bridge unavailable')
+    def retryable(error):
+        if error.startswith(('SourceChangedError:','URLError:','TimeoutError:','ConnectionError:',
+                             'RemoteDisconnected:','IncompleteRead:','JSONDecodeError:')):return True
+        return error.startswith('HTTPError:') and re.search(r'\b(?:403|429|5[0-9]{2})\b',error) is not None
+    roots=[failure['error'] for failure in failures if not failure['error'].startswith(dependencies)]
+    return bool(roots) and all(retryable(error) for error in roots) and all(retryable(failure['error']) or failure['error'].startswith(dependencies) for failure in failures)
 
 
-def acquire_stable_cut(raw_root, per_stratum, profile):
+def acquire_stable_cut(raw_root, per_stratum, profile, cohort_path=None, max_rows=100000):
     attempts=[]
-    cohort_path=None
     for attempt in range(1,MAX_STABILITY_ATTEMPTS+1):
-        cut,manifest=acquire(raw_root,per_stratum=per_stratum,cohort_path=cohort_path,profile=profile)
+        cut,manifest=acquire(raw_root,per_stratum=per_stratum,cohort_path=cohort_path,profile=profile,max_rows=max_rows)
         failures=acquisition_failures(manifest)
         attempts.append({'attempt':attempt,'snapshot_id':manifest.get('snapshot_id'),'status':manifest.get('status'),
                          'cohort_reused':cohort_path is not None,'failures':failures})
-        if manifest.get('status')=='COMPLETE' or attempt==MAX_STABILITY_ATTEMPTS or not retryable_source_change(manifest):
+        if manifest.get('status')=='COMPLETE' or attempt==MAX_STABILITY_ATTEMPTS or not retryable_acquisition(manifest):
             return cut,manifest,attempts
         preserved_cohort=pathlib.Path(cut)/'cohort.json'
         cohort_path=preserved_cohort if preserved_cohort.is_file() else None
     raise AssertionError('Bounded acquisition loop did not return')
 
 
-def validate(output, cut=None, per_stratum=1, profile='underwriting_evidence_v2'):
+def validate(output, cut=None, per_stratum=1, profile='underwriting_evidence_v2', cohort=None, max_rows=100000):
     output = pathlib.Path(output)
     output.mkdir(parents=True,exist_ok=False)
     report = {'status':'RUNNING','started_at':now()}
     try:
         if cut is None:
-            cut, manifest, attempts = acquire_stable_cut(output/'raw',per_stratum,profile)
+            cut, manifest, attempts = acquire_stable_cut(output/'raw',per_stratum,profile,cohort,max_rows)
             report['acquisition_attempts']=attempts
             if manifest['status'] != 'COMPLETE':
                 raise ValueError('Live acquisition did not complete every required source')
@@ -112,7 +119,9 @@ if __name__ == '__main__':
     parser.add_argument('--cut')
     parser.add_argument('--profile',default='underwriting_evidence_v2',choices=['underwriting_evidence_v1','underwriting_evidence_v2','underwriting_evidence_v3'])
     parser.add_argument('--per-stratum',type=int,default=1)
+    parser.add_argument('--cohort',help='Preserved cohort.json or data/golden_carriers.json')
+    parser.add_argument('--max-rows',type=int,default=100000,help='Per-source fail-closed row ceiling')
     args = parser.parse_args()
-    result = validate(args.output,args.cut,args.per_stratum,args.profile)
+    result = validate(args.output,args.cut,args.per_stratum,args.profile,args.cohort,args.max_rows)
     print(json.dumps(result,indent=2))
     raise SystemExit(0 if result['status']=='PASS' else 1)

@@ -3,7 +3,11 @@ import {build} from 'esbuild';
 import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {queryLiveSource} from './live-source-retry.mjs';
-const out=process.argv[2]??'outputs/reconciliation'; await mkdir(out,{recursive:true});
+const args=process.argv.slice(2),goldenFlag=args.indexOf('--golden');
+const out=(goldenFlag===0?undefined:args[0])??'outputs/reconciliation';
+const goldenPath=goldenFlag>=0?args[goldenFlag+1]:null;
+if(goldenFlag>=0&&!goldenPath)throw new Error('--golden requires data/golden_carriers.json');
+await mkdir(out,{recursive:true});
 const compiled=await build({stdin:{contents:"export * from './src/datahub'; export * from './src/evidenceCoverage'; export {carrierFromRow} from './src/CarrierRouteApp';",resolveDir:process.cwd(),loader:'tsx'},bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.BASE_URL':'"/Transport3r/"'}});
 const app=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 const acquisitionAttempts=[];
@@ -23,18 +27,28 @@ const metadata=async()=>Object.fromEntries(await Promise.all(sourceIds.map(async
 const before=await metadata();
 const strata=[['large_active',"status_code='A' AND power_units::number>=1000"],['inactive',"status_code='I'"],['passenger',"status_code='A' AND bus_units::number>0"],['small_active',"status_code='A' AND power_units::number between 1 and 5"],['intrastate',"status_code='A' AND carrier_operation='C'"]];
 const cohort=new Map(), selections=[];
-for(const [name,where] of strata){
- for(const direction of ['ASC','DESC']){
- const params=new URLSearchParams({'$where':where,'$order':`dot_number ${direction}`,'$limit':'10'});
- const url=`https://data.transportation.gov/resource/az4n-8mr2.json?${params}`;
- const rows=await fetchRecorded(url);if(!Array.isArray(rows)||!rows.length)throw new Error(`No cohort rows for ${name}`);
- selections.push({stratum:name,direction,url,rows});
- for(const row of rows){const dot=String(row.dot_number);const prior=cohort.get(dot);cohort.set(dot,{row,strata:[...(prior?.strata??[]),name]});}
+let detailed,fixed=['2855794','80806','54283','264184','265752','3938496'];
+if(goldenPath){
+ const golden=JSON.parse(await readFile(goldenPath,'utf8'));
+ const dots=golden.census_carriers??[];detailed=golden.detailed_carriers??[];fixed=golden.prior_regression_carriers??[];
+ if(golden.version!==1||dots.length!==97||detailed.length!==25||new Set(dots).size!==dots.length||detailed.some(dot=>!dots.includes(dot)))throw new Error('Invalid golden carrier contract');
+ for(let start=0;start<dots.length;start+=6){
+  await Promise.all(dots.slice(start,start+6).map(async dot=>{const acquired=await queryLiveSource(()=>app.queryByDot(registry,'az4n-8mr2',dot,{limit:2}));acquisitionAttempts.push({url:`golden:census:${dot}`,attempts:acquired.attempts});const {slice}=acquired;if(slice.rows.length!==1||String(slice.rows[0].dot_number)!==dot)throw new Error(`Ambiguous Census ${dot}`);cohort.set(dot,{row:slice.rows[0],strata:fixed.includes(dot)?['prior_regression','frozen_golden']:['frozen_golden']});}));
  }
+ selections.push({stratum:'frozen_golden',source:goldenPath,sourceRun:golden.source_run,sourceHead:golden.source_head,dots});
+}else{
+ for(const [name,where] of strata){
+  for(const direction of ['ASC','DESC']){
+   const params=new URLSearchParams({'$where':where,'$order':`dot_number ${direction}`,'$limit':'10'});
+   const url=`https://data.transportation.gov/resource/az4n-8mr2.json?${params}`;
+   const rows=await fetchRecorded(url);if(!Array.isArray(rows)||!rows.length)throw new Error(`No cohort rows for ${name}`);
+   selections.push({stratum:name,direction,url,rows});
+   for(const row of rows){const dot=String(row.dot_number);const prior=cohort.get(dot);cohort.set(dot,{row,strata:[...(prior?.strata??[]),name]});}
+  }
+ }
+ for(const dot of fixed){if(!cohort.has(dot)){const {slice}=await queryLiveSource(()=>app.queryByDot(registry,'az4n-8mr2',dot,{limit:2}));if(slice.rows.length!==1)throw new Error(`Ambiguous Census ${dot}`);cohort.set(dot,{row:slice.rows[0],strata:['prior_regression']});}}
+ detailed=[...new Set([...fixed,...selections.flatMap(selection=>selection.rows.slice(0,2).map(row=>String(row.dot_number)))])];
 }
-const fixed=['2855794','80806','54283','264184','265752','3938496'];
-for(const dot of fixed){if(!cohort.has(dot)){const {slice}=await queryLiveSource(()=>app.queryByDot(registry,'az4n-8mr2',dot,{limit:2}));if(slice.rows.length!==1)throw new Error(`Ambiguous Census ${dot}`);cohort.set(dot,{row:slice.rows[0],strata:['prior_regression']});}}
-const detailed=[...new Set([...fixed,...selections.flatMap(selection=>selection.rows.slice(0,2).map(row=>String(row.dot_number)))])];
 const carriers=[],errors=[];
 for(const [dot,entry] of cohort){
  const carrier=app.carrierFromRow(entry.row);
@@ -70,5 +84,5 @@ const after=await metadata();
 await writeFile(`${out}/acquisition-attempts.json`,JSON.stringify(acquisitionAttempts,null,2));
 const changedSources=sourceIds.filter(id=>JSON.stringify(before[id])!==JSON.stringify(after[id]));
 const payload=JSON.stringify({selections,carriers},null,2);await writeFile(`${out}/observations.json`,payload);
-const summary={version:1,checkedAt:new Date().toISOString(),status:errors.length||carriers.some(c=>c.discrepancies.length)?'FAIL':changedSources.length?'SOURCE_CHANGED':'PASS',censusCarriers:carriers.length,detailedCarriers:detailed.length,strata:selections.map(s=>({name:s.stratum,rows:s.rows.length})),errors,discrepancies:carriers.filter(c=>c.discrepancies.length).map(c=>({dot:c.dot,issues:c.discrepancies})),before,after,changedSources,observationsSha256:createHash('sha256').update(payload).digest('hex'),powerBi:'NOT_EXECUTED: imported Power BI source data and matching refresh cuts were not supplied.',limitations:'Deterministic engineering sample, not population certification. Stable metadata around acquisition is not a transactional or monthly historical snapshot. Full counts and bounded rows queried separately; acquisition races remain possible.'};
+const summary={version:1,checkedAt:new Date().toISOString(),selection:goldenPath?'FROZEN_GOLDEN_V1':'DYNAMIC_STRATA',status:errors.length||carriers.some(c=>c.discrepancies.length)?'FAIL':changedSources.length?'SOURCE_CHANGED':'PASS',censusCarriers:carriers.length,detailedCarriers:detailed.length,strata:selections.map(s=>({name:s.stratum,rows:s.rows?.length??s.dots?.length??0})),errors,discrepancies:carriers.filter(c=>c.discrepancies.length).map(c=>({dot:c.dot,issues:c.discrepancies})),before,after,changedSources,observationsSha256:createHash('sha256').update(payload).digest('hex'),powerBi:'NOT_EXECUTED: imported Power BI source data and matching refresh cuts were not supplied.',limitations:'Frozen engineering regression set, not population certification. Stable metadata around acquisition is not a transactional or monthly historical snapshot. Full counts and bounded rows queried separately; acquisition races remain possible.'};
 await writeFile(`${out}/summary.json`,JSON.stringify(summary,null,2));console.log(JSON.stringify(summary,null,2));if(summary.status!=='PASS')process.exitCode=1;

@@ -10,6 +10,7 @@ from snapshot_store import create_cut, fetch_json, now, write_once, digest
 from verify_snapshot import timestamp
 from inspection_children import CHILDREN, PARENT, parent_index, child_dot, collect_children, verify_children
 from docket_identity import BRIDGE, DOCKET_ONLY, docket_index, docket_where, docket_dot, capture_bridge, verify_bridge, LEGACY_DOT, IDENTITY_CONTRACT, canonical_dot
+from source_contract import source_contracts
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BASE = 'https://data.transportation.gov'
@@ -19,11 +20,11 @@ PROFILES = {
     'underwriting_evidence_v1': SOURCES + ['kjg3-diqy', 'rbkj-cgst', '8mt8-2mdr', '4wxs-vbns',
                                          'inys-ebih', 'c5y8-a4uz', 'p2mt-9ige'],
 }
-DOT_FIELDS = {'inys-ebih': 'usdot_number', 'c5y8-a4uz': 'usdot_number'}
+SOURCE_CONTRACTS = source_contracts()
+DOT_FIELDS = {sid:item['identity']['field'] for sid,item in SOURCE_CONTRACTS.items()
+              if item['identity']['strategy'] in ('direct_usdot','direct_usdot_legacy')}
 PROFILES['underwriting_evidence_v2'] = PROFILES['underwriting_evidence_v1'] + list(CHILDREN)
-MOTUS_ADDITIONS=['yu5v-wbh6','6snj-ed7q','3uet-3z4i','wb4f-neki','dm5j-zc6c','mhr5-hjyc','nakq-58th','xe5s-wca7','x96h-evps','e67p-xyd5']
-DOT_FIELDS.update({sid:'usdot_number' for sid in MOTUS_ADDITIONS})
-PROFILES['underwriting_evidence_v3']=PROFILES['underwriting_evidence_v2']+MOTUS_ADDITIONS+[BRIDGE,'qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp',DOCKET_ONLY]
+PROFILES['underwriting_evidence_v3']=list(SOURCE_CONTRACTS)
 STABILITY_FIELDS=('rows_updated_at','schema_sha256','table_id','row_count')
 
 
@@ -104,7 +105,7 @@ def hash_file(path):
             h.update(block)
     return h.hexdigest()
 
-def collect(sid, dots, folder, page_size=1000, max_rows=100000, dockets=None, bridge_proof=None):
+def collect(sid, dots, folder, page_size=5000, max_rows=100000, dockets=None, bridge_proof=None):
     if not dots or any(not re.fullmatch(r'[1-9][0-9]*', d) for d in dots):
         raise ValueError('Explicit positive USDOT identifiers required')
     if not 1 <= page_size <= 10000 or not 1 <= max_rows <= 1000000:
@@ -154,6 +155,17 @@ def acquire(root, per_stratum=10, cohort_path=None, profile='baseline', max_rows
         manifest.update({'source_profile': profile, 'max_rows_per_source': max_rows})
     try:
         cohort = json.loads(pathlib.Path(cohort_path).read_text(encoding='utf-8')) if cohort_path else select_cohort(per_stratum)
+        if cohort_path and 'detailed_carriers' in cohort:
+            if cohort.get('version') != 1 or not cohort.get('captured_at'):
+                raise ValueError('Unsupported golden carrier contract')
+            cohort = {
+                'selected_at': cohort['captured_at'],
+                'selection': 'FROZEN_GOLDEN_DETAILED_CARRIERS',
+                'representative': bool(cohort.get('representative', False)),
+                'outcome_selected': False,
+                'golden_source_head': cohort.get('source_head'),
+                'dots': cohort['detailed_carriers'],
+            }
         dots = cohort['dots']
         if len(dots) != len(set(dots)) or not 1 <= len(dots) <= 140 or any(not re.fullmatch(r'[1-9][0-9]*', d) for d in dots):
             raise ValueError('Cohort requires 1..140 unique positive USDOT strings')

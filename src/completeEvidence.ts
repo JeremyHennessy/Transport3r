@@ -1,10 +1,14 @@
 import {loadSchemaRegistry,readValue,type DataRow,type DataSlice,type SchemaRegistry} from './datahub';
-import {SOURCE_IDS,type CarrierEvidence,type EvidenceKey} from './carrierEvidence';
+import {SOURCE_IDS,type CarrierEvidence,type CompletenessReceipt,type EvidenceKey} from './carrierEvidence';
+import sourceContract from '../data/fmcsa_source_contract.json';
 
-export type CompleteProgress={finished:number;total:number;rows:number;source:string;status:'loading'|'complete'|'errors';errors:number};
-const legacy=new Set(['legacyCarrier','legacyActivePendingInsurance','legacyAuthHistory','legacyBoc3','legacyInsuranceHistory','legacyRejected','legacyRevocation']);
-const children=new Set(['units','violations','citations','specialStudies']);
+export type CompleteProgress={finished:number;total:number;rows:number;source:string;status:'loading'|'complete'|'errors';errors:number;backend?:CompletenessReceipt['backend'];cutId?:string|null;smsReleaseBinding?:CompletenessReceipt['smsReleaseBinding']};
+type SourceContract={identity:{strategy:string;field:string}};
+const contracts=sourceContract.sources as Record<string,SourceContract>;
+const legacy=new Set((Object.keys(SOURCE_IDS) as EvidenceKey[]).filter(key=>contracts[SOURCE_IDS[key]]?.identity.strategy==='direct_usdot_legacy'));
+const children=new Set((Object.keys(SOURCE_IDS) as EvidenceKey[]).filter(key=>contracts[SOURCE_IDS[key]]?.identity.strategy==='inspection_parent'));
 const base='https://data.transportation.gov';
+const warehouseBase=String(import.meta.env?.VITE_EVIDENCE_API_URL??'').trim().replace(/\/$/,'');
 const positive=(value:unknown)=>typeof value==='string'&&/^[0-9]+$/.test(value)&&!/^0+$/.test(value)?value.replace(/^0+/,''):null;
 const quote=(value:string)=>"'"+value.replaceAll("'","''")+"'";
 const chunks=<T,>(values:T[],size:number)=>Array.from({length:Math.ceil(values.length/size)},(_,i)=>values.slice(i*size,(i+1)*size));
@@ -43,7 +47,7 @@ export async function completeQuery(source:string,wheres:string[],valid:(row:Dat
  const after=publication(await request(`${base}/api/views/${source}.json`,signal),source);if(before!==after)throw Error('Source changed during complete acquisition; retry required');
  const rows=recentDailyRows(source,batches.flat());return {sourceId:source,sourcePublication:after,rows,total:rows.length,truncated:false,scope:'carrier',acquiredAt:new Date().toISOString()};
 }
-function whereDot(registry:SchemaRegistry,key:EvidenceKey,dot:string){const source=registry.sources.find(s=>s.id===SOURCE_IDS[key]);const field=source?.columns.find(c=>['dot_number','usdot_number'].includes(c.field_name??''));if(!field?.field_name)throw Error('Registered USDOT field unavailable');const values=legacy.has(key)?[...new Set([dot,dot.padStart(8,'0')])]:[dot];return `${field.field_name} in (${values.map(value=>field.data_type==='number'?String(Number(value)):quote(value)).join(',')})`;}
+function whereDot(registry:SchemaRegistry,key:EvidenceKey,dot:string){const id=SOURCE_IDS[key],source=registry.sources.find(s=>s.id===id),contract=contracts[id];if(!contract||!['direct_usdot','direct_usdot_legacy'].includes(contract.identity.strategy))throw Error(`No direct USDOT contract for ${id}`);const field=source?.columns.find(c=>c.field_name===contract.identity.field);if(!field?.field_name)throw Error('Registered USDOT field unavailable');const values=legacy.has(key)?[...new Set([dot,dot.padStart(8,'0')])]:[dot];return `${field.field_name} in (${values.map(value=>field.data_type==='number'?String(Number(value)):quote(value)).join(',')})`;}
 
 export async function acquireCompleteCarrier(dot:string,signal:AbortSignal,notify:(p:CompleteProgress)=>void=()=>{}):Promise<CarrierEvidence>{
  if(!/^[1-9][0-9]*$/.test(dot))throw Error('Positive USDOT required');
@@ -76,14 +80,42 @@ export async function acquireCompleteCarrier(dot:string,signal:AbortSignal,notif
  }));
  const census=slices.census?.rows;if(census?.length!==1)errors.census='Carrier Census identity is not unique or unavailable';
  update('',Object.keys(errors).length?'errors':'complete');
- return {dotNumber:dot,mode:'evidence',loadedAt:new Date().toISOString(),registry,slices,errors,census:census?.length===1?census[0]:undefined,completeAll:Object.keys(errors).length===0};
+ const completeAll=Object.keys(errors).length===0;
+ return {dotNumber:dot,mode:'evidence',loadedAt:new Date().toISOString(),registry,slices,errors,census:census?.length===1?census[0]:undefined,completeAll,
+  completenessReceipt:{backend:'live_public_sources',status:completeAll?'LIVE_SOURCE_WINDOW':'PARTIAL',cutId:null,cutAvailableAt:null,warehouseSha256:null,identityContract:sourceContract.identity_contract??null,sourcesExpected:keys.length,sourcesReturned:Object.keys(slices).length,carrierRows:[...counts.values()].reduce((a,b)=>a+b,0),unresolvedRowsExcluded:false,mappingTotals:null,smsReleaseBinding:'UNVERIFIED',historicalFeatureValidity:'NOT_CERTIFIED'}};
+}
+
+type WarehouseSource={source_id:string;carrier_rows:number;status:string;scope:string;source_available_at:string;source_rows_updated_at:number;source_sha256:string;rows:DataRow[]};
+type WarehousePayload={dot_number:string;cut_id:string;cut_available_at:string;identity_contract:string;source_count:number;carrier_rows:number;warehouse_sha256:string;sources:WarehouseSource[];completeness_receipt:{status:string;sources_expected:number;sources_returned:number;unresolved_rows_excluded_from_carrier_assignment:boolean;mapping_totals:{resolved:number;identified_only:number;unresolved:number};sms_release_binding:string;historical_feature_validity:string}};
+export async function acquireWarehouseCarrier(dot:string,signal:AbortSignal,notify:(p:CompleteProgress)=>void=()=>{},baseOverride?:string):Promise<CarrierEvidence>{
+ const serviceBase=(baseOverride??warehouseBase).replace(/\/$/,'');if(!serviceBase)throw Error('Verified evidence API is not configured');
+ if(!/^[1-9][0-9]*$/.test(dot))throw Error('Positive USDOT required');
+ notify({finished:0,total:36,rows:0,source:'warehouse',status:'loading',errors:0,backend:'verified_nationwide_warehouse'});
+ const response=await fetch(`${serviceBase}/v1/carriers/${dot}/evidence`,{signal:AbortSignal.any([signal,AbortSignal.timeout(120000)]),headers:{Accept:'application/json'}});
+ if(!response.ok)throw Error(`Verified evidence API HTTP ${response.status}`);
+ const payload=await response.json() as WarehousePayload;
+ if(payload.dot_number!==dot||payload.identity_contract!==sourceContract.identity_contract||payload.source_count!==36||!Array.isArray(payload.sources)||payload.completeness_receipt?.status!=='VERIFIED'||payload.completeness_receipt.sources_expected!==36||payload.completeness_receipt.unresolved_rows_excluded_from_carrier_assignment!==true)throw Error('Verified evidence receipt is invalid');
+ if(!payload.cut_id||!/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/.test(payload.cut_available_at)||Number.isNaN(Date.parse(payload.cut_available_at))||!/^[0-9a-f]{64}$/.test(payload.warehouse_sha256))throw Error('Verified warehouse lineage is invalid');
+ const registry=await loadSchemaRegistry(),reverse=new Map<string,EvidenceKey>(Object.entries(SOURCE_IDS).map(([key,id])=>[id,key as EvidenceKey]));
+ const slices:CarrierEvidence['slices']={},errors:CarrierEvidence['errors']={};let carrierRows=0;
+ for(const source of payload.sources){
+  const key=reverse.get(source.source_id),available=Date.parse(source.source_available_at);if(!key||!Number.isSafeInteger(source.carrier_rows)||source.carrier_rows<0||!Array.isArray(source.rows)||source.rows.length!==source.carrier_rows||!/^[0-9a-f]{64}$/.test(source.source_sha256)||!Number.isSafeInteger(source.source_rows_updated_at)||Number.isNaN(available)||source.scope!=='ALL_RESOLVED_ROWS_FOR_USDOT_IN_VERIFIED_NATIONWIDE_CUT'||source.status!==(source.carrier_rows?'ROWS_RETURNED':'NO_ROWS_RETURNED'))throw Error(`Verified source payload is invalid: ${source.source_id}`);
+  slices[key]={sourceId:source.source_id,sourcePublication:JSON.stringify([payload.cut_id,source.source_sha256,source.source_rows_updated_at]),rows:recentDailyRows(source.source_id,source.rows),total:source.carrier_rows,truncated:false,scope:'carrier',acquiredAt:source.source_available_at};
+  carrierRows+=source.carrier_rows;
+ }
+ if(Object.keys(slices).length!==36||payload.completeness_receipt.sources_returned!==36||carrierRows!==payload.carrier_rows)throw Error('Verified evidence source coverage or carrier total is inconsistent');
+ const census=slices.census?.rows;if(census?.length!==1)throw Error('Verified Census identity is not unique');
+ const totals=payload.completeness_receipt.mapping_totals;if(!totals||![totals.resolved,totals.identified_only,totals.unresolved].every(value=>Number.isSafeInteger(value)&&value>=0))throw Error('Verified mapping totals are invalid');
+ const receipt:CompletenessReceipt={backend:'verified_nationwide_warehouse',status:'VERIFIED',cutId:payload.cut_id,cutAvailableAt:payload.cut_available_at,warehouseSha256:payload.warehouse_sha256,identityContract:payload.identity_contract,sourcesExpected:payload.completeness_receipt.sources_expected,sourcesReturned:payload.completeness_receipt.sources_returned,carrierRows:payload.carrier_rows,unresolvedRowsExcluded:payload.completeness_receipt.unresolved_rows_excluded_from_carrier_assignment,mappingTotals:{resolved:totals.resolved,identifiedOnly:totals.identified_only,unresolved:totals.unresolved},smsReleaseBinding:payload.completeness_receipt.sms_release_binding==='VERIFIED'?'VERIFIED':'UNVERIFIED',historicalFeatureValidity:payload.completeness_receipt.historical_feature_validity==='CERTIFIED'?'CERTIFIED':'NOT_CERTIFIED'};
+ notify({finished:36,total:36,rows:payload.carrier_rows,source:'warehouse',status:'complete',errors:0,backend:receipt.backend,cutId:receipt.cutId,smsReleaseBinding:receipt.smsReleaseBinding});
+ return {dotNumber:dot,mode:'evidence',loadedAt:new Date().toISOString(),registry,slices,errors,census:census[0],completeAll:true,completenessReceipt:receipt};
 }
 
 type Entry={promise:Promise<CarrierEvidence>;controller:AbortController;progress?:CompleteProgress;listeners:Set<(p:CompleteProgress)=>void>};
 const cache=new Map<string,Entry>();
 export function completeCarrier(dot:string,notify:(p:CompleteProgress)=>void){
  let entry=cache.get(dot);
- if(!entry){while(cache.size>=2){const oldest=cache.keys().next().value!;cache.get(oldest)?.controller.abort();cache.delete(oldest);}const controller=new AbortController();entry={controller,listeners:new Set(),promise:Promise.resolve(null as unknown as CarrierEvidence)};const current=entry;cache.set(dot,current);current.promise=acquireCompleteCarrier(dot,controller.signal,p=>{current.progress=p;for(const listener of current.listeners)listener(p);}).catch(error=>{if(cache.get(dot)===current)cache.delete(dot);throw error;});}
+ if(!entry){while(cache.size>=2){const oldest=cache.keys().next().value!;cache.get(oldest)?.controller.abort();cache.delete(oldest);}const controller=new AbortController();entry={controller,listeners:new Set(),promise:Promise.resolve(null as unknown as CarrierEvidence)};const current=entry;cache.set(dot,current);const notify=(p:CompleteProgress)=>{current.progress=p;for(const listener of current.listeners)listener(p);};current.promise=(warehouseBase?acquireWarehouseCarrier(dot,controller.signal,notify):acquireCompleteCarrier(dot,controller.signal,notify)).catch(error=>{if(cache.get(dot)===current)cache.delete(dot);throw error;});}
  entry.listeners.add(notify);if(entry.progress)notify(entry.progress);return {promise:entry.promise,unsubscribe:()=>entry!.listeners.delete(notify)};
 }
 export function retryCompleteCarrier(dot:string){cache.get(dot)?.controller.abort();cache.delete(dot);}

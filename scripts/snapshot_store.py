@@ -1,12 +1,16 @@
 """Append-only acquisition cuts. A current download is never a historical reconstruction."""
 from __future__ import annotations
 import csv
+import gzip
 import datetime as dt
 import hashlib
 import json
 import os
 import pathlib
 import re
+import time
+import http.client
+import urllib.error
 import urllib.request
 import uuid
 from typing import Any
@@ -25,10 +29,20 @@ def write_once(path: pathlib.Path, value: Any):
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
 
-def fetch_json(url):
+def fetch_json(url,attempts=3):
+    if attempts<1:raise ValueError('At least one JSON acquisition attempt is required')
     request = urllib.request.Request(url, headers={'User-Agent': USER_AGENT, 'Accept': 'application/json'})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        return json.load(response)
+    last=None
+    for attempt in range(attempts):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:return json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code!=429 and error.code<500:raise
+            last=error
+        except (urllib.error.URLError,TimeoutError,ConnectionError,http.client.HTTPException,json.JSONDecodeError) as error:
+            last=error
+        if attempt+1<attempts:time.sleep(0.5*(2**attempt))
+    raise last
 
 def source_state(dataset_id):
     metadata = fetch_json(f'{BASE}/api/views/{dataset_id}.json')
@@ -63,12 +77,13 @@ def create_cut(root: pathlib.Path, date_label=None, snapshot_id=None, clean=Fals
     write_once(output / 'run.json', run)
     return output, run
 
-def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | None):
+def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | None, compression: str | None = None):
     dataset_id = source['id']
     if not re.fullmatch(r'[a-z0-9]{4}-[a-z0-9]{4}', dataset_id):
         raise ValueError('Invalid source ID')
-    target = output_dir / f'{dataset_id}.csv'
-    partial = output_dir / f'{dataset_id}.csv.partial'
+    if compression not in (None,'gzip'):raise ValueError('Unsupported snapshot compression')
+    target = output_dir / f'{dataset_id}.csv{'.gz' if compression=='gzip' else ''}'
+    partial = output_dir / f'{target.name}.partial'
     if target.exists() or partial.exists():
         raise FileExistsError(f'Acquisition already exists for {dataset_id}; use a new cut')
     started = now()
@@ -76,20 +91,24 @@ def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | 
     write_once(output_dir / f'{dataset_id}.metadata-before.json', before)
     url = f'{BASE}/api/views/{dataset_id}/rows.csv?accessType=DOWNLOAD'
     request = urllib.request.Request(url, headers={'User-Agent': USER_AGENT, 'Accept': 'text/csv'})
-    checksum, size = hashlib.sha256(), 0
-    with urllib.request.urlopen(request, timeout=120) as response, partial.open('xb') as handle:
+    source_size = 0
+    with urllib.request.urlopen(request, timeout=120) as response, partial.open('xb') as artifact:
         expected_bytes = response.headers.get('Content-Length')
-        while chunk := getattr(response, 'read1', response.read)(64 * 1024):
-            size += len(chunk)
-            if max_bytes is not None and size > max_bytes:
-                raise ValueError(f'{dataset_id} exceeded --max-bytes={max_bytes}')
-            checksum.update(chunk)
-            handle.write(chunk)
-    if expected_bytes is not None and int(expected_bytes) != size:
+        writer=gzip.GzipFile(filename=target.stem,mode='wb',fileobj=artifact,mtime=0) if compression=='gzip' else artifact
+        try:
+            while chunk := getattr(response, 'read1', response.read)(64 * 1024):
+                source_size += len(chunk)
+                if max_bytes is not None and source_size > max_bytes:
+                    raise ValueError(f'{dataset_id} exceeded --max-bytes={max_bytes}')
+                writer.write(chunk)
+        finally:
+            if writer is not artifact:writer.close()
+    if expected_bytes is not None and int(expected_bytes) != source_size:
         raise ValueError('Incomplete response length; partial file retained')
     columns = [c for c in before['metadata']['columns'] if not c.get('fieldName', '').startswith(':')]
     norm = lambda value: re.sub(r'[^a-z0-9]', '', str(value).lower())
-    with partial.open('r', encoding='utf-8-sig', newline='') as handle:
+    opener=gzip.open if compression=='gzip' else open
+    with opener(partial,'rt', encoding='utf-8-sig', newline='') as handle:
         reader = csv.reader(handle, strict=True)
         header = next(reader, [])
         if len(header) != len(columns) or any(norm(name) not in {norm(column.get('name')), norm(column.get('fieldName'))} for name, column in zip(header, columns)):
@@ -108,12 +127,16 @@ def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | 
         raise ValueError(f'CSV count {row_count} differs from source count {after["row_count"]}')
     if before['rows_updated_at'] is None:
         raise ValueError('Source update watermark unavailable; acquisition cannot be accepted')
+    checksum,size=hashlib.sha256(),0
+    with partial.open('rb') as handle:
+        while chunk:=handle.read(1024*1024):checksum.update(chunk);size+=len(chunk)
     # Atomic, no-replace promotion on the same filesystem, without doubling warehouse storage.
     os.link(partial, target)
     # Keep the transfer name as recovery evidence; both names refer to the validated bytes.
     completed = now()
     result = {'id': dataset_id, 'name': source['name'], 'family': source['family'], 'status': 'COMPLETE',
-              'acquired_started_at': started, 'available_at': completed, 'bytes': size, 'sha256': checksum.hexdigest(),
+              'acquired_started_at': started, 'available_at': completed, 'bytes': size, 'source_bytes': source_size,
+              'compression':compression or 'none','sha256': checksum.hexdigest(),
               'row_count': row_count, 'schema_sha256': after['schema_sha256'], 'rows_updated_at': after['rows_updated_at'],
               'path': target.name, 'source_url': url, 'metadata_before': f'{dataset_id}.metadata-before.json',
               'metadata_after': f'{dataset_id}.metadata-after.json',
@@ -122,7 +145,7 @@ def download(source: dict[str, Any], output_dir: pathlib.Path, max_bytes: int | 
     write_once(output_dir / f'{dataset_id}.result.json', result)
     return result
 
-def acquire(sources, root, *, date_label=None, snapshot_id=None, clean=False, max_bytes=None):
+def acquire(sources, root, *, date_label=None, snapshot_id=None, clean=False, max_bytes=None, compression=None):
     if max_bytes is not None and max_bytes < 1:
         raise ValueError('--max-bytes must be positive')
     if not sources or len({source['id'] for source in sources}) != len(sources):
@@ -133,7 +156,7 @@ def acquire(sources, root, *, date_label=None, snapshot_id=None, clean=False, ma
     results = []
     for source in sources:
         try:
-            result = download(source, output, max_bytes)
+            result = download(source, output, max_bytes, compression)
         except Exception as error:
             result = {'id': source['id'], 'name': source['name'], 'family': source['family'], 'status': 'FAILED',
                       'failed_at': now(), 'error': f'{type(error).__name__}: {error}'}

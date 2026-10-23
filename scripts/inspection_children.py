@@ -4,9 +4,17 @@ import re
 
 from snapshot_store import digest, now, write_once
 from verify_snapshot import timestamp
+from source_contract import source_contracts
+import json,pathlib
 
-PARENT = 'fx4q-ay7w'
-CHILDREN = {'wt8s-2hbx':'text', '876r-jsdb':'number', 'qbt8-7vic':'text', '5qik-smay':'text'}
+CONTRACTS=source_contracts()
+_child_contracts={sid:item['identity'] for sid,item in CONTRACTS.items() if item['identity']['strategy']=='inspection_parent'}
+_parents={(item['parent_source'],item['parent_field']) for item in _child_contracts.values()}
+if len(_parents)!=1:raise ValueError('Inspection parent contract must be unique')
+PARENT,_parent_field=next(iter(_parents))
+_schemas=json.loads((pathlib.Path(__file__).resolve().parents[1]/'public/data/source-schemas.json').read_text(encoding='utf-8'))
+_schema_by_id={source['id']:source for source in _schemas['sources']}
+CHILDREN={sid:next(column['data_type'] for column in _schema_by_id[sid]['columns'] if column['field_name']==identity['field']) for sid,identity in _child_contracts.items()}
 BATCH_SIZE = 250
 
 
@@ -40,7 +48,7 @@ def child_where(sid, ids):
     return 'inspection_id in ('+','.join("'"+key+"'" if CHILDREN[sid]=='text' else key for key in ids)+')'
 
 
-def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page_size=1000):
+def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page_size=5000):
     from cohort_snapshot import query, state, stable, hash_file
     if sid not in CHILDREN or not 1 <= max_rows <= 1000000 or not 1 <= page_size <= 10000:
         raise ValueError('Invalid child acquisition bounds or source')

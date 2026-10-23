@@ -1,4 +1,5 @@
 import { DAILY_DATE_FIELDS, validateEventWindow, type EventWindow } from './eventWindow';
+import sourceContract from '../data/fmcsa_source_contract.json';
 export type DataRow = Record<string, unknown>;
 
 export type SchemaColumn = {
@@ -238,7 +239,7 @@ export async function queryByDot(
   const dotColumn = findColumn(schema, USDOT_ALIASES);
   if (!dotColumn?.field_name) throw new Error(`${sourceId} has no registered USDOT field`);
 
-  const legacyDotSources = new Set(['6eyk-hxee','qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp']);
+  const legacyDotSources = new Set(Object.entries(sourceContract.sources).filter(([,item]) => item.identity.strategy === 'direct_usdot_legacy').map(([id]) => id));
   if (!/^[1-9][0-9]*$/.test(dotNumber)) throw new Error('Positive USDOT required');
   const legacy = legacyDotSources.has(sourceId);
   const values = [...new Set([dotNumber, dotNumber.padStart(8,'0')])];

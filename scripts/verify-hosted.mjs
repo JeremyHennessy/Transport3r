@@ -41,6 +41,7 @@ export async function verifyRelease(pageUrl, expectedSha, get = fetch) {
   const schemas = JSON.parse(bodies.get('data/source-schemas.json')?.toString() ?? '{}');
   if (health.sources?.length !== 36 || schemas.source_count !== 36 || !(schemas.field_count > 0)) throw new Error('Invalid bundled source contract');
   if (health.generated_at !== manifest.source_metadata?.health_generated_at || schemas.generated_at !== manifest.source_metadata?.schemas_generated_at) throw new Error('Source metadata cut differs from manifest');
+  if (manifest.source_metadata?.identity_contract !== 'FMCSA_CARRIER_IDENTITY_1' || manifest.source_metadata?.temporal_contract !== 'TRANSPORT3R_TEMPORAL_CUT_1' || manifest.source_metadata?.sms_release_binding !== 'UNVERIFIED' || manifest.source_metadata?.tri_v0_1 !== 'BLOCKED_RESEARCH_ONLY') throw new Error('Identity, temporal or model release gate differs from the verified deployment contract');
   return { commit: manifest.commit, verified_files: bodies.size, source_count: schemas.source_count, field_count: schemas.field_count };
 }
 
