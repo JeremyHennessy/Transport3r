@@ -1,6 +1,7 @@
 import unittest
 from temporal_readiness import exposure_eligibility
 from capture_sms_release import parse_release
+from temporal_policy import load_policy,sms_binding
 class TemporalTests(unittest.TestCase):
     def test_release_schedule_is_not_website_actual_release(self):
         raw='<div>Data current as of: July 31, 2026</div><div>Website Updated on: August 10, 2026</div><div>Next update: Week of September 7, 2026</div>'
@@ -10,4 +11,10 @@ class TemporalTests(unittest.TestCase):
         row={'status_code':'A','mcs150_date':'20261001','power_units':'0','total_drivers':None,'mcs150_mileage_year':'2020'}
         issues=exposure_eligibility(row,'2026-09-09T00:00:00Z')
         self.assertIn('FUTURE_REPORT_DATE',issues);self.assertIn('INELIGIBLE_POWER_UNITS',issues);self.assertIn('INELIGIBLE_TOTAL_DRIVERS',issues);self.assertIn('MILEAGE_YEAR_INELIGIBLE',issues)
+    def test_temporal_policy_keeps_sms_and_tri_blocked_without_exact_binding(self):
+        policy=load_policy();binding=sms_binding()
+        self.assertTrue(policy['no_cross_cut_mixing']);self.assertFalse(policy['event_date_is_knowledge_time'])
+        self.assertEqual(policy['current_cut']['availability'],'complete_collection_completed_at')
+        self.assertEqual(binding['status'],'UNVERIFIED');self.assertEqual(binding['source_count'],8)
+        self.assertEqual(policy['model_release']['tri_v0_1'],'BLOCKED_RESEARCH_ONLY')
 if __name__=='__main__':unittest.main()

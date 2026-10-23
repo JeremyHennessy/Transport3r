@@ -6,6 +6,8 @@ import datetime as dt
 import hashlib
 import json
 import pathlib
+import gzip
+import io
 
 def timestamp(value):
     parsed = dt.datetime.fromisoformat(value.replace('Z', '+00:00'))
@@ -41,8 +43,13 @@ def verify(folder, as_of=None):
         if item['status'] != 'COMPLETE' or not started <= timestamp(item['acquired_started_at']) <= timestamp(item['available_at']) <= completed:
             raise ValueError('Invalid dataset state or availability lineage')
         path = (root / item['path']).resolve()
-        if path.parent != root or path.suffix != '.csv':
+        if path.parent != root or not (path.name.endswith('.csv') or path.name.endswith('.csv.gz')):
             raise ValueError('Raw path escaped the snapshot or is not a CSV')
+        compression=item.get('compression','none')
+        if compression not in ('none','gzip') or (compression=='gzip')!=path.name.endswith('.csv.gz'):
+            raise ValueError('Raw artifact compression metadata differs from its path')
+        if 'source_bytes' in item and (not isinstance(item['source_bytes'],int) or item['source_bytes']<0):
+            raise ValueError('Invalid source transfer byte count')
         digest, size = hashlib.sha256(), 0
         with path.open('rb') as handle:
             while chunk := handle.read(1024 * 1024):
@@ -50,7 +57,8 @@ def verify(folder, as_of=None):
                 size += len(chunk)
         if digest.hexdigest() != item['sha256'] or size != item['bytes']:
             raise ValueError(f"Raw artifact hash/size mismatch: {item['id']}")
-        with path.open(encoding='utf-8-sig', newline='') as handle:
+        binary=gzip.open(path,'rb') if path.name.endswith('.gz') else path.open('rb')
+        with binary,io.TextIOWrapper(binary,encoding='utf-8-sig',newline='') as handle:
             reader = csv.reader(handle, strict=True)
             header = next(reader, [])
             count = 0
@@ -58,8 +66,11 @@ def verify(folder, as_of=None):
                 if len(row) != len(header):
                     raise ValueError('Malformed stored CSV row')
                 count += 1
+            source_bytes=binary.tell()
         if count != item['row_count']:
             raise ValueError('Stored row count disagrees with manifest')
+        if 'source_bytes' in item and source_bytes != item['source_bytes']:
+            raise ValueError('Stored source transfer byte count disagrees with artifact')
         for key in ['metadata_before', 'metadata_after']:
             metadata_path = (root/item[key]).resolve()
             if metadata_path.parent != root:

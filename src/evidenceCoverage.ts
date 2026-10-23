@@ -56,6 +56,7 @@ export function coverageReport(evidence: CarrierEvidence, census?: DataRow) {
     version: 1, dotNumber: evidence.dotNumber, inspectionId: evidence.inspectionId ?? null, mode: evidence.mode, assembledAt: evidence.loadedAt,
     scope: 'Loaded source requests only. Metadata dates are a saved catalog cut, not live publication or historical availability dates. Sparse event dates do not establish missing records.',
     riskScore: null, riskReason: 'No numeric Transport3r risk model released.',
+    completenessReceipt: evidence.completenessReceipt ?? null,
     exposure: census ? {
       reportDate: readValue(census, ['MCS150_DATE']) ?? null,
       registration: readValue(census, ['STATUS_CODE']) ?? null,

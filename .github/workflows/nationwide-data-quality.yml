@@ -1,0 +1,82 @@
+name: Nationwide data quality cut
+
+on:
+  workflow_dispatch:
+    inputs:
+      retain_warehouse:
+        description: Upload the curated DuckDB when it is within artifact limits
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nationwide-data-quality
+  cancel-in-progress: false
+
+jobs:
+  acquire:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install DuckDB
+        run: python -m pip install -r scripts/requirements-nationwide.txt
+      - name: Install reconciliation dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Freeze golden live observations before the nationwide cut
+        run: node scripts/reconcile-carrier-cohort.mjs /tmp/transport3r-nationwide-golden --golden data/golden_carriers.json
+      - name: Acquire all 36 sources and build the verified warehouse
+        run: python scripts/nationwide_acquisition.py --workers 4 --build-warehouse
+      - name: Recheck warehouse and acceptance artifacts
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          receipts=list(pathlib.Path('warehouse/nationwide/curated').glob('*.acceptance.json'))
+          if len(receipts)!=1:raise SystemExit('Expected exactly one nationwide acceptance receipt')
+          value=json.loads(receipts[0].read_text())
+          if value.get('status')!='VERIFIED' or value.get('sources')!=36 or any(v!='PASS' for v in value.get('acceptance_gates',{}).values()):raise SystemExit('Nationwide acceptance gates failed')
+          print(json.dumps({'status':value['status'],'sources':value['sources'],'rows':value['rows'],'mapping_totals':value['mapping_totals'],'acceptance_gates':value['acceptance_gates']},indent=2))
+          PY
+      - name: Reconcile frozen golden carriers against the exact nationwide publications
+        run: |
+          warehouse="$(find warehouse/nationwide/curated -maxdepth 1 -name '*.duckdb' -print -quit)"
+          test -n "${warehouse}"
+          python scripts/validate_golden_warehouse.py "${warehouse}" /tmp/transport3r-nationwide-golden --output /tmp/transport3r-nationwide-golden-result.json
+      - name: Upload nationwide acceptance and immutable manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nationwide-acceptance-${{ github.sha }}
+          path: |
+            warehouse/nationwide/raw/*/run.json
+            warehouse/nationwide/raw/*/requested-sources.json
+            warehouse/nationwide/raw/*/manifest.json
+            warehouse/nationwide/raw/*/partial-manifest-*.json
+            warehouse/nationwide/raw/*/*/*/run.json
+            warehouse/nationwide/raw/*/*/*/manifest.json
+            warehouse/nationwide/raw/*/*/*/*.result.json
+            warehouse/nationwide/raw/*/*/*/*.failure.json
+            warehouse/nationwide/raw/*/*/*/*.metadata-before.json
+            warehouse/nationwide/raw/*/*/*/*.metadata-after.json
+            warehouse/nationwide/curated/*.acceptance.json
+            /tmp/transport3r-nationwide-golden/
+            /tmp/transport3r-nationwide-golden-result.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload verified nationwide DuckDB
+        if: ${{ inputs.retain_warehouse }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nationwide-warehouse-${{ github.sha }}
+          path: warehouse/nationwide/curated/*.duckdb
+          if-no-files-found: error
+          retention-days: 30

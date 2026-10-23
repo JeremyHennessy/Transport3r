@@ -4,6 +4,8 @@ from cohort_snapshot import load_verified,source_dot
 from snapshot_store import now,write_once
 from validate_fmcsa_data_contract import parse_fmcsa_date
 from verify_snapshot import timestamp
+from source_contract import source_contracts
+from temporal_policy import load_policy,sms_binding
 
 TIMELINES={
  'daily_inspections':{'source':'fx4q-ay7w','event_field':'insp_date','knowledge':'cut acquisition; later corrections remain possible'},
@@ -35,7 +37,7 @@ def exposure_eligibility(row,as_of):
     if not isinstance(year,str) or not year.isdigit() or not day.year-2<=int(year)<=day.year:issues.append('MILEAGE_YEAR_INELIGIBLE')
     return issues
 
-def assess(cut,as_of=None):
+def assess(cut,as_of=None,sms_release=None):
     m,cohort,data=load_verified(cut);as_of=as_of or now()
     if timestamp(m['completed_at'])>timestamp(as_of):raise ValueError('Cut was not knowable at the requested observation')
     if timestamp(as_of)>timestamp(now()):raise ValueError('Future observation unavailable')
@@ -44,8 +46,14 @@ def assess(cut,as_of=None):
         census=[row for row in data['az4n-8mr2'] if row.get('dot_number')==dot]
         issues=exposure_eligibility(census[0],as_of) if len(census)==1 else ['CENSUS_IDENTITY_NOT_UNIQUE']
         rows.append({'dot_number':dot,'observation_date':as_of,'source_cut':m['snapshot_id'],'source_cut_available_at':m['completed_at'],'exposure_source':'az4n-8mr2','exposure_report_date':census[0].get('mcs150_date') if len(census)==1 else None,'exposure_issues':issues,'training_eligible':False,'label_eligible':False,'labels':{target['id']:None for target in OUTCOMES},'future_label_windows':{target['id']:{'start_exclusive':as_of,'end_inclusive':(timestamp(as_of)+dt.timedelta(days=target['horizon_days'])).isoformat(),'status':'FOLLOW_UP_NOT_ESTABLISHED'} for target in OUTCOMES}})
-    return {'version':'TEMPORAL_READINESS_1','created_at':now(),'source_cut':m['snapshot_id'],'observation':as_of,'timelines':TIMELINES,'carriers':rows,'eligible_training_rows':0,'outcomes':OUTCOMES,'blockers':['EXACT_DATAHUB_SMS_RELEASE_BINDING_UNVERIFIED','NO_MATURE_FUTURE_SURVEILLANCE','NO_MATCHED_HISTORICAL_MONTH_END_CUTS','NO_INSURER_CLAIMS_OR_LOSS_OUTCOMES'],'website_snapshot_is_not_datahub_binding':True,'forecast_status':'BLOCKED','tri_v02_status':'NOT_TRAINED_OR_SCORED','powerbi_numerical_reconciliation':'BLOCKED_UNMATCHED_SOURCE_CUT_AND_DAX_EXECUTION'}
+    policy=load_policy();binding=sms_binding(sms_release);contracts=source_contracts();groups={}
+    for source in m['datasets']:groups.setdefault(contracts[source['id']]['release_group'],[]).append(source['id'])
+    blockers=['NO_MATURE_FUTURE_SURVEILLANCE','NO_MATCHED_HISTORICAL_MONTH_END_CUTS','NO_INSURER_CLAIMS_OR_LOSS_OUTCOMES']
+    if binding['status']!='VERIFIED':blockers.insert(0,'EXACT_DATAHUB_SMS_RELEASE_BINDING_UNVERIFIED')
+    return {'version':'TEMPORAL_READINESS_2','created_at':now(),'source_cut':m['snapshot_id'],'observation':as_of,
+            'observation_cut':{'contract':policy['contract'],'status':'VERIFIED_CURRENT_ACQUISITION_CUT','knowledge_time':m['completed_at'],'no_cross_cut_mixing':True,'stable_source_count':len(data),'release_groups':groups,'sms_release_binding':binding},
+            'historical_cut_status':'BLOCKED_REQUIRES_SUCCESSIVE_IMMUTABLE_CUTS','timelines':TIMELINES,'carriers':rows,'eligible_training_rows':0,'outcomes':OUTCOMES,'blockers':blockers,'website_snapshot_is_not_datahub_binding':True,'forecast_status':'BLOCKED','tri_v0_1_status':'BLOCKED_RESEARCH_ONLY','tri_v02_status':'NOT_TRAINED_OR_SCORED','powerbi_numerical_reconciliation':'BLOCKED_UNMATCHED_SOURCE_CUT_AND_DAX_EXECUTION'}
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--cut',required=True);parser.add_argument('--output',required=True);parser.add_argument('--as-of');args=parser.parse_args()
-    result=assess(args.cut,args.as_of);write_once(pathlib.Path(args.output),result);print(json.dumps({'status':'AUDITED','carriers':len(result['carriers']),'eligible_training_rows':0,'blockers':result['blockers']},indent=2))
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--cut',required=True);parser.add_argument('--output',required=True);parser.add_argument('--as-of');parser.add_argument('--sms-release');args=parser.parse_args()
+    result=assess(args.cut,args.as_of,args.sms_release);write_once(pathlib.Path(args.output),result);print(json.dumps({'status':'AUDITED','carriers':len(result['carriers']),'eligible_training_rows':0,'blockers':result['blockers']},indent=2))

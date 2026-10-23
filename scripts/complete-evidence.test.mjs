@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {build} from 'esbuild';
-const compiled=await build({stdin:{contents:"export * from './src/completeEvidence';export * from './src/CompleteData';",resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.BASE_URL':'"/Transport3r/"'}});
+const compiled=await build({stdin:{contents:"export * from './src/completeEvidence';export * from './src/CompleteData';",resolveDir:process.cwd(),loader:'ts'},bundle:true,write:false,format:'esm',platform:'node',define:{'import.meta.env.BASE_URL':'"/Transport3r/"','import.meta.env.VITE_EVIDENCE_API_URL':'""'}});
 const app=await import(`data:text/javascript;base64,${Buffer.from(compiled.outputFiles[0].text).toString('base64')}`);
 const registry=JSON.parse(await readFile('public/data/source-schemas.json','utf8'));
 const signal=()=>new AbortController().signal;
@@ -30,6 +30,19 @@ test('all 36 carrier sources complete with exact padded DOT and parent joins',as
   return Response.json(url.searchParams.get('$select').includes('count')?[{count:String(rows.length)}]:rows.map((r,i)=>({...r,transport_row_id:`${id}:${i}`})));
  });
  const full=await app.acquireCompleteCarrier('3706',signal());assert.deepEqual(full.errors,{});assert.equal(Object.keys(full.slices).length,36);assert.equal(full.completeAll,true);assert.equal(full.slices.units.rows.length,1);assert.ok(queried.some(q=>q.where==="dot_number in ('3706','00003706')"));assert.ok(queried.some(q=>q.where==="prefix_docket_number in ('MC00123')"));
+});
+test('verified warehouse adapter requires one Census identity, all 36 sources and a receipt',async t=>{
+ const sources=registry.sources.map(source=>({source_id:source.id,carrier_rows:source.id==='az4n-8mr2'?1:0,status:source.id==='az4n-8mr2'?'ROWS_RETURNED':'NO_ROWS_RETURNED',scope:'ALL_RESOLVED_ROWS_FOR_USDOT_IN_VERIFIED_NATIONWIDE_CUT',source_available_at:'2026-10-23T00:00:00Z',source_rows_updated_at:1,source_sha256:'b'.repeat(64),rows:source.id==='az4n-8mr2'?[{dot_number:'3706'}]:[]}));
+ const payload={dot_number:'3706',cut_id:'cut-1',cut_available_at:'2026-10-23T00:00:00Z',identity_contract:'FMCSA_CARRIER_IDENTITY_1',source_count:36,carrier_rows:1,warehouse_sha256:'a'.repeat(64),sources,completeness_receipt:{status:'VERIFIED',sources_expected:36,sources_returned:36,unresolved_rows_excluded_from_carrier_assignment:true,mapping_totals:{resolved:100,identified_only:2,unresolved:3},sms_release_binding:'UNVERIFIED',historical_feature_validity:'NOT_CERTIFIED'}};
+ const progress=[];t.mock.method(globalThis,'fetch',async input=>String(input).includes('source-schemas.json')?Response.json(registry):Response.json(payload));
+ const result=await app.acquireWarehouseCarrier('3706',signal(),value=>progress.push(value),'https://warehouse.example');
+ assert.equal(result.completeAll,true);assert.equal(result.slices.census.rows.length,1);assert.equal(result.completenessReceipt.status,'VERIFIED');assert.equal(result.completenessReceipt.unresolvedRowsExcluded,true);assert.deepEqual(result.completenessReceipt.mappingTotals,{resolved:100,identifiedOnly:2,unresolved:3});assert.equal(progress.at(-1).cutId,'cut-1');
+});
+test('warehouse adapter rejects a valid-looking receipt with inconsistent aggregate rows',async t=>{
+ const sources=registry.sources.map(source=>({source_id:source.id,carrier_rows:source.id==='az4n-8mr2'?1:0,status:source.id==='az4n-8mr2'?'ROWS_RETURNED':'NO_ROWS_RETURNED',scope:'ALL_RESOLVED_ROWS_FOR_USDOT_IN_VERIFIED_NATIONWIDE_CUT',source_available_at:'2026-10-23T00:00:00Z',source_rows_updated_at:1,source_sha256:'b'.repeat(64),rows:source.id==='az4n-8mr2'?[{dot_number:'3706'}]:[]}));
+ const payload={dot_number:'3706',cut_id:'cut-1',cut_available_at:'2026-10-23T00:00:00Z',identity_contract:'FMCSA_CARRIER_IDENTITY_1',source_count:36,carrier_rows:2,warehouse_sha256:'a'.repeat(64),sources,completeness_receipt:{status:'VERIFIED',sources_expected:36,sources_returned:36,unresolved_rows_excluded_from_carrier_assignment:true,mapping_totals:{resolved:1,identified_only:0,unresolved:0},sms_release_binding:'UNVERIFIED',historical_feature_validity:'NOT_CERTIFIED'}};
+ t.mock.method(globalThis,'fetch',async input=>String(input).includes('source-schemas.json')?Response.json(registry):Response.json(payload));
+ await assert.rejects(app.acquireWarehouseCarrier('3706',signal(),()=>{},'https://warehouse.example'),/carrier total/);
 });
 test('full result preserves explicit errors and marks fallback previews partial',()=>{
  const preview={dotNumber:'1',slices:{inspections:{rows:[{}],truncated:false}},errors:{}},full={dotNumber:'1',slices:{},errors:{inspections:'HTTP 503'},completeAll:false};

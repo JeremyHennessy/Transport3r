@@ -4,7 +4,11 @@ Carrier search covers all registrations in the nationwide Company Census. Result
 are paginated; pagination is not a carrier-cohort restriction.
 
 Every Carrier 360 section loads its quick preview, followed automatically by all
-current published carrier records from the 36 registered sources. The Evidence
+current published carrier records from the 36 registered sources. When
+`VITE_EVIDENCE_API_URL` is configured, complete records come from the verified
+nationwide warehouse API and unresolved identities are excluded. Without that
+deployment setting, the existing live-source loader remains available and is
+explicitly labeled as a live public-source window. The Evidence
 tab has a source selector, numbered record pages, every returned field, per-source
 exports, and one download of all loaded carrier evidence. Progress and individual
 source failures remain visible. A failed request is never a successful empty file.
@@ -29,9 +33,11 @@ python scripts/nationwide_acquisition.py --workers 4 --build-warehouse
 python scripts/nationwide_status.py warehouse/nationwide/raw/COLLECTION-ID
 ```
 
-This downloads every row of all 36 source files, independently verifies each full
-CSV against its source count and stable publication metadata, and retains hashes
-and raw artifacts. There is no carrier selection or row limit. It can take hours.
+This downloads every row of all 36 source files as deterministic gzip, independently
+verifies each decompressed CSV against its source count and stable publication
+metadata, and retains hashes and raw artifacts. There is no carrier selection or
+row limit. It can take hours. An interrupted collection can be resumed with
+`--collection PATH`; already verified source cuts are rechecked and reused.
 Raw and curated nationwide files are excluded from Git.
 
 After all 36 sources complete, the same process builds a new DuckDB automatically.
@@ -40,13 +46,18 @@ Every CSV field is retained as text, preserving identifiers and source date valu
 and a mapping status. Ambiguous parents/dockets, missing parents, zero USDOTs and
 unresolved identities stay in the raw data and mapping audit. They are not assigned
 to an arbitrary carrier. `source_lineage` retains each source's acquisition and
-publication evidence. Final warehouse promotion requires complete coverage,
+publication evidence. The receipt uses the complete collection timestamp as the
+common knowledge-time cut and exposes resolved, identified-only and unresolved
+population totals in Carrier 360. Final warehouse promotion requires complete coverage,
 unchanged raw hashes, matching counts, and no lost or multiplied rows.
 
 A running download, a partial CSV, or an unfinished DuckDB is not a verified
 nationwide warehouse. Consult the collection manifest and warehouse acceptance
-record. The public app uses the official source APIs directly and can load complete
-carrier detail independently of this local bulk acquisition.
+record. Start the read-only service with
+`python scripts/evidence_api.py warehouse/nationwide/curated/CUT.duckdb`.
+Carrier responses require a unique same-cut Census identity and contain all 36
+source receipts. Public deployment is selected by the `EVIDENCE_API_URL`
+repository variable; direct browser acquisition is the visibly labeled fallback.
 
 ## September 9 acceptance examples
 
@@ -55,4 +66,8 @@ Live source acquisition and rendered desktop/mobile checks passed for USDOT
 including 26,709 inspections and 52,097 inspection-unit records. The record browser
 reached inspection page 535 and record 26,709. These are observed acquisition
 counts, not permanent carrier totals. At implementation acceptance, the separate
-nationwide bulk acquisition was still in progress and was not yet certified.
+nationwide cut `20261023T190216566877Z-e10ecef3` was certified across all 36
+sources: 83,531,140 published/acquired/warehouse rows, with 81,004,526 resolved,
+271,159 identified-only and 2,255,455 unresolved mappings. The frozen golden suite
+passed 197 same-publication live/warehouse/API checks. These are current-cut data
+quality results, not historical-feature or SMS monthly-release certification.

@@ -93,7 +93,7 @@ The replay layer is **TRANSPORT_CALCULATED**. Official output remains **OFFICIAL
 
 ## Runtime architecture
 
-GitHub Pages is the presentation tier. Nationwide multi-million-row FMCSA datasets are not committed to Git history. Instead, the repository persists source/schema/health metadata and retrieves carrier evidence on demand.
+GitHub Pages is the presentation tier. Nationwide multi-million-row FMCSA datasets are not committed to Git history. The repository persists a machine-readable 36-source identity contract plus source/schema/health metadata. A verified nationwide DuckDB and read-only evidence API are the complete-data tier; the deployment selects it with `EVIDENCE_API_URL`. Until that URL is configured, Carrier 360 visibly labels its existing direct DataHub completion path as a live public-source window rather than a warehouse cut.
 
 The browser runtime deliberately limits public DataHub dependency:
 
@@ -102,14 +102,15 @@ The browser runtime deliberately limits public DataHub dependency:
 - Carrier 360 loads **only the source family needed by the selected tab** and caches successful carrier/source slices during the session.
 - Direct browser DataHub requests have a finite timeout and source failures are contained; unavailable evidence is never converted into a zero-risk value.
 - Inspection-child joins use a capped recent inspection-ID window and mark partial windows as such.
-- The explicit Carrier 360 **Evidence** tab and Report export perform the broad all-36-source sweep.
+- With the evidence API configured, complete Carrier 360 records come from one verified nationwide cut and exclude unresolved/ambiguous identities. The explicit **Evidence** tab and Report export can browse/export all 36 source families.
+- Without the evidence API, the complete loader performs the broad live all-36-source sweep with stable publication checks and presents that limitation in the existing status card.
 - A top-level React error boundary provides a recovery surface instead of a blank page if an unexpected render failure occurs.
 
-This architecture keeps the static application responsive while preserving a path to a durable queryable warehouse and immutable historical snapshots before actuarial modelling.
+See [Data quality baseline](docs/data-quality-baseline.md) for mapping reason codes, nationwide acceptance, the frozen 97/25-carrier regression set, API receipts and temporal/model release gates.
 
 ## Source health and validation
 
-`public/data/source-health.json` and `public/data/source-schemas.json` are generated snapshots used by the UI to expose source availability, freshness and field contracts.
+`public/data/source-health.json` and `public/data/source-schemas.json` are generated, committed snapshots used by the UI to expose source availability, freshness and field contracts. Pages builds exactly those reviewed bytes; the scheduled refresh opens a separate pull request instead of mutating deployment inputs during a build.
 
 CI gates include:
 
@@ -164,6 +165,6 @@ Transport3r is an underwriting decision-support system. FMCSA crash records repr
 
 ### Evidence warehouse and private foundations
 
-The browser registry has 36 FMCSA sources with bounded returned evidence. Complete offline cohort profiles retain 7 (baseline), 14 (v1), 18 (v2) and 36 (v3) sources, raw pages, publication/acquisition metadata and verified parent/docket joins. Legacy USDOT queries include canonical and eight-digit padded forms; raw values are preserved. A v3 cut lacking the identity contract is audit-only and excluded from eligible evidence. Completeness applies to cohort queries, not nationwide or matched historical coverage.
+The browser registry has 36 FMCSA sources with bounded preview evidence. Complete offline cohort profiles retain 7 (baseline), 14 (v1), 18 (v2) and 36 (v3) sources, raw pages, publication/acquisition metadata and verified parent/docket joins. The separate nationwide pipeline acquires all published rows, preserves raw values, materializes granular Census/parent/docket identity reasons and exposes only resolved carrier rows through the API. Legacy USDOT queries include canonical and eight-digit padded forms. A v3 cut lacking the current identity contract is audit-only and excluded from eligible evidence. Current-cut completeness is not matched historical coverage; exact SMS release binding remains unverified.
 
 [Private portfolio and durable monitoring](docs/private-monitoring-foundation.md) describes local SQLite policy storage and prior/current public-evidence comparisons; these are not hosted Pages services. [Custody acceptance](docs/custody-20260909.md) records releases and temporal/model gates. NHTSA specifications and Census map boundaries are separate enrichments; candidates and insurer records are not included in the 36-source count.

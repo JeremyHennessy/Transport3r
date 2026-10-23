@@ -1,10 +1,13 @@
 """Exact docket identity only; no carrier-name matching or numeric-prefix stripping."""
 import re
 from snapshot_store import digest
-BRIDGE='6eyk-hxee'
-DOCKET_ONLY='ypjt-5ydn'
-LEGACY_DOT={BRIDGE,'qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp'}
-IDENTITY_CONTRACT='LEGACY_USDOT_CANONICAL_AND_8_DIGIT_1'
+from source_contract import load_contract
+_CONTRACT=load_contract();_SOURCES=_CONTRACT['sources']
+_docket=[(sid,item['identity']) for sid,item in _SOURCES.items() if item['identity']['strategy']=='legacy_docket']
+if len(_docket)!=1:raise ValueError('Legacy docket contract must be unique')
+DOCKET_ONLY,_docket_identity=_docket[0];BRIDGE=_docket_identity['bridge_source']
+LEGACY_DOT={sid for sid,item in _SOURCES.items() if item['identity']['strategy']=='direct_usdot_legacy'}
+IDENTITY_CONTRACT=_CONTRACT['identity_contract']
 
 def canonical_dot(value):
     if not isinstance(value,str) or not re.fullmatch(r'[0-9]+',value) or int(value)<=0:raise ValueError('Invalid legacy bridge USDOT')
@@ -51,10 +54,10 @@ def capture_bridge(expected,parent_lineage,max_rows=100000):
     if before['row_count']>max_rows:raise ValueError('Docket bridge exceeds ceiling')
     rows=[];offset=0
     while True:
-        batch=query(BRIDGE,select='*, :id as source_row_id',where=where,order=':id',limit=1000,offset=offset)
+        batch=query(BRIDGE,select='*, :id as source_row_id',where=where,order=':id',limit=5000,offset=offset)
         rows.extend(batch)
         if len(rows)>max_rows:raise ValueError('Docket bridge exceeds ceiling')
-        if len(batch)<1000:break
+        if len(batch)<5000:break
         offset+=len(batch)
     after=state(BRIDGE,where);stable(before,after)
     # Same publication/schema as the earlier cohort bridge, despite a broader DOT scope.

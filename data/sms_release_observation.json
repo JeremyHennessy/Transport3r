@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "observed_at": "2026-10-23T18:57:31.752356Z",
+  "website": "https://ai.fmcsa.dot.gov/SMS/",
+  "html_sha256": "c460e952dc0d74ef4af2258cd1d82bc6745fb79551e8e829ac0dd4459c8453fe",
+  "website_snapshot_date": "2026-09-25",
+  "website_updated_on": "2026-10-05",
+  "datahub_sources": [
+    {"id":"kjg3-diqy","rows_updated_at":1791880317,"table_id":19836153,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"rbkj-cgst","rows_updated_at":1791879761,"table_id":19836118,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"8mt8-2mdr","rows_updated_at":1791876660,"table_id":19836135,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"4wxs-vbns","rows_updated_at":1791875077,"table_id":19836896,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"4y6x-dmck","rows_updated_at":1791875122,"table_id":19837071,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"h9zy-gjn8","rows_updated_at":1791875154,"table_id":19837165,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"m3ry-qcip","rows_updated_at":1791874938,"table_id":19837227,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"},
+    {"id":"h3zn-uid9","rows_updated_at":1791875098,"table_id":19837174,"explicit_snapshot_fields":[],"binding_status":"UNVERIFIED"}
+  ],
+  "datahub_month_binding": "UNVERIFIED",
+  "reason": "The official website exposes a release date, but neither it nor the DataHub schemas expose an artifact identifier that binds that release to these exact eight extracts. Event maxima are not accepted as a substitute."
+}

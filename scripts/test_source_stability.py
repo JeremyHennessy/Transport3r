@@ -62,6 +62,26 @@ class SourceStabilityTests(unittest.TestCase):
                 _,_,attempts=gate.acquire_stable_cut(pathlib.Path('raw'),1,'underwriting_evidence_v3')
                 self.assertEqual(len(attempts),1);self.assertEqual(acquire.call_count,1)
 
+    def test_transient_transport_failure_and_derived_child_failures_get_one_fresh_retry(self):
+        transient={'snapshot_id':'one','status':'PARTIAL','datasets':[
+            {'id':'fx4q-ay7w','status':'FAILED','error':'URLError: <urlopen error Tunnel connection failed: 403 Forbidden>'},
+            {'id':'876r-jsdb','status':'FAILED','error':'ValueError: Verified inspection parent acquisition unavailable'}]}
+        complete={'snapshot_id':'two','status':'COMPLETE','datasets':[]}
+        with tempfile.TemporaryDirectory() as folder:
+            first=pathlib.Path(folder,'one');first.mkdir();(first/'cohort.json').write_text('{}')
+            with patch.object(gate,'acquire',side_effect=[(first,transient),(pathlib.Path(folder,'two'),complete)]) as acquire:
+                _,manifest,attempts=gate.acquire_stable_cut(pathlib.Path(folder,'raw'),1,'underwriting_evidence_v3')
+        self.assertEqual(manifest['status'],'COMPLETE');self.assertEqual(len(attempts),2);self.assertEqual(acquire.call_count,2)
+
+    def test_public_source_http_403_gets_only_one_fresh_cut_retry(self):
+        transient={'snapshot_id':'one','status':'PARTIAL','datasets':[{'id':'wt8s-2hbx','status':'FAILED','error':'HTTPError: HTTP Error 403: Forbidden'}]}
+        complete={'snapshot_id':'two','status':'COMPLETE','datasets':[]}
+        with tempfile.TemporaryDirectory() as folder:
+            first=pathlib.Path(folder,'one');first.mkdir();(first/'cohort.json').write_text('{}')
+            with patch.object(gate,'acquire',side_effect=[(first,transient),(pathlib.Path(folder,'two'),complete)]) as acquire:
+                _,manifest,attempts=gate.acquire_stable_cut(pathlib.Path(folder,'raw'),1,'underwriting_evidence_v3')
+        self.assertEqual(manifest['status'],'COMPLETE');self.assertEqual(len(attempts),2);self.assertEqual(acquire.call_count,2)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -24,13 +24,17 @@ export async function createManifest(directory, commit) {
   await walk(directory);
   const health = JSON.parse(await readFile(resolve(directory, 'data/source-health.json'), 'utf8'));
   const schemas = JSON.parse(await readFile(resolve(directory, 'data/source-schemas.json'), 'utf8'));
+  const identity = JSON.parse(await readFile(resolve('data/fmcsa_source_contract.json'), 'utf8'));
+  const temporal = JSON.parse(await readFile(resolve('data/temporal_policy.json'), 'utf8'));
   const manifest = {
     schema_version: 1,
     commit,
     built_at: new Date().toISOString(),
     // These identify the bundled metadata cut, not historical carrier-record snapshots.
     source_metadata: { health_generated_at: health.generated_at, schemas_generated_at: schemas.generated_at,
-      source_count: schemas.source_count, field_count: schemas.field_count },
+      source_count: schemas.source_count, field_count: schemas.field_count,
+      identity_contract: identity.identity_contract, temporal_contract: temporal.contract,
+      sms_release_binding: 'UNVERIFIED', tri_v0_1: temporal.model_release?.tri_v0_1 },
     files: Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))),
   };
   await writeFile(resolve(directory, 'release-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);

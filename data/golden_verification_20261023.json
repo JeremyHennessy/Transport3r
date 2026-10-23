@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "status": "PASS",
+  "verified_at": "2026-10-23T21:15:57Z",
+  "selection": "FROZEN_GOLDEN_V1",
+  "census_carriers": 97,
+  "detailed_carriers": 25,
+  "checks": 197,
+  "failures": [],
+  "live_observation": {
+    "status": "PASS",
+    "changed_sources": [],
+    "acquisition_errors": [],
+    "mapping_discrepancies": [],
+    "observations_sha256": "115b0044c08c3c8466a6e2b9cd7ab19ff5e1b188e063e667c9f89d75e67aef00"
+  },
+  "warehouse": {
+    "cut_id": "20261023T190216566877Z-e10ecef3",
+    "sha256": "d2caa562607cbf8315da713e96bc352315a3ade0e5b1b6f3b755ba9d3c1af76a",
+    "scope": "ALL_PUBLISHED_ROWS_ALL_REGISTERED_SOURCES",
+    "identity_contract": "FMCSA_CARRIER_IDENTITY_1"
+  },
+  "same_publication_sources": [
+    {
+      "source": "az4n-8mr2",
+      "golden_rows_updated_at": 1792763571,
+      "warehouse_rows_updated_at": 1792763571,
+      "match": true
+    },
+    {
+      "source": "fx4q-ay7w",
+      "golden_rows_updated_at": 1792770824,
+      "warehouse_rows_updated_at": 1792770824,
+      "match": true
+    },
+    {
+      "source": "aayw-vxb3",
+      "golden_rows_updated_at": 1792760889,
+      "warehouse_rows_updated_at": 1792760889,
+      "match": true
+    },
+    {
+      "source": "rbkj-cgst",
+      "golden_rows_updated_at": 1791879761,
+      "warehouse_rows_updated_at": 1791879761,
+      "match": true
+    },
+    {
+      "source": "kjg3-diqy",
+      "golden_rows_updated_at": 1791880317,
+      "warehouse_rows_updated_at": 1791880317,
+      "match": true
+    }
+  ],
+  "comparison": "LIVE_QUERY_COUNTS_EQUAL_WAREHOUSE_MAPPING_COUNTS_EQUAL_API_RECEIPT_COUNTS"
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "contract": "TRANSPORT3R_TEMPORAL_CUT_1",
+  "knowledge_time": "complete_cut_available_at",
+  "event_date_is_knowledge_time": false,
+  "no_cross_cut_mixing": true,
+  "current_cut": {
+    "requires_all_registered_sources": true,
+    "requires_stable_before_after_watermarks": true,
+    "availability": "complete_collection_completed_at"
+  },
+  "sms_release_binding": {
+    "required_sources": ["kjg3-diqy", "rbkj-cgst", "8mt8-2mdr", "4wxs-vbns", "4y6x-dmck", "h9zy-gjn8", "m3ry-qcip", "h3zn-uid9"],
+    "required_evidence": "official release artifact identifier explicitly linked to the exact DataHub table IDs and update watermarks",
+    "website_date_alone_is_sufficient": false,
+    "maximum_event_date_alone_is_sufficient": false
+  },
+  "historical_feature_cut": {
+    "requires_successive_immutable_cuts": true,
+    "minimum_distinct_cuts": 2,
+    "backdating_current_values": false,
+    "training_requires_mature_future_follow_up": true
+  },
+  "model_release": {
+    "tri_v0_1": "BLOCKED_RESEARCH_ONLY",
+    "forecasting": "BLOCKED_UNTIL_TEMPORAL_AND_OUTCOME_GATES_PASS"
+  }
+}

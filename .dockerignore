@@ -1,0 +1,10 @@
+node_modules
+dist
+warehouse
+outputs
+.git
+coverage
+test-results
+playwright-report
+__pycache__
+*.pyc

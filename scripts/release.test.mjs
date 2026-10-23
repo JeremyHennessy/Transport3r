@@ -12,7 +12,7 @@ function fixture() {
     'data/source-health.json': JSON.stringify({ generated_at: '2026-09-08', sources: Array(36).fill({}) }),
     'data/source-schemas.json': JSON.stringify({ generated_at: '2026-09-08', source_count: 36, field_count: 810 }),
   };
-  const manifest = { schema_version: 1, commit, source_metadata: { health_generated_at: '2026-09-08', schemas_generated_at: '2026-09-08' },
+  const manifest = { schema_version: 1, commit, source_metadata: { health_generated_at: '2026-09-08', schemas_generated_at: '2026-09-08', identity_contract: 'FMCSA_CARRIER_IDENTITY_1', temporal_contract: 'TRANSPORT3R_TEMPORAL_CUT_1', sms_release_binding: 'UNVERIFIED', tri_v0_1: 'BLOCKED_RESEARCH_ONLY' },
     files: Object.fromEntries(Object.entries(files).map(([path, body]) => [path, { sha256: sha256(body), bytes: Buffer.byteLength(body) }])) };
   return { files, manifest, get: async (url) => {
     const path = url.pathname.replace('/Transport3r/', '');

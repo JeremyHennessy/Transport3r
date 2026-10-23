@@ -5,6 +5,8 @@ import json
 import pathlib
 import tempfile
 import unittest
+import gzip
+from urllib.error import HTTPError,URLError
 from unittest.mock import patch
 import snapshot_store as store
 from verify_snapshot import verify
@@ -31,6 +33,13 @@ class SnapshotTests(unittest.TestCase):
              patch.object(store.urllib.request, 'urlopen', return_value=kwargs.pop('response', Response())):
             return store.acquire([SOURCE], self.root, **kwargs)
 
+    def test_json_fetch_retries_transient_transport_errors_but_not_permanent_http_errors(self):
+        with patch.object(store.urllib.request,'urlopen',side_effect=[URLError('temporary'),Response(b'{"ok":true}')]) as opened,patch.object(store.time,'sleep'):
+            self.assertEqual(store.fetch_json('https://example.test'),{'ok':True});self.assertEqual(opened.call_count,2)
+        with patch.object(store.urllib.request,'urlopen',side_effect=HTTPError('url',400,'bad request',{},None)) as opened,patch.object(store.time,'sleep'):
+            with self.assertRaises(HTTPError):store.fetch_json('https://example.test')
+            self.assertEqual(opened.call_count,1)
+
     def test_complete_cut_has_verified_lineage_and_is_not_replaced(self):
         output, manifest = self.run_cut(snapshot_id='cut-one')
         result = manifest['datasets'][0]
@@ -50,6 +59,25 @@ class SnapshotTests(unittest.TestCase):
         (output/'abcd-1234.csv').write_bytes(BODY + b'2,changed\n')
         with self.assertRaisesRegex(ValueError, 'hash/size'):
             verify(output)
+
+    def test_gzip_cut_is_streamed_verified_and_readable_without_plaintext_copy(self):
+        output, manifest = self.run_cut(compression='gzip')
+        result=manifest['datasets'][0];path=output/'abcd-1234.csv.gz'
+        self.assertEqual(result['compression'],'gzip');self.assertEqual(result['source_bytes'],len(BODY))
+        self.assertEqual(gzip.open(path,'rb').read(),BODY);self.assertEqual(verify(output)['row_count'],1)
+        self.assertFalse((output/'abcd-1234.csv').exists())
+
+    def test_compression_metadata_cannot_disagree_with_the_preserved_artifact(self):
+        output, manifest = self.run_cut(compression='gzip')
+        stored=json.loads((output/'manifest.json').read_text());stored['datasets'][0]['compression']='none'
+        (output/'manifest.json').write_text(json.dumps(stored))
+        with self.assertRaisesRegex(ValueError,'compression metadata'):verify(output)
+
+    def test_uncompressed_transfer_size_is_recomputed_from_gzip(self):
+        output, manifest = self.run_cut(compression='gzip')
+        stored=json.loads((output/'manifest.json').read_text());stored['datasets'][0]['source_bytes']+=1
+        (output/'manifest.json').write_text(json.dumps(stored))
+        with self.assertRaisesRegex(ValueError,'source transfer byte count'):verify(output)
 
     def test_backdating_and_clean_are_rejected_without_writes(self):
         for options in [{'date_label':'2001-01-01'}, {'clean':True}, {'snapshot_id':'../outside'}]:

@@ -1,0 +1,1403 @@
+{
+  "version": 1,
+  "status": "VERIFIED",
+  "verified_at": "2026-10-23T21:02:46Z",
+  "cut_id": "20261023T190216566877Z-e10ecef3",
+  "cut_available_at": "2026-10-23T20:20:47.423750Z",
+  "scope": "ALL_PUBLISHED_ROWS_ALL_REGISTERED_SOURCES",
+  "identity_contract": "FMCSA_CARRIER_IDENTITY_1",
+  "sources": 36,
+  "rows": 83531140,
+  "census_carriers": 4521010,
+  "raw_verification": {
+    "status": "PASS",
+    "sources": 36,
+    "rows": 83531140,
+    "compressed_bytes": 3240118391,
+    "source_bytes": 14895136978
+  },
+  "warehouse": {
+    "sha256": "d2caa562607cbf8315da713e96bc352315a3ade0e5b1b6f3b755ba9d3c1af76a",
+    "bytes": 7379103744
+  },
+  "mapping_totals": {
+    "resolved": 81004526,
+    "identified_only": 271159,
+    "unresolved": 2255455
+  },
+  "acceptance_gates": {
+    "source_coverage": "PASS",
+    "published_acquired_warehouse_counts": "PASS",
+    "row_mapping_accounting": "PASS",
+    "unresolved_reason_accounting": "PASS",
+    "arbitrary_assignment_prevention": "PASS"
+  },
+  "historical_feature_validity": "NOT_CERTIFIED",
+  "sms_release_binding": "UNVERIFIED",
+  "source_acceptance": [
+    {
+      "source": "2emp-mxtb",
+      "sha256": "316a2d495b15d12f9faa9a84ca9a198dc0c2f85332db426d675cd3c8ca5d7e11",
+      "available_at": "2026-10-23T19:55:11.761955Z",
+      "rows_updated_at": 1792762214,
+      "published_rows": 1860604,
+      "acquired_rows": 1860604,
+      "warehouse_rows": 1860604,
+      "mapping_status": {
+        "RESOLVED": 1700957,
+        "UNRESOLVED": 159140,
+        "IDENTIFIED_ONLY": 507
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 507,
+        "DIRECT_ID_CENSUS_RESOLVED": 1700957,
+        "INVALID_DOT": 159140
+      },
+      "distinct_identified_carriers": 1679118,
+      "exact_duplicate_rows": 1860603,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "3uet-3z4i",
+      "sha256": "90c580c5ff14e4398241cb7126b61c2a43a96f205cef8ac2e4fe74533a2f6425",
+      "available_at": "2026-10-23T19:41:03.031887Z",
+      "rows_updated_at": 1792749839,
+      "published_rows": 66278,
+      "acquired_rows": 66278,
+      "warehouse_rows": 66278,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 189,
+        "RESOLVED": 66089
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 66089,
+        "DIRECT_ID_NO_CENSUS_RECORD": 189
+      },
+      "distinct_identified_carriers": 43052,
+      "exact_duplicate_rows": 66277,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 66278,
+          "missing": 1,
+          "valid": 66277,
+          "invalid": 0,
+          "earliest": "1982-09-27",
+          "latest": "2028-11-28"
+        },
+        {
+          "field": "cancl_effective_date",
+          "rows": 66278,
+          "missing": 9917,
+          "valid": 56361,
+          "invalid": 0,
+          "earliest": "1995-11-05",
+          "latest": "2027-10-03"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "4wxs-vbns",
+      "sha256": "105368759ef308be6f797af71c4a470fe9b4e17bd586bbe901ef34c9ec719966",
+      "available_at": "2026-10-23T19:48:51.547130Z",
+      "rows_updated_at": 1791875077,
+      "published_rows": 252362,
+      "acquired_rows": 252362,
+      "warehouse_rows": 252362,
+      "mapping_status": {
+        "RESOLVED": 248441,
+        "IDENTIFIED_ONLY": 3921
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 248441,
+        "DIRECT_ID_NO_CENSUS_RECORD": 3921
+      },
+      "distinct_identified_carriers": 111325,
+      "exact_duplicate_rows": 252361,
+      "date_quality": [
+        {
+          "field": "report_date",
+          "rows": 252362,
+          "missing": 0,
+          "valid": 252362,
+          "invalid": 0,
+          "earliest": "2024-09-25",
+          "latest": "2026-09-15"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "4y6x-dmck",
+      "sha256": "d3b47b45b2dd8c8827c8a176d7aad47d1d6cf86d86e4a6c3ef47f67edba859e3",
+      "available_at": "2026-10-23T19:50:30.091762Z",
+      "rows_updated_at": 1791875122,
+      "published_rows": 676951,
+      "acquired_rows": 676951,
+      "warehouse_rows": 676951,
+      "mapping_status": {
+        "RESOLVED": 676092,
+        "IDENTIFIED_ONLY": 859
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 676092,
+        "DIRECT_ID_NO_CENSUS_RECORD": 859
+      },
+      "distinct_identified_carriers": 676951,
+      "exact_duplicate_rows": 676950,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "5qik-smay",
+      "sha256": "a52fa47ec684900ade58238c4d6a589eac672bcbe79b1877e38107bebe298047",
+      "available_at": "2026-10-23T19:38:45.665849Z",
+      "rows_updated_at": 1792750487,
+      "published_rows": 1355813,
+      "acquired_rows": 1355813,
+      "warehouse_rows": 1355813,
+      "mapping_status": {
+        "RESOLVED": 1355776,
+        "IDENTIFIED_ONLY": 37
+      },
+      "mapping_reasons": {
+        "INSPECTION_PARENT_CENSUS_RESOLVED": 1355776,
+        "PARENT_DOT_NO_CENSUS_RECORD": 37
+      },
+      "distinct_identified_carriers": 218029,
+      "exact_duplicate_rows": 1355812,
+      "date_quality": [
+        {
+          "field": "change_date",
+          "rows": 1355813,
+          "missing": 0,
+          "valid": 1355813,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "6eyk-hxee",
+      "sha256": "ca09426e03cb5e368dfc920a4a138b3fcc292134b9b7d2bc37f518f7c5fa0874",
+      "available_at": "2026-10-23T19:55:17.479878Z",
+      "rows_updated_at": 1792762586,
+      "published_rows": 1860604,
+      "acquired_rows": 1860604,
+      "warehouse_rows": 1860604,
+      "mapping_status": {
+        "RESOLVED": 1700957,
+        "UNRESOLVED": 159140,
+        "IDENTIFIED_ONLY": 507
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 1700957,
+        "INVALID_DOT": 159140,
+        "DIRECT_ID_NO_CENSUS_RECORD": 507
+      },
+      "distinct_identified_carriers": 1679118,
+      "exact_duplicate_rows": 1860603,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "6snj-ed7q",
+      "sha256": "5c3b9b51003b0053326464b3abc628f028704bd9bd64a50dab9f90ed04cb5c47",
+      "available_at": "2026-10-23T19:41:33.183162Z",
+      "rows_updated_at": 1792749923,
+      "published_rows": 176661,
+      "acquired_rows": 176661,
+      "warehouse_rows": 176661,
+      "mapping_status": {
+        "RESOLVED": 176270,
+        "IDENTIFIED_ONLY": 391
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 176270,
+        "DIRECT_ID_NO_CENSUS_RECORD": 391
+      },
+      "distinct_identified_carriers": 147682,
+      "exact_duplicate_rows": 176660,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "6sqe-dvqs",
+      "sha256": "fc501003668f36f54618af6bc038ef824ac87f0e65c28a57ea6db18c750b907f",
+      "available_at": "2026-10-23T20:03:51.160597Z",
+      "rows_updated_at": 1792762901,
+      "published_rows": 7427776,
+      "acquired_rows": 7427776,
+      "warehouse_rows": 7427776,
+      "mapping_status": {
+        "RESOLVED": 7187732,
+        "UNRESOLVED": 229417,
+        "IDENTIFIED_ONLY": 10627
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 10627,
+        "DIRECT_ID_CENSUS_RESOLVED": 7187732,
+        "INVALID_DOT": 229417
+      },
+      "distinct_identified_carriers": 1226714,
+      "exact_duplicate_rows": 7427775,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 7427776,
+          "missing": 1,
+          "valid": 7427775,
+          "invalid": 0,
+          "earliest": "1902-08-01",
+          "latest": "4196-01-23"
+        },
+        {
+          "field": "cancl_effective_date",
+          "rows": 7427776,
+          "missing": 6447,
+          "valid": 7421329,
+          "invalid": 0,
+          "earliest": "1961-05-01",
+          "latest": "2802-11-28"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "876r-jsdb",
+      "sha256": "39613818b85c2e33b24b8b8e1db6b8bf4786c7462ada8ea22ab7cb9908d56a13",
+      "available_at": "2026-10-23T19:36:53.250271Z",
+      "rows_updated_at": 1792754125,
+      "published_rows": 13548330,
+      "acquired_rows": 13548330,
+      "warehouse_rows": 13548330,
+      "mapping_status": {
+        "RESOLVED": 13547710,
+        "IDENTIFIED_ONLY": 620
+      },
+      "mapping_reasons": {
+        "INSPECTION_PARENT_CENSUS_RESOLVED": 13547710,
+        "PARENT_DOT_NO_CENSUS_RECORD": 620
+      },
+      "distinct_identified_carriers": 601197,
+      "exact_duplicate_rows": 13548329,
+      "date_quality": [
+        {
+          "field": "change_date",
+          "rows": 13548330,
+          "missing": 0,
+          "valid": 13548330,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "8mt8-2mdr",
+      "sha256": "7975a8f919157515369753c715e181cf6c567f25bc49f47f789fdcb877fee623",
+      "available_at": "2026-10-23T20:20:47.414687Z",
+      "rows_updated_at": 1791876660,
+      "published_rows": 6784490,
+      "acquired_rows": 6784490,
+      "warehouse_rows": 6784490,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 62293,
+        "RESOLVED": 6722197
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 62293,
+        "DIRECT_ID_CENSUS_RESOLVED": 6722197
+      },
+      "distinct_identified_carriers": 473179,
+      "exact_duplicate_rows": 6784489,
+      "date_quality": [
+        {
+          "field": "insp_date",
+          "rows": 6784490,
+          "missing": 0,
+          "valid": 6784490,
+          "invalid": 0,
+          "earliest": "2024-09-25",
+          "latest": "2026-09-24"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "96tg-4mhf",
+      "sha256": "ebb669d43c77bbfef2235e4b23322a4dc815ace20a31b5ed04c809f6388092b9",
+      "available_at": "2026-10-23T19:55:38.518686Z",
+      "rows_updated_at": 1792760883,
+      "published_rows": 7268,
+      "acquired_rows": 7268,
+      "warehouse_rows": 7268,
+      "mapping_status": {
+        "RESOLVED": 7247,
+        "UNRESOLVED": 15,
+        "IDENTIFIED_ONLY": 6
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 6,
+        "DIRECT_ID_CENSUS_RESOLVED": 7247,
+        "INVALID_DOT": 15
+      },
+      "distinct_identified_carriers": 6970,
+      "exact_duplicate_rows": 7267,
+      "date_quality": [
+        {
+          "field": "recv_date",
+          "rows": 7268,
+          "missing": 0,
+          "valid": 7268,
+          "invalid": 0,
+          "earliest": "2025-10-22",
+          "latest": "2026-05-14"
+        },
+        {
+          "field": "rej_date",
+          "rows": 7268,
+          "missing": 0,
+          "valid": 7268,
+          "invalid": 0,
+          "earliest": "2025-10-22",
+          "latest": "2026-05-14"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "9mw4-x3tu",
+      "sha256": "2456b4d25268bb9e94ab94abd181c7bb7f0b35ba263327f0e0e4006e10dd26bc",
+      "available_at": "2026-10-23T19:58:32.888065Z",
+      "rows_updated_at": 1792761073,
+      "published_rows": 4941925,
+      "acquired_rows": 4941925,
+      "warehouse_rows": 4941925,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 5422,
+        "RESOLVED": 4689481,
+        "UNRESOLVED": 247022
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 4689481,
+        "INVALID_DOT": 247022,
+        "DIRECT_ID_NO_CENSUS_RECORD": 5422
+      },
+      "distinct_identified_carriers": 1654225,
+      "exact_duplicate_rows": 4941924,
+      "date_quality": [
+        {
+          "field": "orig_served_date",
+          "rows": 4941925,
+          "missing": 22359,
+          "valid": 4919566,
+          "invalid": 0,
+          "earliest": "0201-02-09",
+          "latest": "2026-05-20"
+        },
+        {
+          "field": "disp_decided_date",
+          "rows": 4941925,
+          "missing": 1169897,
+          "valid": 3772028,
+          "invalid": 0,
+          "earliest": "0200-04-12",
+          "latest": "2517-09-22"
+        },
+        {
+          "field": "disp_served_date",
+          "rows": 4941925,
+          "missing": 1025222,
+          "valid": 3916703,
+          "invalid": 0,
+          "earliest": "0189-11-04",
+          "latest": "2517-09-22"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "aayw-vxb3",
+      "sha256": "e21678fd9ef28f08b5114a3a2263fbdee9c9eb5f7b2fe0218258a76aab436bc6",
+      "available_at": "2026-10-23T19:47:33.252482Z",
+      "rows_updated_at": 1792760889,
+      "published_rows": 5015594,
+      "acquired_rows": 5015594,
+      "warehouse_rows": 5015594,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 57851,
+        "RESOLVED": 3581832,
+        "UNRESOLVED": 1375911
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 3581832,
+        "INVALID_DOT": 1375911,
+        "DIRECT_ID_NO_CENSUS_RECORD": 57851
+      },
+      "distinct_identified_carriers": 726022,
+      "exact_duplicate_rows": 5015593,
+      "date_quality": [
+        {
+          "field": "report_date",
+          "rows": 5015594,
+          "missing": 0,
+          "valid": 5015594,
+          "invalid": 0,
+          "earliest": "1982-01-08",
+          "latest": "2026-10-20"
+        },
+        {
+          "field": "change_date",
+          "rows": 5015594,
+          "missing": 0,
+          "valid": 5015594,
+          "invalid": 0,
+          "earliest": "1990-11-02",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "final_status_date",
+          "rows": 5015594,
+          "missing": 1026153,
+          "valid": 3989441,
+          "invalid": 0,
+          "earliest": "1990-11-02",
+          "latest": "2026-10-22"
+        },
+        {
+          "field": "transaction_date",
+          "rows": 5015594,
+          "missing": 0,
+          "valid": 5015594,
+          "invalid": 0,
+          "earliest": "1989-11-13",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "upload_date",
+          "rows": 5015594,
+          "missing": 0,
+          "valid": 5015594,
+          "invalid": 0,
+          "earliest": "1990-02-16",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "add_date",
+          "rows": 5015594,
+          "missing": 0,
+          "valid": 5015594,
+          "invalid": 0,
+          "earliest": "1997-02-22",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "az4n-8mr2",
+      "sha256": "87a3992b4fba312e9f75f4f2c7f6052ed4453e661a5cdb5e3c7693800b7e817a",
+      "available_at": "2026-10-23T19:21:37.577963Z",
+      "rows_updated_at": 1792763571,
+      "published_rows": 4521010,
+      "acquired_rows": 4521010,
+      "warehouse_rows": 4521010,
+      "mapping_status": {
+        "RESOLVED": 4521010
+      },
+      "mapping_reasons": {
+        "CENSUS_SELF_RESOLVED": 4521010
+      },
+      "distinct_identified_carriers": 4521010,
+      "exact_duplicate_rows": 4521009,
+      "date_quality": [
+        {
+          "field": "mcs150_date",
+          "rows": 4521010,
+          "missing": 596855,
+          "valid": 3924155,
+          "invalid": 0,
+          "earliest": "1996-08-12",
+          "latest": "2026-10-22"
+        },
+        {
+          "field": "add_date",
+          "rows": 4521010,
+          "missing": 0,
+          "valid": 4521010,
+          "invalid": 0,
+          "earliest": "1974-06-01",
+          "latest": "2026-10-22"
+        },
+        {
+          "field": "mcsipdate",
+          "rows": 4521010,
+          "missing": 3086286,
+          "valid": 1434724,
+          "invalid": 0,
+          "earliest": "1995-04-26",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "carrier_mailing_und_date",
+          "rows": 4521010,
+          "missing": 4189869,
+          "valid": 331141,
+          "invalid": 0,
+          "earliest": "1991-10-10",
+          "latest": "2026-07-20"
+        },
+        {
+          "field": "review_date",
+          "rows": 4521010,
+          "missing": 4280925,
+          "valid": 240085,
+          "invalid": 0,
+          "earliest": "1900-03-24",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "safety_rating_date",
+          "rows": 4521010,
+          "missing": 4284470,
+          "valid": 236540,
+          "invalid": 0,
+          "earliest": "1963-01-11",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "c5y8-a4uz",
+      "sha256": "4c04478d1823d32edafe21a368b56d833460e3cf2b2697fc50e1e3d712a91ee3",
+      "available_at": "2026-10-23T19:40:37.712668Z",
+      "rows_updated_at": 1792749916,
+      "published_rows": 141999,
+      "acquired_rows": 141999,
+      "warehouse_rows": 141999,
+      "mapping_status": {
+        "RESOLVED": 140998,
+        "IDENTIFIED_ONLY": 1001
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 140998,
+        "DIRECT_ID_NO_CENSUS_RECORD": 1001
+      },
+      "distinct_identified_carriers": 124854,
+      "exact_duplicate_rows": 141998,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 141999,
+          "missing": 0,
+          "valid": 141999,
+          "invalid": 0,
+          "earliest": "1940-08-09",
+          "latest": "2029-04-28"
+        },
+        {
+          "field": "trans_date",
+          "rows": 141999,
+          "missing": 0,
+          "valid": 141999,
+          "invalid": 0,
+          "earliest": "1979-08-02",
+          "latest": "2026-10-23"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "dm5j-zc6c",
+      "sha256": "1e3a5b3a4b61d05c12723bf97525501166279b491e55e1d7cfd932264074a4f9",
+      "available_at": "2026-10-23T19:42:21.557489Z",
+      "rows_updated_at": 1792756874,
+      "published_rows": 1273,
+      "acquired_rows": 1273,
+      "warehouse_rows": 1273,
+      "mapping_status": {
+        "RESOLVED": 779,
+        "IDENTIFIED_ONLY": 494
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 779,
+        "DIRECT_ID_NO_CENSUS_RECORD": 494
+      },
+      "distinct_identified_carriers": 922,
+      "exact_duplicate_rows": 1272,
+      "date_quality": [
+        {
+          "field": "status_change_date",
+          "rows": 1273,
+          "missing": 0,
+          "valid": 1273,
+          "invalid": 0,
+          "earliest": "1993-11-29",
+          "latest": "2026-10-23"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "e67p-xyd5",
+      "sha256": "4af5fbc1883cc5fa42b2b27f151f52dc3af2541de285c214c86f45c438cdbfe1",
+      "available_at": "2026-10-23T19:42:56.489963Z",
+      "rows_updated_at": 1792756865,
+      "published_rows": 64,
+      "acquired_rows": 64,
+      "warehouse_rows": 64,
+      "mapping_status": {
+        "RESOLVED": 64
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 64
+      },
+      "distinct_identified_carriers": 58,
+      "exact_duplicate_rows": 63,
+      "date_quality": [
+        {
+          "field": "order1_serve_date",
+          "rows": 64,
+          "missing": 0,
+          "valid": 64,
+          "invalid": 0,
+          "earliest": "2026-10-22",
+          "latest": "2026-10-23"
+        },
+        {
+          "field": "order1_effective_date",
+          "rows": 64,
+          "missing": 47,
+          "valid": 17,
+          "invalid": 0,
+          "earliest": "2026-11-21",
+          "latest": "2026-11-22"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "fx4q-ay7w",
+      "sha256": "7e54a063f98e0c1153f86d488bcdeecaf7697d43739caf9abc6b103e066095af",
+      "available_at": "2026-10-23T19:42:04.462582Z",
+      "rows_updated_at": 1792770824,
+      "published_rows": 8282785,
+      "acquired_rows": 8282785,
+      "warehouse_rows": 8282785,
+      "mapping_status": {
+        "RESOLVED": 8282383,
+        "IDENTIFIED_ONLY": 402
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 402,
+        "DIRECT_ID_CENSUS_RESOLVED": 8282383
+      },
+      "distinct_identified_carriers": 660131,
+      "exact_duplicate_rows": 8282784,
+      "date_quality": [
+        {
+          "field": "insp_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "change_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "registration_date",
+          "rows": 8282785,
+          "missing": 7714316,
+          "valid": 568469,
+          "invalid": 0,
+          "earliest": "0224-02-13",
+          "latest": "2030-12-31"
+        },
+        {
+          "field": "snet_search_date",
+          "rows": 8282785,
+          "missing": 8282785,
+          "valid": 0,
+          "invalid": 0,
+          "earliest": null,
+          "latest": null
+        },
+        {
+          "field": "final_status_date",
+          "rows": 8282785,
+          "missing": 5513,
+          "valid": 8277272,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "transaction_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "upload_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "census_search_date",
+          "rows": 8282785,
+          "missing": 1934799,
+          "valid": 6347986,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "snet_input_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "mcmis_add_date",
+          "rows": 8282785,
+          "missing": 0,
+          "valid": 8282785,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "h3zn-uid9",
+      "sha256": "c3b97eb946b1bff637e36306804748f2a7a41ab4964f220bece4dc1171916fe5",
+      "available_at": "2026-10-23T19:49:20.093547Z",
+      "rows_updated_at": 1791875098,
+      "published_rows": 19855,
+      "acquired_rows": 19855,
+      "warehouse_rows": 19855,
+      "mapping_status": {
+        "RESOLVED": 19855
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 19855
+      },
+      "distinct_identified_carriers": 19855,
+      "exact_duplicate_rows": 19854,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "h9zy-gjn8",
+      "sha256": "0c8107230c88556fce429e2086a9c423ca51a0aaede2e442ee1b6a456b158097",
+      "available_at": "2026-10-23T19:51:31.782777Z",
+      "rows_updated_at": 1791875154,
+      "published_rows": 1455917,
+      "acquired_rows": 1455917,
+      "warehouse_rows": 1455917,
+      "mapping_status": {
+        "RESOLVED": 1455913,
+        "IDENTIFIED_ONLY": 4
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 1455913,
+        "DIRECT_ID_NO_CENSUS_RECORD": 4
+      },
+      "distinct_identified_carriers": 1455917,
+      "exact_duplicate_rows": 1455916,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "inys-ebih",
+      "sha256": "c9121123d5d6737686b6fc31db0d3db913e061e910ddd1db36c2b5986398c86b",
+      "available_at": "2026-10-23T19:39:30.859534Z",
+      "rows_updated_at": 1792749999,
+      "published_rows": 169250,
+      "acquired_rows": 169250,
+      "warehouse_rows": 169250,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 656,
+        "RESOLVED": 168594
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 168594,
+        "DIRECT_ID_NO_CENSUS_RECORD": 656
+      },
+      "distinct_identified_carriers": 160415,
+      "exact_duplicate_rows": 169249,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "kjg3-diqy",
+      "sha256": "553cc55f90797e4b3d079614af10e6c09e15bda6e8a96f8b356222bc34ed5975",
+      "available_at": "2026-10-23T19:49:00.063697Z",
+      "rows_updated_at": 1791880317,
+      "published_rows": 2132868,
+      "acquired_rows": 2132868,
+      "warehouse_rows": 2132868,
+      "mapping_status": {
+        "RESOLVED": 2132005,
+        "IDENTIFIED_ONLY": 863
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 2132005,
+        "DIRECT_ID_NO_CENSUS_RECORD": 863
+      },
+      "distinct_identified_carriers": 2132868,
+      "exact_duplicate_rows": 2132867,
+      "date_quality": [
+        {
+          "field": "mcs150_date",
+          "rows": 2132868,
+          "missing": 229291,
+          "valid": 1903577,
+          "invalid": 0,
+          "earliest": "1999-02-07",
+          "latest": "2026-09-25"
+        },
+        {
+          "field": "add_date",
+          "rows": 2132868,
+          "missing": 0,
+          "valid": 2132868,
+          "invalid": 0,
+          "earliest": "1974-06-01",
+          "latest": "2026-09-25"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "m3ry-qcip",
+      "sha256": "78bd1d0d4b2ce637724a35de096ba651d024a1b1bd9875f99ac0753af1219fa9",
+      "available_at": "2026-10-23T19:49:13.398675Z",
+      "rows_updated_at": 1791874938,
+      "published_rows": 8625,
+      "acquired_rows": 8625,
+      "warehouse_rows": 8625,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 9,
+        "RESOLVED": 8616
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 8616,
+        "DIRECT_ID_NO_CENSUS_RECORD": 9
+      },
+      "distinct_identified_carriers": 8625,
+      "exact_duplicate_rows": 8624,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "mhr5-hjyc",
+      "sha256": "9d15a64d61929f866c0dca9b1167ebde24708b8fdc89a9a2c24c73dc40bdb028",
+      "available_at": "2026-10-23T19:42:34.892009Z",
+      "rows_updated_at": 1792756864,
+      "published_rows": 180,
+      "acquired_rows": 180,
+      "warehouse_rows": 180,
+      "mapping_status": {
+        "RESOLVED": 120,
+        "IDENTIFIED_ONLY": 60
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 120,
+        "DIRECT_ID_NO_CENSUS_RECORD": 60
+      },
+      "distinct_identified_carriers": 159,
+      "exact_duplicate_rows": 179,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "nakq-58th",
+      "sha256": "7c5d97f2fa040f9b11ebe2c3085100621e891db5b36e6fc3af997f101d33ef58",
+      "available_at": "2026-10-23T19:42:18.364359Z",
+      "rows_updated_at": 1792756869,
+      "published_rows": 959,
+      "acquired_rows": 959,
+      "warehouse_rows": 959,
+      "mapping_status": {
+        "RESOLVED": 703,
+        "IDENTIFIED_ONLY": 256
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 256,
+        "DIRECT_ID_CENSUS_RESOLVED": 703
+      },
+      "distinct_identified_carriers": 947,
+      "exact_duplicate_rows": 958,
+      "date_quality": [],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "p2mt-9ige",
+      "sha256": "ccdb1f46f8c0abfb1712d74e48d1aba409e2e4e68b7e18c28bdcf862ca4a29eb",
+      "available_at": "2026-10-23T19:51:05.204535Z",
+      "rows_updated_at": 1792744573,
+      "published_rows": 402958,
+      "acquired_rows": 402958,
+      "warehouse_rows": 402958,
+      "mapping_status": {
+        "RESOLVED": 402958
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 402958
+      },
+      "distinct_identified_carriers": 347089,
+      "exact_duplicate_rows": 402957,
+      "date_quality": [
+        {
+          "field": "oos_date",
+          "rows": 402958,
+          "missing": 0,
+          "valid": 402958,
+          "invalid": 0,
+          "earliest": "1995-01-30",
+          "latest": "2026-10-21"
+        },
+        {
+          "field": "rescind_date",
+          "rows": 402958,
+          "missing": 228145,
+          "valid": 174813,
+          "invalid": 0,
+          "earliest": "0019-02-05",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "qbt8-7vic",
+      "sha256": "99181d79e8b7d93820d6139325bd45e994acf178ff05cd4971bf79dd03bfd50f",
+      "available_at": "2026-10-23T19:39:04.967765Z",
+      "rows_updated_at": 1792750453,
+      "published_rows": 28426,
+      "acquired_rows": 28426,
+      "warehouse_rows": 28426,
+      "mapping_status": {
+        "RESOLVED": 28426
+      },
+      "mapping_reasons": {
+        "INSPECTION_PARENT_CENSUS_RESOLVED": 28426
+      },
+      "distinct_identified_carriers": 10781,
+      "exact_duplicate_rows": 28425,
+      "date_quality": [
+        {
+          "field": "change_date",
+          "rows": 28426,
+          "missing": 0,
+          "valid": 28426,
+          "invalid": 0,
+          "earliest": "2023-11-17",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "qh9u-swkp",
+      "sha256": "1bf789e702e1a8d27413d8921b8f16f275bef964826300c52003dd1cad9400d5",
+      "available_at": "2026-10-23T19:53:17.746255Z",
+      "rows_updated_at": 1792760534,
+      "published_rows": 467983,
+      "acquired_rows": 467983,
+      "warehouse_rows": 467983,
+      "mapping_status": {
+        "RESOLVED": 459069,
+        "UNRESOLVED": 7855,
+        "IDENTIFIED_ONLY": 1059
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 459069,
+        "INVALID_DOT": 7855,
+        "DIRECT_ID_NO_CENSUS_RECORD": 1059
+      },
+      "distinct_identified_carriers": 425586,
+      "exact_duplicate_rows": 467982,
+      "date_quality": [
+        {
+          "field": "trans_date",
+          "rows": 467983,
+          "missing": 0,
+          "valid": 467983,
+          "invalid": 0,
+          "earliest": "1982-10-09",
+          "latest": "2026-05-14"
+        },
+        {
+          "field": "effective_date",
+          "rows": 467983,
+          "missing": 0,
+          "valid": 467983,
+          "invalid": 0,
+          "earliest": "1936-11-16",
+          "latest": "2032-08-10"
+        },
+        {
+          "field": "cancl_effective_date",
+          "rows": 467983,
+          "missing": 445864,
+          "valid": 22119,
+          "invalid": 0,
+          "earliest": "2023-03-16",
+          "latest": "2032-08-10"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "rbkj-cgst",
+      "sha256": "1cd08ef67045344829ea51d0ff8aaa811c3969f4e4828d3c013988ed7dd7d5eb",
+      "available_at": "2026-10-23T19:52:37.657652Z",
+      "rows_updated_at": 1791879761,
+      "published_rows": 5853762,
+      "acquired_rows": 5853762,
+      "warehouse_rows": 5853762,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 120230,
+        "RESOLVED": 5733532
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 5733532,
+        "DIRECT_ID_NO_CENSUS_RECORD": 120230
+      },
+      "distinct_identified_carriers": 577374,
+      "exact_duplicate_rows": 5853761,
+      "date_quality": [
+        {
+          "field": "insp_date",
+          "rows": 5853762,
+          "missing": 0,
+          "valid": 5853762,
+          "invalid": 0,
+          "earliest": "2024-09-25",
+          "latest": "2026-09-24"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "sa6p-acbp",
+      "sha256": "e59b4ba4cc19d427315f5525b39685ead13126fa91cdc4de64cb0914446222cb",
+      "available_at": "2026-10-23T19:56:59.492079Z",
+      "rows_updated_at": 1792761007,
+      "published_rows": 1529083,
+      "acquired_rows": 1529083,
+      "warehouse_rows": 1529083,
+      "mapping_status": {
+        "IDENTIFIED_ONLY": 486,
+        "RESOLVED": 1459497,
+        "UNRESOLVED": 69100
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_NO_CENSUS_RECORD": 486,
+        "DIRECT_ID_CENSUS_RESOLVED": 1459497,
+        "INVALID_DOT": 69100
+      },
+      "distinct_identified_carriers": 1003765,
+      "exact_duplicate_rows": 1529082,
+      "date_quality": [
+        {
+          "field": "order1_serve_date",
+          "rows": 1529083,
+          "missing": 145910,
+          "valid": 1383173,
+          "invalid": 0,
+          "earliest": "1987-12-22",
+          "latest": "2026-05-12"
+        },
+        {
+          "field": "order2_effective_date",
+          "rows": 1529083,
+          "missing": 245089,
+          "valid": 1283994,
+          "invalid": 0,
+          "earliest": "1996-01-01",
+          "latest": "2026-05-13"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "wb4f-neki",
+      "sha256": "93436eabfee4cac21e23bdec1e90be348ec332514a29da7602e6c22312c18f3a",
+      "available_at": "2026-10-23T19:41:59.123279Z",
+      "rows_updated_at": 1792749838,
+      "published_rows": 33101,
+      "acquired_rows": 33101,
+      "warehouse_rows": 33101,
+      "mapping_status": {
+        "RESOLVED": 32992,
+        "IDENTIFIED_ONLY": 109
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 32992,
+        "DIRECT_ID_NO_CENSUS_RECORD": 109
+      },
+      "distinct_identified_carriers": 25567,
+      "exact_duplicate_rows": 33100,
+      "date_quality": [
+        {
+          "field": "order1_serve_date",
+          "rows": 33101,
+          "missing": 0,
+          "valid": 33101,
+          "invalid": 0,
+          "earliest": "2026-05-18",
+          "latest": "2026-10-23"
+        },
+        {
+          "field": "order1_effective_date",
+          "rows": 33101,
+          "missing": 3766,
+          "valid": 29335,
+          "invalid": 0,
+          "earliest": "2026-05-16",
+          "latest": "2026-11-22"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "wt8s-2hbx",
+      "sha256": "57b7f4388b5c1f2ff7aa991eb9418054dee4e7594743980032fd5b9bd7777664",
+      "available_at": "2026-10-23T19:47:29.232110Z",
+      "rows_updated_at": 1792752687,
+      "published_rows": 13809225,
+      "acquired_rows": 13809225,
+      "warehouse_rows": 13809225,
+      "mapping_status": {
+        "RESOLVED": 13808720,
+        "IDENTIFIED_ONLY": 505
+      },
+      "mapping_reasons": {
+        "INSPECTION_PARENT_CENSUS_RESOLVED": 13808720,
+        "PARENT_DOT_NO_CENSUS_RECORD": 505
+      },
+      "distinct_identified_carriers": 660017,
+      "exact_duplicate_rows": 13809224,
+      "date_quality": [
+        {
+          "field": "change_date",
+          "rows": 13809225,
+          "missing": 0,
+          "valid": 13809225,
+          "invalid": 0,
+          "earliest": "2023-10-23",
+          "latest": "2026-10-21"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "x96h-evps",
+      "sha256": "1a34f9ffd802536beba83767891910a385250fd16d3f3cccd80930edb04e30ff",
+      "available_at": "2026-10-23T19:42:38.835276Z",
+      "rows_updated_at": 1792756877,
+      "published_rows": 179,
+      "acquired_rows": 179,
+      "warehouse_rows": 179,
+      "mapping_status": {
+        "RESOLVED": 174,
+        "IDENTIFIED_ONLY": 5
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 174,
+        "DIRECT_ID_NO_CENSUS_RECORD": 5
+      },
+      "distinct_identified_carriers": 176,
+      "exact_duplicate_rows": 178,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 179,
+          "missing": 0,
+          "valid": 179,
+          "invalid": 0,
+          "earliest": "2025-08-14",
+          "latest": "2026-10-23"
+        },
+        {
+          "field": "trans_date",
+          "rows": 179,
+          "missing": 0,
+          "valid": 179,
+          "invalid": 0,
+          "earliest": "2025-08-14",
+          "latest": "2026-10-23"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "xe5s-wca7",
+      "sha256": "95d54861757219b3455140bd0332fa1994cb5c97b191eca6f729fec5fbc911c6",
+      "available_at": "2026-10-23T19:42:53.178715Z",
+      "rows_updated_at": 1792756865,
+      "published_rows": 211,
+      "acquired_rows": 211,
+      "warehouse_rows": 211,
+      "mapping_status": {
+        "RESOLVED": 211
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 211
+      },
+      "distinct_identified_carriers": 199,
+      "exact_duplicate_rows": 210,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 211,
+          "missing": 0,
+          "valid": 211,
+          "invalid": 0,
+          "earliest": "2011-10-01",
+          "latest": "2026-10-23"
+        },
+        {
+          "field": "cancl_effective_date",
+          "rows": 211,
+          "missing": 0,
+          "valid": 211,
+          "invalid": 0,
+          "earliest": "2026-10-16",
+          "latest": "2026-11-26"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "ypjt-5ydn",
+      "sha256": "43802db2fd4a005126af85b5d306c1e1f172623b5fe2a70fa55c6151529de339",
+      "available_at": "2026-10-23T19:52:42.591190Z",
+      "rows_updated_at": 1792761043,
+      "published_rows": 467984,
+      "acquired_rows": 467984,
+      "warehouse_rows": 467984,
+      "mapping_status": {
+        "RESOLVED": 459070,
+        "UNRESOLVED": 7855,
+        "IDENTIFIED_ONLY": 1059
+      },
+      "mapping_reasons": {
+        "DOCKET_UNKNOWN_OWNER": 7855,
+        "DOCKET_CENSUS_RESOLVED": 459070,
+        "DOCKET_DOT_NO_CENSUS_RECORD": 1059
+      },
+      "distinct_identified_carriers": 425587,
+      "exact_duplicate_rows": 467983,
+      "date_quality": [
+        {
+          "field": "effective_date",
+          "rows": 467984,
+          "missing": 0,
+          "valid": 467984,
+          "invalid": 0,
+          "earliest": "1936-11-16",
+          "latest": "2032-08-10"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    },
+    {
+      "source": "yu5v-wbh6",
+      "sha256": "7522d909801482e599b293047b59e695e054d485bef195b87a96a7d643dd8f54",
+      "available_at": "2026-10-23T19:40:09.295032Z",
+      "rows_updated_at": 1792749845,
+      "published_rows": 228787,
+      "acquired_rows": 228787,
+      "warehouse_rows": 228787,
+      "mapping_status": {
+        "RESOLVED": 228056,
+        "IDENTIFIED_ONLY": 731
+      },
+      "mapping_reasons": {
+        "DIRECT_ID_CENSUS_RESOLVED": 228056,
+        "DIRECT_ID_NO_CENSUS_RECORD": 731
+      },
+      "distinct_identified_carriers": 158745,
+      "exact_duplicate_rows": 228786,
+      "date_quality": [
+        {
+          "field": "status_change_date",
+          "rows": 228787,
+          "missing": 0,
+          "valid": 228787,
+          "invalid": 0,
+          "earliest": "1926-06-16",
+          "latest": "2026-10-23"
+        }
+      ],
+      "count_gate": "PASS",
+      "reason_gate": "PASS"
+    }
+  ]
+}
