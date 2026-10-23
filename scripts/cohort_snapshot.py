@@ -24,6 +24,19 @@ PROFILES['underwriting_evidence_v2'] = PROFILES['underwriting_evidence_v1'] + li
 MOTUS_ADDITIONS=['yu5v-wbh6','6snj-ed7q','3uet-3z4i','wb4f-neki','dm5j-zc6c','mhr5-hjyc','nakq-58th','xe5s-wca7','x96h-evps','e67p-xyd5']
 DOT_FIELDS.update({sid:'usdot_number' for sid in MOTUS_ADDITIONS})
 PROFILES['underwriting_evidence_v3']=PROFILES['underwriting_evidence_v2']+MOTUS_ADDITIONS+[BRIDGE,'qh9u-swkp','9mw4-x3tu','2emp-mxtb','6sqe-dvqs','96tg-4mhf','sa6p-acbp',DOCKET_ONLY]
+STABILITY_FIELDS=('rows_updated_at','schema_sha256','table_id','row_count')
+
+
+class SourceStabilityError(ValueError):
+    """A source cannot be accepted for one bounded observation window."""
+
+
+class SourceWatermarkError(SourceStabilityError):
+    """A source does not expose the required update watermark."""
+
+
+class SourceChangedError(SourceStabilityError):
+    """A source changed between the before and after observations."""
 
 
 def source_dot(sid, row, parents=None, dockets=None):
@@ -57,8 +70,13 @@ def state(sid, where):
             'row_count': int(query(sid, select='count(*) as count', where=where)[0]['count'])}
 
 def stable(before, after):
-    if before['rows_updated_at'] is None or any(before[k] != after[k] for k in ['rows_updated_at','schema_sha256','table_id','row_count']):
-        raise ValueError('Source changed or has no update watermark')
+    missing=[phase for phase,state_row in [('before',before),('after',after)] if state_row.get('rows_updated_at') is None]
+    if missing:
+        raise SourceWatermarkError('Source update watermark unavailable ('+', '.join(missing)+')')
+    changed=[key for key in STABILITY_FIELDS if before.get(key)!=after.get(key)]
+    if changed:
+        detail='; '.join(f'{key}: {before.get(key)!r} -> {after.get(key)!r}' for key in changed)
+        raise SourceChangedError(f'Source changed during acquisition ({detail})')
 
 def select_cohort(per_stratum):
     if not 1 <= per_stratum <= 20:

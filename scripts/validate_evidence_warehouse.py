@@ -13,6 +13,35 @@ from docket_identity import BRIDGE, docket_index
 from snapshot_store import now, write_once
 from verify_snapshot import timestamp
 
+MAX_STABILITY_ATTEMPTS = 2
+
+
+def acquisition_failures(manifest):
+    if manifest.get('status') == 'FAILED' and manifest.get('error'):
+        return [{'source_id':None,'error':manifest['error']}]
+    return [{'source_id':source.get('id'),'error':source.get('error','')}
+            for source in manifest.get('datasets',[]) if source.get('status')=='FAILED']
+
+
+def retryable_source_change(manifest):
+    failures=acquisition_failures(manifest)
+    return bool(failures) and all(failure['error'].startswith('SourceChangedError:') for failure in failures)
+
+
+def acquire_stable_cut(raw_root, per_stratum, profile):
+    attempts=[]
+    cohort_path=None
+    for attempt in range(1,MAX_STABILITY_ATTEMPTS+1):
+        cut,manifest=acquire(raw_root,per_stratum=per_stratum,cohort_path=cohort_path,profile=profile)
+        failures=acquisition_failures(manifest)
+        attempts.append({'attempt':attempt,'snapshot_id':manifest.get('snapshot_id'),'status':manifest.get('status'),
+                         'cohort_reused':cohort_path is not None,'failures':failures})
+        if manifest.get('status')=='COMPLETE' or attempt==MAX_STABILITY_ATTEMPTS or not retryable_source_change(manifest):
+            return cut,manifest,attempts
+        preserved_cohort=pathlib.Path(cut)/'cohort.json'
+        cohort_path=preserved_cohort if preserved_cohort.is_file() else None
+    raise AssertionError('Bounded acquisition loop did not return')
+
 
 def validate(output, cut=None, per_stratum=1, profile='underwriting_evidence_v2'):
     output = pathlib.Path(output)
@@ -20,7 +49,8 @@ def validate(output, cut=None, per_stratum=1, profile='underwriting_evidence_v2'
     report = {'status':'RUNNING','started_at':now()}
     try:
         if cut is None:
-            cut, manifest = acquire(output/'raw',per_stratum=per_stratum,profile=profile)
+            cut, manifest, attempts = acquire_stable_cut(output/'raw',per_stratum,profile)
+            report['acquisition_attempts']=attempts
             if manifest['status'] != 'COMPLETE':
                 raise ValueError('Live acquisition did not complete every required source')
         cut = pathlib.Path(cut)
