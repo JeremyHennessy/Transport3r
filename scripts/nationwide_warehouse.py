@@ -106,7 +106,15 @@ def mapping_sql(source,columns,contract):
     raise ValueError('No registered identity mapping for '+source)
 
 def duplicate_rows(db,raw):
-    return db.execute(f'SELECT coalesce(sum(n-1),0) FROM (SELECT count(*) n FROM (SELECT * EXCLUDE (_warehouse_row_id) FROM {raw}) GROUP BY ALL HAVING count(*)>1)').fetchone()[0]
+    # GROUP BY ALL with a COUNT-only select groups every row together; it does
+    # not count duplicates. Group by every original source column instead.
+    columns = [row[1] for row in db.execute(f"PRAGMA table_info({literal(raw)})").fetchall()
+               if row[1] != '_warehouse_row_id']
+    if not columns:
+        raise ValueError('No source columns available for duplicate accounting')
+    grouped = ','.join(ident(column) for column in columns)
+    value = db.execute(f'SELECT coalesce(sum(n-1),0) FROM (SELECT count(*) n FROM {raw} GROUP BY {grouped} HAVING count(*)>1)').fetchone()[0]
+    return int(value)
 
 def date_quality(db,raw,columns,fields):
     if not fields:return []

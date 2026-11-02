@@ -1,0 +1,23 @@
+/* Insurance review is scoped; existing Carrier 360 report layout is unchanged. */
+.t3-insurance-review{margin:0 0 16px;padding:25px 26px;border:1px solid #dbe5ec;border-radius:22px;background:linear-gradient(160deg,#fff,#f8fbfc);box-shadow:0 9px 28px rgba(12,34,46,.045)}
+.t3-insurance-review-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:19px}
+.t3-insurance-review-head h2{font-size:clamp(23px,2vw,31px);letter-spacing:-.035em;line-height:1.1;margin:6px 0 9px;color:#153c47}
+.t3-insurance-review-head p{max-width:820px;font-size:12px;line-height:1.65;color:#5a7280;margin:0}
+.t3-insurance-review-boundary{white-space:nowrap;padding:8px 11px;border-radius:999px;background:#fff3ed;border:1px solid #eccabb;color:#a3563d;font-size:10px;font-weight:800}
+.t3-insurance-review-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.t3-insurance-line{min-width:0;display:flex;flex-direction:column;padding:20px;border:1px solid #e0e9ed;border-radius:16px;background:#fff}
+.t3-insurance-line-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+.t3-insurance-index{font-size:10px;font-weight:850;color:#8498a0;letter-spacing:.12em}
+.t3-insurance-evidence{padding:6px 9px;border-radius:100px;background:#f1f3f4;color:#69787e;font-size:9px;font-weight:800}
+.t3-insurance-evidence.loaded{background:#e9f4f1;color:#367967}.t3-insurance-evidence.partial{background:#fff3e6;color:#9b6a37}
+.t3-insurance-line h3{font-size:16px;color:#123743;letter-spacing:-.02em;margin:2px 0 10px}
+.t3-insurance-snapshot{font-size:12px;font-weight:650;color:#314f5b;line-height:1.55;margin:0 0 9px}
+.t3-insurance-limit{font-size:11px;color:#687e88;line-height:1.55;margin:0 0 14px}
+.t3-insurance-next{margin-top:auto;padding-top:12px;border-top:1px solid #e9edef}
+.t3-insurance-next strong{font-size:9px;text-transform:uppercase;letter-spacing:.075em;color:#a45f48}
+.t3-insurance-next p{font-size:11px;color:#61757e;line-height:1.5;margin:5px 0 13px}
+.t3-insurance-link{font-size:11px;font-weight:800;color:#237778;text-decoration:none}.t3-insurance-link:hover{text-decoration:underline}
+.t3-insurance-review-footnote{padding:13px 15px;margin:16px 0 0;border-left:3px solid #d58065;background:#fbf5f2;color:#647880;font-size:11px;line-height:1.55}
+@media(max-width:900px){.t3-insurance-review-grid{grid-template-columns:1fr}.t3-insurance-review-head{flex-direction:column}.t3-insurance-review-boundary{white-space:normal}}
+@media(max-width:600px){.t3-insurance-review{padding:16px}.t3-insurance-line{padding:15px}}
+@media print{.t3-insurance-review{box-shadow:none}.t3-insurance-line{break-inside:avoid}}

@@ -5,6 +5,7 @@ on:
     branches:
       - feature/insurance-workbench-20261102
       - feature/private-insurance-review-20261102
+      - feature/carrier-geography-atlas-20261102
   pull_request:
     branches: [main]
   workflow_dispatch:

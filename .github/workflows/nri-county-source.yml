@@ -1,0 +1,79 @@
+name: FEMA NRI county source validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/nri_county_ingest.py"
+      - "scripts/test_nri_county_ingest.py"
+      - "scripts/nri_county_index.py"
+      - "scripts/test_nri_county_index.py"
+      - ".github/workflows/nri-county-source.yml"
+      - "docs/fema-nri-county-source.md"
+      - "docs/evidence-api-fema-deployment.md"
+      - "deploy/evidence-api/compose.nri.example.yml"
+      - "scripts/evidence_api.py"
+      - "scripts/test_nri_county_api.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-fema-nri-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DuckDB for combined read-only API tests
+        run: python -m pip install -r scripts/requirements-nationwide.txt
+      - name: Validate optional API deployment manifest
+        env:
+          TRANSPORT3R_WAREHOUSE_PATH: /tmp/dry-run-warehouse.duckdb
+          TRANSPORT3R_NRI_INDEX_PATH: /tmp/dry-run-nri-counties.sqlite
+        run: |
+          docker compose -f deploy/evidence-api/compose.nri.example.yml config --quiet
+          docker compose -f deploy/evidence-api/compose.nri.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);x=d['services']['transport3r-evidence'];assert x['read_only'];assert x['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in x['volumes'])"
+      - name: Run synthetic reproducibility, identity and failure-gate tests
+        run: python -m unittest discover -s scripts -p "test_nri_county_*.py" -v
+      - name: Capture and validate official FEMA v1.20 ArcGIS county layer
+        run: python scripts/nri_county_ingest.py --output /tmp/transport3r-fema-nri-v120 --arcgis
+      - name: Audit real-source acceptance and expected county grain
+        run: |
+          python - <<'PY'
+          import json,pathlib,re
+          root=pathlib.Path('/tmp/transport3r-fema-nri-v120')
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['status']=='SOURCE_ACCEPTED_COUNTY_GRAIN',m
+          assert m['mode']=='FEMA_ARCGIS_PAGED_SOURCE',m
+          assert m['source_distribution']=='FEMA_OFFICIAL_ARCGIS_FEATURESERVER',m
+          assert m['source_archive_kind']=='RECONSTRUCTED_FROM_ORIGINAL_ARCGIS_JSON',m
+          assert m['provenance_verified'] is True,m
+          assert len(m['page_audit'])>=2,m
+          assert m['raw_rows']==m['accepted_rows']==m['fips_unique'],m
+          assert m['raw_rows']>=3000 and m['rejected_rows']==0,m
+          assert re.fullmatch('[a-f0-9]{64}',m['archive_sha256']),m
+          assert re.fullmatch('[a-f0-9]{64}',m['normalized_sha256']),m
+          assert m['derived_carrier_risk'] is False and m['route_exposure_matched'] is False,m
+          print('Official FEMA county source acceptance VERIFIED at source grain:',m['accepted_rows'])
+          PY
+      - name: Install and verify read-only county source index
+        run: |
+          python scripts/nri_county_index.py --release /tmp/transport3r-fema-nri-v120 --index /tmp/transport3r-fema-nri-v120/verified-counties.sqlite
+          python scripts/nri_county_index.py --index /tmp/transport3r-fema-nri-v120/verified-counties.sqlite --lookup 01001
+          sha256sum /tmp/transport3r-fema-nri-v120/verified-counties.sqlite
+      - name: Preserve immutable FEMA source audit bundle (including failed receipts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fema-nri-county-validation-${{ github.sha }}
+          path: |
+            /tmp/transport3r-fema-nri-v120/manifest.json
+            /tmp/transport3r-fema-nri-v120/counties.csv
+            /tmp/transport3r-fema-nri-v120/source_table.zip
+            /tmp/transport3r-fema-nri-v120/verified-counties.sqlite
+            /tmp/transport3r-fema-nri-v120/arcgis-original-responses/
+          if-no-files-found: warn
+          retention-days: 30
