@@ -50,6 +50,28 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(self.request('/api/portfolio',{'records':[record]})[1]['changes'],0)
         self.assertEqual(self.request('/api/portfolio',{'records':[record,{**record,'policy_id':'P2','scheduled_units':-1}]})[0],400)
         saved=self.request('/api/state')[1]['portfolio'];self.assertEqual(len(saved),1);self.assertIsNone(saved[0]['insured_vmt'])
+    def test_private_coverage_review_endpoint_and_origin_boundary(self):
+        review={'account_id':'A1','policy_id':'P1','dot_number':'3706',
+                'line':'motor-truck-cargo','status':'needs_data',
+                'notes':'Review shipment commodity and cargo loss schedule'}
+        self.assertEqual(self.request('/api/insurance-review',review)[0],401)
+        self.login()
+        policy={'account_id':'A1','policy_id':'P1','dot_number':'3706',
+                'policy_start':'2026-01-01','policy_end':'2027-01-01',
+                'status':'watch','review_status':'unreviewed'}
+        self.assertEqual(self.request('/api/portfolio',{'records':[policy]})[0],200)
+        self.assertEqual(self.request('/api/insurance-review',review,origin=False)[0],403)
+        code,result=self.request('/api/insurance-review',review)
+        self.assertEqual(code,200)
+        self.assertEqual(result['status'],'SAVED_LOCALLY')
+        self.assertTrue(result['changed'])
+        records=self.request('/api/state')[1]['insurance_reviews']
+        self.assertEqual(len(records),1)
+        self.assertEqual(records[0]['line'],'motor-truck-cargo')
+        self.assertEqual(len(self.request('/api/insurance-review-history?id='+result['id'])[1]),1)
+        self.assertEqual(self.request('/api/insurance-review',{**review,'status':'bound'})[0],400)
+        self.assertEqual(self.request('/api/insurance-review',{**review,'dot_number':'3938496'})[0],400)
+
     def test_compliance_followup_api_preserves_evidence_and_reports_busy_refresh(self):
         from test_compliance_tracking import fixture
         from compliance_tracking import assess,persist
