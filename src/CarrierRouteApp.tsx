@@ -1,5 +1,6 @@
 import {CompleteLoadStatus,AllSourceRecords,mergeComplete} from './CompleteData';
 import {CarrierInsight} from './CarrierInsight';
+import {InsuranceLineReview} from './InsuranceLineReview';
 import {OfficialSmsPanel} from './OfficialSmsPanel';
 import { InspectionDetail, ObservedVinDetail } from './InspectionDrilldowns';
 import { loadInspectionEvidence } from './inspectionEvidence';
@@ -338,7 +339,7 @@ export default function CarrierRouteApp() {
     if (route.section === 'safety') return wrap(<Safety carrier={carrier} evidence={displayEvidence}/>);
     if (route.section === 'fleet') return wrap(<Fleet carrier={carrier} evidence={displayEvidence}/>);
     if (route.section === 'authority') return wrap(<Authority evidence={displayEvidence}/>);
-    if (route.section === 'insurance') return wrap(<Insurance evidence={displayEvidence}/>);
+    if (route.section === 'insurance') return wrap(<><InsuranceLineReview evidence={displayEvidence}/><Insurance evidence={displayEvidence}/></>);
     if (route.section === 'sms') return wrap(<Sms evidence={displayEvidence}/>);
     return wrap(<><Evidence carrier={carrier} evidence={displayEvidence}/><AllSourceRecords key={route.dotNumber} evidence={displayEvidence}/></>);
   }, [route, carrier, evidence, mode, selectedInspection]);
