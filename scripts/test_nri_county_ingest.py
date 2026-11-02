@@ -7,7 +7,9 @@ import tempfile
 import unittest
 import zipfile
 
-from nri_county_ingest import build, hash_file, normalize
+from nri_county_ingest import build, hash_file, normalize, ARCGIS_FIELDS
+from unittest.mock import patch
+import urllib.parse
 
 HEADER = ["STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT", "NRI_VER"]
 ROWS = [
@@ -89,6 +91,55 @@ class NriCountyIngestTests(unittest.TestCase):
         fixture(self.src, rows=[[r[0], r[1], r[2], "", "", "", r[6]] for r in ROWS])
         with self.assertRaisesRegex(ValueError, "No county"):
             normalize(self.src, min_rows=3)
+
+    def _arcgis_response(self, url, destination, limit=8000000, mutate_count=False):
+        metadata = {
+            "name": "NRI_Counties_Prod", "objectIdField": "OBJECTID",
+            "fields": [{"name": field} for field in ARCGIS_FIELDS],
+            "editingInfo": {"dataLastEditDate": 1765870621340},
+        }
+        if "/query?" not in url:
+            response = metadata
+        else:
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+            if query.get("returnCountOnly") == ["true"]:
+                value = 4 if mutate_count and destination.name=="count-after.json" else 3
+                response = {"count": value}
+            else:
+                response = {
+                    "features": [
+                        {"attributes": {"OBJECTID": i + 1, **dict(zip(ARCGIS_FIELDS[1:], row))}}
+                        for i, row in enumerate(ROWS)
+                    ]
+                }
+        destination.write_text(json.dumps(response), encoding="utf-8")
+        return response
+
+    def test_official_arcgis_pages_keep_original_bytes_and_cut_identity(self):
+        with patch("nri_county_ingest._arcgis_json", side_effect=self._arcgis_response):
+            result = build(self.root / "arcgis", min_rows=3, arcgis=True)
+        self.assertEqual(result["status"], "SOURCE_ACCEPTED_COUNTY_GRAIN")
+        self.assertEqual(result["mode"], "FEMA_ARCGIS_PAGED_SOURCE")
+        self.assertTrue(result["provenance_verified"])
+        self.assertFalse(result["archive_is_original_fema_zip"])
+        self.assertEqual(result["source_archive_kind"], "RECONSTRUCTED_FROM_ORIGINAL_ARCGIS_JSON")
+        self.assertEqual(result["publisher_count"], 3)
+        self.assertEqual(len(result["page_audit"]), 1)
+        source_dir=self.root / "arcgis" / "arcgis-original-responses"
+        self.assertEqual(result["page_audit"][0]["sha256"],hash_file(source_dir/"page-00000.json"))
+        self.assertEqual(len(list(source_dir.glob("*.json"))),5)
+        self.assertTrue((self.root/"arcgis"/"counties.csv").is_file())
+
+    def test_arcgis_source_changes_fail_closed_and_preserve_raw_receipt(self):
+        def changing(url, dest, limit=8000000):
+            return self._arcgis_response(url,dest,limit,mutate_count=True)
+        with patch("nri_county_ingest._arcgis_json",side_effect=changing):
+            with self.assertRaisesRegex(ValueError,"changed during"):
+                build(self.root/"arcgis-changed",min_rows=3,arcgis=True)
+        receipt=json.loads((self.root/"arcgis-changed"/"manifest.json").read_text())
+        self.assertEqual(receipt["status"],"REJECTED")
+        self.assertFalse((self.root/"arcgis-changed"/"counties.csv").exists())
+        self.assertTrue((self.root/"arcgis-changed"/"arcgis-original-responses"/"metadata-before.json").exists())
 
     def test_missing_or_duplicate_csv_archive_fails(self):
         fixture(self.src, member="wrong.csv")
