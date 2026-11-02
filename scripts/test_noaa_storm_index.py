@@ -93,12 +93,12 @@ class NOAAHTTPTests(unittest.TestCase):
         self.warehouse=self.root/"warehouse.duckdb"
         NationwideEvidence.fixture(self,self.warehouse)
         NOAAIndexTests.simulated_official_receipt(self)
-
-    def tearDown(self):
-        NOAAIndexTests.tearDown(self)
         from evidence_api import EvidenceServer,Handler
         self.EvidenceServer=EvidenceServer
         self.Handler=Handler
+
+    def tearDown(self):
+        NOAAIndexTests.tearDown(self)
 
     def launch(self,with_index=True):
         server=self.EvidenceServer(("127.0.0.1",0),self.Handler,self.warehouse,
