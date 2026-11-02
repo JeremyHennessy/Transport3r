@@ -11,6 +11,7 @@ import './insight.css';
 import './completeData.css';
 import './visualPolish.css';
 import './visualPolishExtras.css';
+import './atlas.css';
 
 type ErrorBoundaryState = { error: Error | null };
 
