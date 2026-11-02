@@ -87,12 +87,15 @@ class NOAAIndexTests(unittest.TestCase):
                 locations(self.path,state,limit,offset)
 
 @unittest.skipUnless(HAS_DUCKDB,"DuckDB required for full public-source HTTP smoke")
-class NOAAHTTPTests(NOAAIndexTests):
+class NOAAHTTPTests(unittest.TestCase):
     def setUp(self):
-        super().setUp()
+        NOAAIndexTests.setUp(self)
         self.warehouse=self.root/"warehouse.duckdb"
         NationwideEvidence.fixture(self,self.warehouse)
-        self.simulated_official_receipt()
+        NOAAIndexTests.simulated_official_receipt(self)
+
+    def tearDown(self):
+        NOAAIndexTests.tearDown(self)
         from evidence_api import EvidenceServer,Handler
         self.EvidenceServer=EvidenceServer
         self.Handler=Handler
