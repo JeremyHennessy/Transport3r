@@ -1,0 +1,51 @@
+/* Provenance-first Atlas, intentionally scoped to the public carrier geography route. */
+.t3-atlas-main{max-width:1800px!important;margin:0 auto;padding:24px clamp(16px,3vw,44px) 65px}
+.t3-atlas-banner{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,.65fr);gap:32px;align-items:center;min-height:245px;padding:clamp(25px,3.4vw,46px);border-radius:24px;background:radial-gradient(circle at 98% -20%,rgba(187,108,81,.27),transparent 45%),linear-gradient(125deg,#102d37,#164550);color:white}
+.t3-atlas-overline{text-transform:uppercase;letter-spacing:.15em;font-weight:850;font-size:10px;color:#be806c}
+.t3-atlas-banner .t3-atlas-overline{color:#e2a18c}
+.t3-atlas-banner h1{font-size:clamp(36px,4vw,62px);margin:9px 0 14px;letter-spacing:-.05em;line-height:1.04;color:#fff}
+.t3-atlas-banner p{max-width:800px;font-size:14px;line-height:1.7;color:#dfebed;margin:0}
+.t3-atlas-search{padding:19px;background:rgba(255,255,255,.075);border:1px solid rgba(255,255,255,.17);border-radius:16px}
+.t3-atlas-search label{display:block;margin-bottom:8px;font-size:11px;font-weight:800;color:#e6eded}
+.t3-atlas-search>div{display:flex;gap:7px;flex-wrap:wrap}
+.t3-atlas-search input{flex:1 1 145px;min-width:120px;min-height:44px;border:1px solid #9ab3ba;border-radius:10px;padding:0 12px;background:#fff;color:#20434d}
+.t3-atlas-search button{border:0;border-radius:10px;padding:0 15px;background:#c57658;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.t3-atlas-search button:hover{background:#ab6046}
+.t3-atlas-search small{display:block;margin-top:11px;color:#c9dcdf;font-size:10px;line-height:1.5}
+.t3-atlas-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.t3-atlas-proof>div{min-width:0;padding:15px 18px;border:1px solid #dce5e9;border-radius:14px;background:#fff}
+.t3-atlas-proof strong{display:block;font-size:12px;color:#254a51;margin-bottom:5px}
+.t3-atlas-proof span{font-size:11px;color:#66808a;line-height:1.5}
+.t3-atlas-empty,.t3-atlas-error{padding:27px;border-radius:18px;background:#fff;border:1px solid #dbe5e8;color:#395966;margin:15px 0}
+.t3-atlas-empty h2{margin:0 0 6px;font-size:22px;color:#214650}
+.t3-atlas-empty p,.t3-atlas-error p{font-size:13px;line-height:1.6}
+.t3-atlas-empty a,.t3-atlas-viewline a{color:#247477;font-weight:800}
+.t3-atlas-error{border-left:4px solid #bd765c}
+.t3-atlas-map-panel{border:1px solid #d5e2e5;border-radius:20px;padding:14px 14px 0;margin:18px 0;background:#fff;box-shadow:0 10px 28px rgba(18,58,69,.045)}
+.t3-atlas-viewline{display:flex;gap:12px;justify-content:space-between;align-items:center;padding:5px 9px 15px}
+.t3-atlas-viewline strong{display:block;font-size:19px;color:#244b57}
+.t3-atlas-viewline span{display:block;font-size:11px;color:#6a8189}
+.t3-atlas-viewline a{font-size:12px}
+.t3-atlas-warning{margin:5px 9px 15px;padding:12px 15px;border-radius:10px;background:#fff5e8;color:#91613a;font-size:12px;line-height:1.5}
+.t3-atlas-map-panel .t3-recent-map{margin:0!important;border-color:#e5edf0!important;border-radius:14px!important;box-shadow:none!important}
+.t3-atlas-map-panel .t3-map-layout{grid-template-columns:minmax(0,1.7fr) minmax(255px,.5fr)!important}
+.t3-atlas-map-panel .t3-map-canvas{min-height:570px!important}
+.t3-atlas-map-panel .t3-map-canvas svg{width:100%!important;max-height:none!important;max-width:none!important;min-height:540px!important}
+.t3-atlas-provenance{display:flex;gap:13px;flex-wrap:wrap;padding:13px 10px 17px;color:#6e8790;font-size:10px}
+.t3-atlas-layer-section{margin-top:28px}
+.t3-atlas-section-head{display:flex;gap:24px;align-items:center;justify-content:space-between;margin:0 0 17px}
+.t3-atlas-section-head h2{font-size:25px;letter-spacing:-.04em;margin:6px 0;color:#173f47}
+.t3-atlas-section-head p{font-size:12px;line-height:1.55;color:#6e838b;max-width:870px;margin:0}
+.t3-atlas-section-head>a{font-size:12px;color:#247477;font-weight:800;white-space:nowrap}
+.t3-atlas-layers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.t3-atlas-layers article{min-width:0;display:flex;flex-direction:column;gap:8px;padding:19px;border:1px solid #dde8ea;background:#fff;border-radius:17px}
+.t3-atlas-layer-top{display:flex;justify-content:space-between;align-items:center;gap:7px}
+.t3-atlas-layer-top>span:last-child{font-size:9px;color:#91a2a6}
+.t3-atlas-unavailable{font-size:9px;color:#9d6c50;background:#fff3ec;border:1px solid #efddce;padding:5px 8px;border-radius:100px;font-weight:800}
+.t3-atlas-layers h3{font-size:15px;line-height:1.2;color:#183f4a;margin:6px 0 0}
+.t3-atlas-layers p{font-size:12px;color:#4e727a;line-height:1.45;margin:0}
+.t3-atlas-layers small{font-size:11px;color:#7a8b93;line-height:1.5}
+.t3-atlas-layers a{margin-top:auto;padding-top:6px;color:#247477;font-size:11px;font-weight:800;text-decoration:none}
+.t3-atlas-bottom{padding:13px 17px;margin-top:19px;background:#f4f7f8;border-left:3px solid #b77a63;color:#697e86;font-size:11px;line-height:1.5}
+@media(max-width:1000px){.t3-atlas-banner{grid-template-columns:1fr}.t3-atlas-layers{grid-template-columns:repeat(2,minmax(0,1fr))}.t3-atlas-map-panel .t3-map-layout{grid-template-columns:1fr!important}}
+@media(max-width:670px){.t3-atlas-main{padding:16px 13px 35px!important}.t3-atlas-banner{padding:24px 20px}.t3-atlas-proof{grid-template-columns:1fr}.t3-atlas-layers{grid-template-columns:1fr}.t3-atlas-section-head{flex-direction:column;align-items:flex-start}.t3-atlas-map-panel .t3-map-canvas{min-height:340px!important}.t3-atlas-map-panel .t3-map-canvas svg{min-height:290px!important}.t3-atlas-viewline{align-items:flex-start;flex-direction:column}}
