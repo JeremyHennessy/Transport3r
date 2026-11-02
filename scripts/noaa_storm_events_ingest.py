@@ -247,14 +247,6 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
                             for kind,cnt in counts.items()}
         manifest.update(invalid_coordinates=invalid_coords,missing_coordinates=missing_coords,
                         unmatched_location_event_ids=orphan_locations,unmatched_fatality_event_ids=orphan_fatalities)
-        with db:
-            db.execute("INSERT INTO source_receipt VALUES (?,?)",("manifest",json.dumps(manifest,sort_keys=True)))
-        check=db.execute("PRAGMA integrity_check").fetchone()[0]
-        if check!="ok":
-            raise ValueError("SQLite index integrity check failed")
-        db.close();db=None
-        os.replace(pending,output/"events.sqlite")
-        manifest["index_sha256"]=sha(output/"events.sqlite")
         manifest["source_revision_stable"]=True if archives is not None else False
         if not archives:
             # Fail closed if any revision advanced while the three source files were downloading.
@@ -265,6 +257,14 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
                 raise ValueError("NOAA annual file revisions changed during acquisition")
             manifest["source_revision_stable"]=True
         manifest["status"]="SOURCE_ACCEPTED_YEAR_GRAIN" if archives is None else "EXPLICIT_ARCHIVES_VERIFIED_SCHEMA_ONLY"
+        with db:
+            db.execute("INSERT INTO source_receipt VALUES (?,?)",("manifest",json.dumps(manifest,sort_keys=True)))
+        check=db.execute("PRAGMA integrity_check").fetchone()[0]
+        if check!="ok":
+            raise ValueError("SQLite index integrity check failed")
+        db.close();db=None
+        os.replace(pending,output/"events.sqlite")
+        manifest["index_sha256"]=sha(output/"events.sqlite")
     except Exception as error:
         manifest["status"]="REJECTED"
         manifest["error"]=type(error).__name__+": "+str(error)
