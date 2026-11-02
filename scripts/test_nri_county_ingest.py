@@ -7,7 +7,7 @@ import tempfile
 import unittest
 import zipfile
 
-from nri_county_ingest import build, hash_file, normalize, ARCGIS_FIELDS
+from nri_county_ingest import build, hash_file, normalize, ARCGIS_FIELDS, ARCGIS_LAYER, _arcgis_json
 from unittest.mock import patch
 import urllib.parse
 
@@ -151,6 +151,30 @@ class NriCountyIngestTests(unittest.TestCase):
         self.assertEqual(receipt["status"],"REJECTED")
         self.assertFalse((self.root/"arcgis-changed"/"counties.csv").exists())
         self.assertTrue((self.root/"arcgis-changed"/"arcgis-original-responses"/"metadata-before.json").exists())
+
+    def test_arcgis_redirect_must_remain_on_approved_publisher_host_and_layer(self):
+        class Response:
+            def __init__(self,url): self.url=url
+            def __enter__(self): return self
+            def __exit__(self,*args): return False
+            def geturl(self): return self.url
+            def read(self,n): return b'{"name":"NRI_Counties_Prod"}'
+        good=ARCGIS_LAYER+"?f=json"
+        for redirect in [
+            "https://attacker.example/nri?f=json",
+            "https://services.arcgis.com/other-provider/ArcGIS/rest/services/fake/FeatureServer/0?f=json",
+            "http://"+good[len("https://"):],
+            "https://user:pass@"+good[len("https://"):],
+        ]:
+            with self.subTest(redirect=redirect),patch(
+                "urllib.request.urlopen",return_value=Response(redirect)
+            ),self.assertRaisesRegex(ValueError,"approved official source endpoint"):
+                _arcgis_json(good,self.root/"unexpected.json")
+        self.assertFalse((self.root/"unexpected.json").exists())
+        with patch("urllib.request.urlopen",return_value=Response(good)):
+            data=_arcgis_json(good,self.root/"approved.json")
+            self.assertEqual(data["name"],"NRI_Counties_Prod")
+            self.assertTrue((self.root/"approved.json").exists())
 
     def test_missing_or_duplicate_csv_archive_fails(self):
         fixture(self.src, member="wrong.csv")
