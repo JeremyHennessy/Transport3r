@@ -88,7 +88,7 @@ def _arcgis_json(url: str, destination: pathlib.Path, limit: int = 8_000_000) ->
     return decoded
 
 
-def acquire_arcgis(dest: pathlib.Path, release_dir: pathlib.Path) -> dict:
+def acquire_arcgis(dest: pathlib.Path, release_dir: pathlib.Path, min_rows: int = 3000) -> dict:
     """Capture an official FEMA-hosted FeatureServer with publication stability gates.
 
     The resulting ZIP is a *reconstructed transport wrapper*, NOT the original
@@ -114,7 +114,7 @@ def acquire_arcgis(dest: pathlib.Path, release_dir: pathlib.Path) -> dict:
         )
         response = _arcgis_json(url, raw_dir / ("count-" + phase + ".json"))
         value = response.get("count")
-        if not isinstance(value, int) or not 3000 <= value <= MAX_ROWS:
+        if not isinstance(value, int) or not min_rows <= value <= MAX_ROWS:
             raise ValueError("Official FEMA FeatureServer county count is outside expected universe")
         return value
 
@@ -130,10 +130,8 @@ def acquire_arcgis(dest: pathlib.Path, release_dir: pathlib.Path) -> dict:
         page_file = raw_dir / f"page-{offset:05d}.json"
         response = _arcgis_json(url, page_file)
         features = response.get("features")
-        if not isinstance(features, list) or not 1 <= len(features) <= min(page_size, published - offset):
+        if not isinstance(features, list) or len(features) != min(page_size, published - offset):
             raise ValueError("ArcGIS returned incomplete, extra or missing county page")
-        if response.get("exceededTransferLimit"):
-            raise ValueError("ArcGIS truncated requested county page")
         for feature in features:
             attrs = feature.get("attributes") if isinstance(feature, dict) else None
             if not isinstance(attrs, dict) or set(ARCGIS_FIELDS) - set(attrs):
@@ -290,31 +288,45 @@ def normalize(archive: pathlib.Path, min_rows: int = 3000) -> dict:
     }
 
 
-def build(output: pathlib.Path, archive: pathlib.Path | None = None, min_rows: int = 3000):
+def build(output: pathlib.Path, archive: pathlib.Path | None = None, min_rows: int = 3000,
+          arcgis: bool = False):
     if output.exists():
         raise FileExistsError("Release already exists; use a new versioned output directory")
+    if archive is not None and arcgis:
+        raise ValueError("Use either --arcgis or --archive, not both")
+    if not 1 <= min_rows <= MAX_ROWS:
+        raise ValueError("Invalid county minimum")
     output.mkdir(parents=True)
-    official = output / "official.zip"
-    final_url = SOURCE_URL
-    if archive:
-        source = pathlib.Path(archive).resolve()
-        if not source.is_file():
-            raise FileNotFoundError("Explicit source archive not found")
-        shutil.copyfile(source, official)
-        source_mode = "EXPLICIT_ARCHIVE"
-    else:
-        final_url = acquire_official(official)
-        source_mode = "OFFICIAL_LIVE_DOWNLOAD"
+    source_table = output / "source_table.zip"
     manifest = {
-        "source_id": SOURCE_ID, "source_url": SOURCE_URL, "resolved_url": final_url,
+        "source_id": SOURCE_ID, "source_url": SOURCE_URL, "resolved_url": SOURCE_URL,
         "release": EXPECTED_VERSION, "ingested_at": timestamp(),
-        "mode": source_mode, "archive_bytes": official.stat().st_size,
-        "archive_sha256": hash_file(official), "status": "BLOCKED_PENDING_VALIDATION",
+        "status": "BLOCKED_PENDING_ACQUISITION",
         "grain": "county STCOFIPS", "derived_carrier_risk": False,
-        "route_exposure_matched": False,
+        "route_exposure_matched": False, "archive_is_original_fema_zip": False,
     }
     try:
-        normalized = normalize(official, min_rows)
+        if archive:
+            source = pathlib.Path(archive).resolve()
+            if not source.is_file():
+                raise FileNotFoundError("Explicit source archive not found")
+            shutil.copyfile(source, source_table)
+            manifest.update(mode="UNVERIFIED_EXPLICIT_ARCHIVE", archive_is_original_fema_zip=False,
+                            provenance_verified=False,
+                            source_note="The provided archive content is tested; its claimed publisher is not independently verified")
+        elif arcgis:
+            original = acquire_arcgis(source_table, output, min_rows)
+            manifest.update(original)
+            manifest.update(mode="FEMA_ARCGIS_PAGED_SOURCE", provenance_verified=True,
+                            source_note="ZIP is a deterministic *derived wrapper*, not FEMA's original CSV ZIP; exact original JSON pages are preserved separately")
+        else:
+            final_url = acquire_official(source_table)
+            manifest.update(mode="OFFICIAL_LIVE_ZIP_DOWNLOAD", resolved_url=final_url,
+                            archive_is_original_fema_zip=True, provenance_verified=True)
+        manifest.update(archive_bytes=source_table.stat().st_size,
+                        archive_sha256=hash_file(source_table),
+                        status="BLOCKED_PENDING_VALIDATION")
+        normalized = normalize(source_table, min_rows)
         rows = normalized.pop("data")
         pending = output / "counties.partial.csv"
         with pending.open("w", newline="", encoding="utf-8") as stream:
@@ -336,11 +348,12 @@ def build(output: pathlib.Path, archive: pathlib.Path | None = None, min_rows: i
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=pathlib.Path, required=True)
-    parser.add_argument("--archive", type=pathlib.Path, help="Explicit verified source ZIP (offline replay)")
+    parser.add_argument("--archive", type=pathlib.Path, help="Explicit source ZIP (origin not automatically verified)")
+    parser.add_argument("--arcgis", action="store_true", help="Capture the official FEMA v1.20 ArcGIS FeatureServer instead of downloadable ZIP")
     parser.add_argument("--min-rows", type=int, default=3000)
     args = parser.parse_args()
     try:
-        report = build(args.output, args.archive, args.min_rows)
+        report = build(args.output, args.archive, args.min_rows, args.arcgis)
     except Exception as error:
         print(f"FEMA NRI acquisition failed: {type(error).__name__}: {error}", file=sys.stderr)
         sys.exit(1)
