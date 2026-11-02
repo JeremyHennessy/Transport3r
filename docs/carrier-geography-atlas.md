@@ -2,7 +2,7 @@
 
 Public route: `#/atlas` or `#/atlas?dot=3938496`.
 
-The Atlas reuses the existing FMCSA **daily inspection** and **crash involvement** carrier evidence (source IDs `fx4q-ay7w` and `aayw-vxb3`) and the existing Census 2025 state polygons. It renders state-level observation clusters, layer toggles, state selection, loaded counts, exact source timestamps when available, and links back to inspection detail.
+The Atlas reuses the existing FMCSA **daily inspection** and **crash involvement** carrier evidence (source IDs `fx4q-ay7w` and `aayw-vxb3`) and the existing Census 2025 state polygons. It renders state-level observation clusters, layer toggles, state selection, loaded counts, browser retrieval timestamps (not publication time), and links back to inspection detail.
 
 ## Honest scope
 
@@ -16,6 +16,7 @@ The Atlas reuses the existing FMCSA **daily inspection** and **crash involvement
 ## Validation
 
 - `npm test` includes shareable USDOT route and injection rejection.
+- Atlas-mode preview requests **only** FMCSA inspections and crash involvement slices. Other Carrier 360 data is not queried for the Atlas.
 - `npm run typecheck && npm run build` checks new route.
 - Test `#/atlas`, `#/atlas?dot=3938496`, `#/atlas?dot=3706`, invalid IDs, slow-source failures and narrow screens.
 - Assert no zero/clean event inference from a failed or partial source.
