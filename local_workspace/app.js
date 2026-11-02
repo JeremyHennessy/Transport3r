@@ -16,7 +16,28 @@ async function refresh(){
   state=await api('/api/state');
   for(const id of ['portfolioList','inboxList','relationshipList','subscriptions','jobs'])$(id).replaceChildren();
   if(!state.portfolio.length)$('portfolioList').append(node('p','No saved policies yet.'));
-  for(const row of state.portfolio){const el=record($('portfolioList'),`${row.account_id} · ${row.policy_id} · USDOT ${row.dot_number}`);el.append(node('p',`${row.policy_start} to ${row.policy_end} · ${row.status} · ${row.review_status}`));el.append(button('Edit policy',()=>{for(const field of $('portfolioForm').elements)if(field.name)field.value=row[field.name]??'';$('portfolioForm').scrollIntoView();}),button('Subscribe to evidence changes',async()=>{await api('/api/subscribe',{dot:row.dot_number,enabled:true});await refresh();message('Subscribed. The first verified check establishes a baseline.');}));}
+  for(const row of state.portfolio){const el=record($('portfolioList'),`${row.account_id} · ${row.policy_id} · USDOT ${row.dot_number}`);el.append(node('p',`${row.policy_start} to ${row.policy_end} · ${row.status} · ${row.review_status}`));el.append(button('Edit policy',()=>{for(const field of $('portfolioForm').elements)if(field.name)field.value=row[field.name]??'';$('portfolioForm').scrollIntoView();}),button('Subscribe to evidence changes',async()=>{await api('/api/subscribe',{dot:row.dot_number,enabled:true});await refresh();message('Subscribed. The first verified check establishes a baseline.');}),button('Review insurance lines',()=>{const form=$('insuranceReviewForm');for(const [name,value] of Object.entries({account_id:row.account_id,policy_id:row.policy_id,dot_number:row.dot_number})){const field=form.elements.namedItem(name);if(field)field.value=value;}window.location.hash='#insurance-reviews';form.scrollIntoView();}));}
+  const reviews=$('insuranceReviewList');
+  reviews.replaceChildren();
+  if(!(state.insurance_reviews||[]).length)reviews.append(node('p','No saved insurance-line reviews yet. Save a policy first, then record its coverage requirements here.'));
+  for(const item of state.insurance_reviews||[]){
+    const el=record(reviews,item.account_id+' · '+item.policy_id+' · USDOT '+item.dot+' · '+item.line);
+    el.append(node('p',item.status+' · '+item.reviewer+' · updated '+item.updated_at));
+    el.append(node('p',item.notes));
+    if(item.due_date)el.append(node('small','Follow-up due '+item.due_date));
+    if(item.source_cut)el.append(node('small','Analyst-entered cut reference (not independently verified): '+item.source_cut));
+    if(item.evidence_url){const link=node('a','Open attached evidence');link.href=item.evidence_url;link.rel='noopener noreferrer';link.target='_blank';el.append(link);}
+    el.append(button('Edit review',()=>{
+      const form=$('insuranceReviewForm');
+      const fields={account_id:item.account_id,policy_id:item.policy_id,dot_number:item.dot,line:item.line,status:item.status,notes:item.notes,evidence_url:item.evidence_url||'',source_cut:item.source_cut||'',due_date:item.due_date||''};
+      for(const [name,value] of Object.entries(fields)){const field=form.elements.namedItem(name);if(field)field.value=value;}
+      form.scrollIntoView();
+    }));
+    el.append(button('Review audit history',async()=>{
+      const history=await api('/api/insurance-review-history?id='+encodeURIComponent(item.id));
+      const details=node('pre',JSON.stringify(history,null,2));el.append(details);
+    }));
+  }
   for(const sub of state.subscriptions){const el=record($('subscriptions'),`USDOT ${sub.dot} · ${sub.enabled?'Enabled':'Paused'}`);el.append(button(sub.enabled?'Pause':'Resume',async()=>{await api('/api/subscribe',{dot:sub.dot,enabled:!sub.enabled});await refresh();}));}
   $('schedule').textContent=state.schedule.next_run?`Next scheduled check: ${new Date(Number(state.schedule.next_run)*1000).toLocaleString()}. Service must remain running.`:'Enabled subscriptions are picked up within 30 seconds, then checked daily.';
   for(const job of state.jobs.slice(0,5)){const el=record($('jobs'),`Check ${job.id} · ${job.status}`);el.append(node('small',`${job.started_at} ${job.finished_at?'→ '+job.finished_at:''}`));if(job.detail){const details=node('details');details.append(node('summary','Check details'),node('pre',job.detail));el.append(details);}}
@@ -29,6 +50,7 @@ async function refresh(){
 bindForm('loginForm',async data=>{await api(setup?'/api/setup':'/api/login',data);$('loginForm').reset();message('Signed in to the local workspace.');await session();});
 $('logout').onclick=()=>guard(async()=>{await api('/api/logout',{});state=null;await session();message('Signed out.');});
 bindForm('portfolioForm',async data=>{for(const key of ['scheduled_units','insured_vmt'])data[key]=data[key]===''?null:Number(data[key]);const prior=state.portfolio.find(r=>r.account_id===data.account_id&&r.policy_id===data.policy_id);await api('/api/portfolio',{records:[{...prior,...data}]});await refresh();message('Policy saved.');});
+bindForm('insuranceReviewForm',async data=>{await api('/api/insurance-review',data);await refresh();message('Private insurance review saved with an audit trail.');});
 bindForm('subscriptionForm',async data=>{await api('/api/subscribe',{dot:data.dot,enabled:data.enabled==='true'});await refresh();message('Subscription saved.');});
 bindForm('relationshipForm',async data=>{await api('/api/relationship',data);await refresh();message('Proposal saved. It will not enter a corporate group until reviewed and approved.');});
 bindForm('groupForm',async data=>{message('Aggregating approved members and published safety records…');const r=await api('/api/group?'+new URLSearchParams(data));showJson('groupResult',r);$('groupSummary').replaceChildren();const el=record($('groupSummary'),`${r.members.length} group members · ${r.approved_relationships.length} approved ownership links · ${r.matched} Census matches`);el.append(node('p',r.limitation));if(!r.approved_relationships.length)el.append(node('p','No approved ownership links: this is a single-DOT view.'));for(const [field,v]of Object.entries(r.reported_totals))el.append(node('p',`${({power_units:'Reported power units',total_drivers:'Reported drivers',mcs150_mileage:'Reported mileage'})[field]}: ${v.sum===null?'Unavailable':v.sum.toLocaleString()} · ${v.known}/${v.denominator} members reported`));renderSafety(el,r.safety);dataTable(el,['USDOT','Carrier','Status','Report date','Inspections','Crash vehicle reports'],r.reports.map(row=>[row.dot,row.name??'Unavailable',row.status??'Unknown',row.report_date??'Unknown',number(r.safety.by_dot[row.dot].inspections.count),number(r.safety.by_dot[row.dot].crash_reports.count)]));if(r.missing.length)el.append(node('p',`Missing Census members: ${r.missing.join(', ')}`));message('Corporate aggregation complete. Review source windows and any missing evidence below.');});
