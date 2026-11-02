@@ -1,7 +1,7 @@
 """Private insurer review validation and durable change-history regression."""
 import sqlite3
 import unittest
-from insurance_reviews import ensure, save_review, list_reviews, history
+from insurance_reviews import ensure, save_review, list_reviews, history, guard_policy_identity_changes
 
 POLICY={'account_id':'A1','policy_id':'Q1','dot_number':'3706'}
 BODY={'account_id':'A1','policy_id':'Q1','dot_number':'3706',
@@ -44,6 +44,19 @@ class CoverageReviewTests(unittest.TestCase):
         for patch,error in cases:
             with self.subTest(patch=patch),self.assertRaisesRegex(ValueError,error):
                 save_review(self.db,{**BODY,**patch},[POLICY],'Analyst')
+    def test_policy_identifiers_preserve_existing_valid_whitespace(self):
+        special_policy={**POLICY,'account_id':' A1 ','policy_id':' P1 '}
+        review={**BODY,'account_id':' A1 ','policy_id':' P1 '}
+        saved=save_review(self.db,review,[special_policy],'Analyst')
+        self.assertEqual(list_reviews(self.db)[0]['account_id'],' A1 ')
+        self.assertEqual(len(history(self.db,saved['id'])),1)
+    def test_linked_policy_cannot_change_dot(self):
+        save_review(self.db,BODY,[POLICY],'Analyst')
+        # A review locks the original policy USDOT; do not move evidence onto a new carrier.
+        with self.assertRaisesRegex(ValueError,'cannot change'):
+            guard_policy_identity_changes(self.db,[{**POLICY,'dot_number':'3707'}],[POLICY])
+    def test_unreviewed_policy_can_correct_dot(self):
+        guard_policy_identity_changes(self.db,[{**POLICY,'dot_number':'3707'}],[POLICY])
     def test_nullable_evidence_references_and_unknown_not_zero(self):
         row=save_review(self.db,{**BODY,'evidence_url':'','source_cut':'','due_date':''},[POLICY],'Owner')
         item=list_reviews(self.db)[0]
