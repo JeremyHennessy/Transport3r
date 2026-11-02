@@ -71,6 +71,12 @@ class WorkspaceTests(unittest.TestCase):
         self.assertEqual(len(self.request('/api/insurance-review-history?id='+result['id'])[1]),1)
         self.assertEqual(self.request('/api/insurance-review',{**review,'status':'bound'})[0],400)
         self.assertEqual(self.request('/api/insurance-review',{**review,'dot_number':'3938496'})[0],400)
+        # The private review is attached to a specific USDOT. The policy import
+        # must not silently move it to a different carrier.
+        self.assertEqual(self.request('/api/portfolio',{'records':[{**policy,'dot_number':'3938496'}]})[0],400)
+        self.assertEqual(self.request('/api/state')[1]['portfolio'][0]['dot_number'],'3706')
+        self.assertEqual(self.request('/api/insurance-review',{**review,'status':'in_review',
+            'notes':'Reconfirm insured driver fleet and motor-truck cargo exposure'})[0],200)
 
     def test_compliance_followup_api_preserves_evidence_and_reports_busy_refresh(self):
         from test_compliance_tracking import fixture
