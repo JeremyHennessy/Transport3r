@@ -157,6 +157,8 @@ def source_rows(gz_path:Path,kind:str):
             yield row_number,row
 
 def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAILS_ROWS):
+    if not 1950 <= year <= dt.datetime.now(dt.timezone.utc).year:
+        raise ValueError("NOAA annual source year outside allowed range")
     if output.exists():
         raise FileExistsError("Use a new immutable release directory")
     if not 1<=min_details<=MAX_SOURCE_ROWS:
@@ -247,7 +249,7 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
                             for kind,cnt in counts.items()}
         manifest.update(invalid_coordinates=invalid_coords,missing_coordinates=missing_coords,
                         unmatched_location_event_ids=orphan_locations,unmatched_fatality_event_ids=orphan_fatalities)
-        manifest["source_revision_stable"]=True if archives is not None else False
+        manifest["source_revision_stable"]=False
         if not archives:
             # Fail closed if any revision advanced while the three source files were downloading.
             fresh=raw/"directory-after.html"
