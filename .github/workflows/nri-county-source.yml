@@ -9,6 +9,10 @@ on:
       - "scripts/test_nri_county_index.py"
       - ".github/workflows/nri-county-source.yml"
       - "docs/fema-nri-county-source.md"
+      - "docs/evidence-api-fema-deployment.md"
+      - "deploy/evidence-api/compose.nri.example.yml"
+      - "scripts/evidence_api.py"
+      - "scripts/test_nri_county_api.py"
   workflow_dispatch:
 
 permissions:
@@ -25,6 +29,13 @@ jobs:
           python-version: "3.12"
       - name: Install DuckDB for combined read-only API tests
         run: python -m pip install -r scripts/requirements-nationwide.txt
+      - name: Validate optional API deployment manifest
+        env:
+          TRANSPORT3R_WAREHOUSE_PATH: /tmp/dry-run-warehouse.duckdb
+          TRANSPORT3R_NRI_INDEX_PATH: /tmp/dry-run-nri-counties.sqlite
+        run: |
+          docker compose -f deploy/evidence-api/compose.nri.example.yml config --quiet
+          docker compose -f deploy/evidence-api/compose.nri.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);x=d['services']['transport3r-evidence'];assert x['read_only'];assert x['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in x['volumes'])"
       - name: Run synthetic reproducibility, identity and failure-gate tests
         run: python -m unittest discover -s scripts -p "test_nri_county_*.py" -v
       - name: Capture and validate official FEMA v1.20 ArcGIS county layer
