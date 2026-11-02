@@ -15,7 +15,7 @@ import urllib.parse
 import urllib.request
 from private_workspace_store import connect, dot, save_portfolio, portfolio, relationship, review_relationship, group_members, deliver, save_screening_case
 from snapshot_store import now, digest
-from insurance_reviews import save_review, list_reviews, history as insurance_review_history
+from insurance_reviews import save_review, list_reviews, history as insurance_review_history, guard_policy_identity_changes
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
@@ -150,9 +150,13 @@ class Handler(BaseHTTPRequestHandler):
                     'schedule':dict(db.execute("SELECT key,value FROM settings WHERE key='next_run'").fetchall()),
                     'warehouse_available':bool(self.app.warehouse),'forecast':{'status':'BLOCKED','reasons':['No matched historical SMS releases','No mature outcome follow-up','No insurer claims/loss outcomes or actuarial calibration']}})
             if route=='/api/portfolio' and self.command=='POST':
-                return self.send(200,save_portfolio(self.app.folder,body.get('records')))
+                with self.server.policy_lock:
+                    records=body.get('records')
+                    guard_policy_identity_changes(db,records,portfolio(self.app.folder))
+                    return self.send(200,save_portfolio(self.app.folder,records))
             if route=='/api/insurance-review' and self.command=='POST':
-                return self.send(200,save_review(db,body,portfolio(self.app.folder),owner))
+                with self.server.policy_lock:
+                    return self.send(200,save_review(db,body,portfolio(self.app.folder),owner))
             if route=='/api/insurance-review-history' and self.command=='GET':
                 params=urllib.parse.parse_qs(request.query)
                 return self.send(200,insurance_review_history(db,params.get('id',[''])[0]))
@@ -267,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def make_server(app,port=4789):
     server=ThreadingHTTPServer(('127.0.0.1',port),Handler)
-    server.workspace=app;server.auth_lock=threading.Lock()
+    server.workspace=app;server.auth_lock=threading.Lock();server.policy_lock=threading.Lock()
     return server
 
 def main():
