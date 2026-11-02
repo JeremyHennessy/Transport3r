@@ -132,6 +132,8 @@ jobs:
 
           render_route overview '#/overview' 'Know the carrier before you price the risk.'
           render_route carriers '#/carriers' 'Nationwide carrier intelligence'
+          render_route atlas '#/atlas' 'Carrier Geography Atlas'
+          render_route atlas-carrier '#/atlas?dot=3938496' 'Carrier Geography Atlas'
           render_route summary '#/carrier/3938496/summary' 'Underwriting evidence at a glance'
           render_route safety '#/carrier/3938496/safety' 'Violation evidence'
           render_route authority '#/carrier/3938496/authority' 'Authority'
