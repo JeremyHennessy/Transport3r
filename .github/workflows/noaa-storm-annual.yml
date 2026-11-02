@@ -5,6 +5,10 @@ on:
     paths:
       - "scripts/noaa_storm_events_ingest.py"
       - "scripts/test_noaa_storm_events.py"
+      - "scripts/noaa_storm_index.py"
+      - "scripts/test_noaa_storm_index.py"
+      - "scripts/evidence_api.py"
+      - "deploy/evidence-api/compose.public-sources.example.yml"
       - ".github/workflows/noaa-storm-annual.yml"
       - "docs/noaa-storm-source.md"
   workflow_dispatch:
@@ -21,8 +25,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test NOAA source catalog, row quality and offline replay
-        run: python -m unittest discover -s scripts -p "test_noaa_storm_events.py" -v
+      - name: Install DuckDB for combined FMCSA and NOAA source API tests
+        run: python -m pip install -r scripts/requirements-nationwide.txt
+      - name: Validate loopback read-only public-source Docker Compose spec
+        env:
+          TRANSPORT3R_WAREHOUSE_PATH: /tmp/warehouse.duckdb
+          TRANSPORT3R_NRI_INDEX_PATH: /tmp/fema-nri.sqlite
+          TRANSPORT3R_NOAA_INDEX_PATH: /tmp/noaa-storm.sqlite
+        run: |
+          docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --quiet
+          docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);s=d['services']['transport3r-public-evidence'];assert s['read_only'] and s['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in s['volumes']);assert s['environment']['NOAA_STORM_INDEX']"
+      - name: Test NOAA source catalog, row quality, API bounds and offline replay
+        run: python -m unittest discover -s scripts -p "test_noaa_storm_*.py" -v
       - name: Acquire official 2025 NOAA details, locations and fatalities
         run: python scripts/noaa_storm_events_ingest.py --year 2025 --output /tmp/transport3r-noaa-storm-2025
       - name: Verify full annual source and SQLite index accounting
