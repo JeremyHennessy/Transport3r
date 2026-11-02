@@ -111,6 +111,7 @@ def normalize(archive: pathlib.Path, min_rows: int = 3000) -> dict:
     if missing:
         raise ValueError("Official county CSV is missing required fields: " + ", ".join(missing))
     result, invalid, seen = [], [], set()
+    invalid_count = 0
     input_rows = 0
     versions = set()
     scored_rows = 0
@@ -145,12 +146,13 @@ def normalize(archive: pathlib.Path, min_rows: int = 3000) -> dict:
                 scored_rows += 1
             result.append(dict(zip(NORMALIZED_FIELDS, (fips, state, county, score, rating, eal, version))))
         except ValueError as error:
+            invalid_count += 1
             if len(invalid) < 25:
                 invalid.append({"row": input_rows, "error": str(error)})
     if input_rows < min_rows:
         raise ValueError(f"County completeness gate: {input_rows} rows, minimum {min_rows}")
-    if invalid:
-        raise ValueError(f"Rejected {len(invalid)} of {input_rows} rows (first 25): {json.dumps(invalid)}")
+    if invalid_count:
+        raise ValueError(f"Rejected {invalid_count} of {input_rows} rows (first 25): {json.dumps(invalid)}")
     if not scored_rows:
         raise ValueError("No county has an interpretable official NRI score")
     if len(versions) > 1:
