@@ -74,8 +74,13 @@ def _arcgis_json(url: str, destination: pathlib.Path, limit: int = 8_000_000) ->
         url, headers={"User-Agent": "Transport3r-NRI-Source-Audit/1.0", "Accept": "application/json"}
     )
     with urllib.request.urlopen(request, timeout=90) as response:
-        if not response.geturl().startswith("https://"):
-            raise ValueError("ArcGIS request redirected to non-HTTPS")
+        observed=urllib.parse.urlsplit(response.geturl())
+        approved=urllib.parse.urlsplit(ARCGIS_LAYER)
+        if (observed.scheme!='https' or observed.hostname!=approved.hostname
+                or observed.port not in (None,443)
+                or observed.path not in (approved.path,approved.path+'/query')
+                or observed.username is not None or observed.password is not None):
+            raise ValueError("ArcGIS response redirected outside approved official source endpoint")
         raw = response.read(limit + 1)
     if len(raw) > limit:
         raise ValueError("ArcGIS source response exceeds bounded size")
