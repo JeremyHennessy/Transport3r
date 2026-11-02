@@ -17,10 +17,13 @@ import re
 import shutil
 import sys
 import urllib.request
+import urllib.parse
 import zipfile
 
 SOURCE_URL = "https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip"
 SOURCE_ID = "FEMA_NRI_COUNTIES_V120"
+ARCGIS_LAYER = "https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services/National_Risk_Index_Counties/FeatureServer/0"
+ARCGIS_FIELDS = ("OBJECTID", "STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT", "NRI_VER")
 EXPECTED_VERSION = "1.20"
 REQUIRED_FIELDS = {"STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT"}
 NORMALIZED_FIELDS = ("stcofips", "state", "county", "risk_score", "risk_rating", "eal_total_usd", "source_version")
@@ -60,6 +63,125 @@ def acquire_official(dest: pathlib.Path) -> str:
     os.replace(partial, dest)
     return final_url
 
+
+
+def _arcgis_json(url: str, destination: pathlib.Path, limit: int = 8_000_000) -> dict:
+    """Preserve exactly the response bytes before interpreting service metadata."""
+    if not url.startswith(ARCGIS_LAYER + "?") and not url.startswith(ARCGIS_LAYER + "/query?"):
+        raise ValueError("Unapproved ArcGIS source endpoint")
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "Transport3r-NRI-Source-Audit/1.0", "Accept": "application/json"}
+    )
+    with urllib.request.urlopen(request, timeout=90) as response:
+        if not response.geturl().startswith("https://"):
+            raise ValueError("ArcGIS request redirected to non-HTTPS")
+        raw = response.read(limit + 1)
+    if len(raw) > limit:
+        raise ValueError("ArcGIS source response exceeds bounded size")
+    destination.write_bytes(raw)
+    try:
+        decoded = json.loads(raw)
+    except (UnicodeDecodeError, json.JSONDecodeError) as cause:
+        raise ValueError("ArcGIS response is not valid JSON") from cause
+    if not isinstance(decoded, dict) or "error" in decoded:
+        raise ValueError("ArcGIS service returned an error response: " + str(decoded.get("error")))
+    return decoded
+
+
+def acquire_arcgis(dest: pathlib.Path, release_dir: pathlib.Path) -> dict:
+    """Capture an official FEMA-hosted FeatureServer with publication stability gates.
+
+    The resulting ZIP is a *reconstructed transport wrapper*, NOT the original
+    downloadable FEMA ZIP. Exact original API page bytes are retained separately.
+    """
+    raw_dir = release_dir / "arcgis-original-responses"
+    raw_dir.mkdir()
+    layer_url = ARCGIS_LAYER + "?f=json"
+    before = _arcgis_json(layer_url, raw_dir / "metadata-before.json")
+    fields = {field["name"] for field in before.get("fields", [])}
+    missing = set(ARCGIS_FIELDS) - fields
+    if missing:
+        raise ValueError("Official FeatureServer missing contracted fields: " + ", ".join(sorted(missing)))
+    if before.get("name") != "NRI_Counties_Prod" or before.get("objectIdField") != "OBJECTID":
+        raise ValueError("Unexpected FEMA NRI feature-layer identity")
+    vintage = before.get("editingInfo", {}).get("dataLastEditDate")
+    if not isinstance(vintage, int) or vintage <= 0:
+        raise ValueError("Official FeatureServer publication watermark unavailable")
+
+    def count_query(phase):
+        url = ARCGIS_LAYER + "/query?" + urllib.parse.urlencode(
+            {"where": "1=1", "returnCountOnly": "true", "f": "json"}
+        )
+        response = _arcgis_json(url, raw_dir / ("count-" + phase + ".json"))
+        value = response.get("count")
+        if not isinstance(value, int) or not 3000 <= value <= MAX_ROWS:
+            raise ValueError("Official FEMA FeatureServer county count is outside expected universe")
+        return value
+
+    published = count_query("before")
+    rows, observed_ids, page_info = [], set(), []
+    offset, page_size = 0, 500
+    while offset < published:
+        url = ARCGIS_LAYER + "/query?" + urllib.parse.urlencode({
+            "where": "1=1", "outFields": ",".join(ARCGIS_FIELDS), "returnGeometry": "false",
+            "orderByFields": "OBJECTID ASC", "resultOffset": offset,
+            "resultRecordCount": min(page_size, published - offset), "f": "json",
+        })
+        page_file = raw_dir / f"page-{offset:05d}.json"
+        response = _arcgis_json(url, page_file)
+        features = response.get("features")
+        if not isinstance(features, list) or not 1 <= len(features) <= min(page_size, published - offset):
+            raise ValueError("ArcGIS returned incomplete, extra or missing county page")
+        if response.get("exceededTransferLimit"):
+            raise ValueError("ArcGIS truncated requested county page")
+        for feature in features:
+            attrs = feature.get("attributes") if isinstance(feature, dict) else None
+            if not isinstance(attrs, dict) or set(ARCGIS_FIELDS) - set(attrs):
+                raise ValueError("Official ArcGIS record missing required attributes")
+            row_id = attrs["OBJECTID"]
+            if not isinstance(row_id, int) or row_id in observed_ids:
+                raise ValueError("Missing or duplicate ArcGIS OBJECTID")
+            observed_ids.add(row_id)
+            rows.append({field: attrs[field] for field in ARCGIS_FIELDS if field != "OBJECTID"})
+        page_info.append({
+            "path": page_file.name, "url": url, "sha256": hash_file(page_file),
+            "rows": len(features), "start_object_id": features[0]["attributes"]["OBJECTID"],
+            "end_object_id": features[-1]["attributes"]["OBJECTID"],
+        })
+        offset += len(features)
+    after = _arcgis_json(layer_url, raw_dir / "metadata-after.json")
+    count_after = count_query("after")
+    after_vintage = after.get("editingInfo", {}).get("dataLastEditDate")
+    if after_vintage != vintage or count_after != published:
+        raise ValueError("FEMA source changed during the multi-page acquisition")
+    if {x["name"] for x in after.get("fields", [])} != fields:
+        raise ValueError("FEMA source schema changed during acquisition")
+    if len(rows) != published or len(observed_ids) != published:
+        raise ValueError("ArcGIS page rows do not reconcile to publisher count")
+
+    table = io.StringIO(newline="")
+    writer = csv.DictWriter(table, fieldnames=tuple(field for field in ARCGIS_FIELDS if field != "OBJECTID"),
+                            lineterminator="\n")
+    writer.writeheader()
+    for row in rows:
+        writer.writerow({key: "" if value is None else str(value) for key, value in row.items()})
+    info = zipfile.ZipInfo("NRI_Table_Counties.csv", date_time=(1980, 1, 1, 0, 0, 0))
+    info.compress_type = zipfile.ZIP_DEFLATED
+    with zipfile.ZipFile(dest, "w") as package:
+        package.writestr(info, table.getvalue().encode("utf-8"))
+
+    return {
+        "source_url": ARCGIS_LAYER, "resolved_url": ARCGIS_LAYER,
+        "source_distribution": "FEMA_OFFICIAL_ARCGIS_FEATURESERVER",
+        "source_archive_kind": "RECONSTRUCTED_FROM_ORIGINAL_ARCGIS_JSON",
+        "fema_original_zip_url": SOURCE_URL,
+        "publisher_layer": before.get("name"),
+        "publisher_count": published,
+        "publisher_data_last_edit_ms": vintage,
+        "metadata_before_sha256": hash_file(raw_dir / "metadata-before.json"),
+        "metadata_after_sha256": hash_file(raw_dir / "metadata-after.json"),
+        "page_audit": page_info,
+    }
 
 def _decimal(value: str, field: str, maximum: float | None = None) -> str:
     raw = str(value or "").strip()
