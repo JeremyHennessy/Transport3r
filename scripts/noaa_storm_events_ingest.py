@@ -234,7 +234,7 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
             if state=="NOT_REPORTED":missing_coords+=1
             orphan=int(event_id not in loaded_ids)
             orphan_locations+=orphan
-            db.execute("INSERT INTO event_location VALUES (?,?,?,?,?,?)",
+            db.execute("INSERT INTO event_location VALUES (?,?,?,?,?,?,?)",
                 (event_id,loc_id,row.get("LOCATION"),a,b,state,int(not orphan)))
             counts["locations"]+=1
         for n,row in source_rows(raw/names["fatalities"],"fatalities"):
