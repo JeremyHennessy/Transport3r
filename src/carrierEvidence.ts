@@ -67,7 +67,7 @@ export const VIOLATION_FIELD_ALIASES = {
 } as const;
 
 export type EvidenceKey = keyof typeof SOURCE_IDS;
-export type CarrierEvidenceMode = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence' | 'inspection';
+export type CarrierEvidenceMode = 'summary' | 'safety' | 'atlas' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence' | 'inspection';
 export type CompletenessReceipt = {
   backend: 'verified_nationwide_warehouse' | 'live_public_sources';
   status: 'VERIFIED' | 'LIVE_SOURCE_WINDOW' | 'PARTIAL' | 'UNAVAILABLE';
@@ -111,6 +111,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
     'newEntrantOos',
   ],
   safety: ['inspections', 'violations', 'citations', 'specialStudies', 'crash'],
+  atlas: ['inspections', 'crash'],
   fleet: ['inspections', 'units'],
   authority: [
     'motusCarrier', 'motusAuthHistory', 'motusBoc3', 'motusRevokeSuspend',
