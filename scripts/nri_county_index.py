@@ -152,6 +152,38 @@ def install(release: pathlib.Path, output: pathlib.Path) -> dict:
     return meta
 
 
+def read_only_status(index: pathlib.Path) -> dict:
+    """Check installed source release metadata and indexed county row coverage."""
+    path = pathlib.Path(index).resolve()
+    if not path.is_file():
+        raise ValueError("Installed county source index unavailable")
+    with sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True) as db:
+        metadata = {key: json.loads(value) for key, value in db.execute(
+            "SELECT key,value_json FROM source_receipt")}
+        total, known = db.execute(
+            "SELECT count(*),count(fema_risk_score) FROM county_context").fetchone()
+        integrity = db.execute("PRAGMA quick_check").fetchone()[0]
+    if metadata.get("schema_version") != VERSION or metadata.get("source_version") != "December 2025":
+        raise ValueError("Source index version is not accepted")
+    if metadata.get("source_id") != "FEMA_NRI_COUNTIES_V120":
+        raise ValueError("Source identity is not accepted")
+    if total != metadata.get("county_rows") or known != metadata.get("known_scores"):
+        raise ValueError("Source index no longer reconciles to acceptance receipt")
+    if not 3000 <= total <= 4000 or integrity != "ok":
+        raise ValueError("Source index failed county universe/integrity gate")
+    if metadata.get("carrier_attribution") != "NOT_ESTABLISHED":
+        raise ValueError("County source cannot claim transport carrier attribution")
+    return {
+        "status": "ACCEPTED_SOURCE_INDEX",
+        "source": metadata.get("source_id"), "version": metadata.get("source_version"),
+        "county_rows": total, "known_scores": known, "unknown_scores": total-known,
+        "normalized_source_sha256": metadata.get("normalized_source_sha256"),
+        "source_vintage": metadata.get("publisher_data_last_edit_ms"),
+        "scope": "COUNTY_SOURCE_CONTEXT_ONLY", "carrier_route_attribution": "NOT_ESTABLISHED",
+        "limitations": "No independently verified operating terminals, route coordinates, H3 hazard bands or insured-loss calibration."
+    }
+
+
 def lookup(index: pathlib.Path, fips: str) -> dict:
     if not isinstance(fips, str) or not re.fullmatch(r"[0-9]{5}", fips):
         raise ValueError("Exact five-digit county FIPS required")
