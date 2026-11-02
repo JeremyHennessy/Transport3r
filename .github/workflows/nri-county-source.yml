@@ -23,8 +23,8 @@ jobs:
           python-version: "3.12"
       - name: Run synthetic reproducibility, identity and failure-gate tests
         run: python -m unittest discover -s scripts -p "test_nri_county_ingest.py" -v
-      - name: Fetch and validate actual official FEMA v1.20 county archive
-        run: python scripts/nri_county_ingest.py --output /tmp/transport3r-fema-nri-v120
+      - name: Capture and validate official FEMA v1.20 ArcGIS county layer
+        run: python scripts/nri_county_ingest.py --output /tmp/transport3r-fema-nri-v120 --arcgis
       - name: Audit real-source acceptance and expected county grain
         run: |
           python - <<'PY'
@@ -32,7 +32,11 @@ jobs:
           root=pathlib.Path('/tmp/transport3r-fema-nri-v120')
           m=json.loads((root/'manifest.json').read_text())
           assert m['status']=='SOURCE_ACCEPTED_COUNTY_GRAIN',m
-          assert m['mode']=='OFFICIAL_LIVE_DOWNLOAD',m
+          assert m['mode']=='FEMA_ARCGIS_PAGED_SOURCE',m
+          assert m['source_distribution']=='FEMA_OFFICIAL_ARCGIS_FEATURESERVER',m
+          assert m['source_archive_kind']=='RECONSTRUCTED_FROM_ORIGINAL_ARCGIS_JSON',m
+          assert m['provenance_verified'] is True,m
+          assert len(m['page_audit'])>=2,m
           assert m['raw_rows']==m['accepted_rows']==m['fips_unique'],m
           assert m['raw_rows']>=3000 and m['rejected_rows']==0,m
           assert re.fullmatch('[a-f0-9]{64}',m['archive_sha256']),m
@@ -48,6 +52,7 @@ jobs:
           path: |
             /tmp/transport3r-fema-nri-v120/manifest.json
             /tmp/transport3r-fema-nri-v120/counties.csv
-            /tmp/transport3r-fema-nri-v120/official.zip
+            /tmp/transport3r-fema-nri-v120/source_table.zip
+            /tmp/transport3r-fema-nri-v120/arcgis-original-responses/
           if-no-files-found: warn
           retention-days: 30
