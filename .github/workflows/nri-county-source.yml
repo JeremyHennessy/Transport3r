@@ -1,0 +1,53 @@
+name: FEMA NRI county source validation
+
+on:
+  pull_request:
+    paths:
+      - "scripts/nri_county_ingest.py"
+      - "scripts/test_nri_county_ingest.py"
+      - ".github/workflows/nri-county-source.yml"
+      - "docs/fema-nri-county-source.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-fema-nri-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run synthetic reproducibility, identity and failure-gate tests
+        run: python -m unittest discover -s scripts -p "test_nri_county_ingest.py" -v
+      - name: Fetch and validate actual official FEMA v1.20 county archive
+        run: python scripts/nri_county_ingest.py --output /tmp/transport3r-fema-nri-v120
+      - name: Audit real-source acceptance and expected county grain
+        run: |
+          python - <<'PY'
+          import json,pathlib,re
+          root=pathlib.Path('/tmp/transport3r-fema-nri-v120')
+          m=json.loads((root/'manifest.json').read_text())
+          assert m['status']=='SOURCE_ACCEPTED_COUNTY_GRAIN',m
+          assert m['mode']=='OFFICIAL_LIVE_DOWNLOAD',m
+          assert m['raw_rows']==m['accepted_rows']==m['fips_unique'],m
+          assert m['raw_rows']>=3000 and m['rejected_rows']==0,m
+          assert re.fullmatch('[a-f0-9]{64}',m['archive_sha256']),m
+          assert re.fullmatch('[a-f0-9]{64}',m['normalized_sha256']),m
+          assert m['derived_carrier_risk'] is False and m['route_exposure_matched'] is False,m
+          print('Official FEMA county source acceptance VERIFIED at source grain:',m['accepted_rows'])
+          PY
+      - name: Preserve immutable FEMA source audit bundle (including failed receipts)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fema-nri-county-validation-${{ github.sha }}
+          path: |
+            /tmp/transport3r-fema-nri-v120/manifest.json
+            /tmp/transport3r-fema-nri-v120/counties.csv
+            /tmp/transport3r-fema-nri-v120/official.zip
+          if-no-files-found: warn
+          retention-days: 30
