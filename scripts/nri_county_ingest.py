@@ -25,7 +25,8 @@ SOURCE_ID = "FEMA_NRI_COUNTIES_V120"
 ARCGIS_LAYER = "https://services.arcgis.com/XG15cJAlne2vxtgt/ArcGIS/rest/services/National_Risk_Index_Counties/FeatureServer/0"
 ARCGIS_FIELDS = ("OBJECTID", "STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT", "NRI_VER")
 EXPECTED_VERSION = "1.20"
-REQUIRED_FIELDS = {"STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT"}
+REQUIRED_FIELDS = {"STCOFIPS", "STATEABBRV", "COUNTY", "RISK_SCORE", "RISK_RATNG", "EAL_VALT", "NRI_VER"}
+ACCEPTED_SOURCE_VERSIONS = {"December 2025", "1.20", "1.20.0"}
 NORMALIZED_FIELDS = ("stcofips", "state", "county", "risk_score", "risk_rating", "eal_total_usd", "source_version")
 MAX_DOWNLOAD_BYTES = 85_000_000
 MAX_CSV_BYTES = 150_000_000
@@ -258,10 +259,9 @@ def normalize(archive: pathlib.Path, min_rows: int = 3000) -> dict:
             if len(rating) > 80:
                 raise ValueError("Unexpected risk rating length")
             version = str(row.get("NRI_VER") or "").strip()
-            if version:
-                versions.add(version)
-                if not version.startswith(EXPECTED_VERSION):
-                    raise ValueError("Source row NRI_VER does not match pinned v1.20 release")
+            if version not in ACCEPTED_SOURCE_VERSIONS:
+                raise ValueError("Source row NRI_VER must identify the pinned December 2025/v1.20 release; observed " + repr(version[:60]))
+            versions.add(version)
             if score:
                 scored_rows += 1
             result.append(dict(zip(NORMALIZED_FIELDS, (fips, state, county, score, rating, eal, version))))
@@ -312,6 +312,7 @@ def build(output: pathlib.Path, archive: pathlib.Path | None = None, min_rows: i
                 raise FileNotFoundError("Explicit source archive not found")
             shutil.copyfile(source, source_table)
             manifest.update(mode="UNVERIFIED_EXPLICIT_ARCHIVE", archive_is_original_fema_zip=False,
+                            source_url=None, resolved_url=None, claimed_official_source_url=SOURCE_URL,
                             provenance_verified=False,
                             source_note="The provided archive content is tested; its claimed publisher is not independently verified")
         elif arcgis:
