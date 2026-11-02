@@ -25,7 +25,7 @@ export default function CarrierAtlasPage(){
  useEffect(()=>{
   if(!dot){setEvidence(null);setLoading(false);setError('');return;}
   let active=true;setEvidence(null);setLoading(true);setError('');
-  loadCarrierEvidence(dot,'safety')
+  loadCarrierEvidence(dot,'atlas')
    .then(result=>{if(active){setEvidence(result);setLoading(false);}})
    .catch(cause=>{if(active){setError(cause instanceof Error?cause.message:String(cause));setLoading(false);}});
   return()=>{active=false;};
@@ -50,7 +50,7 @@ export default function CarrierAtlasPage(){
      <div className="t3-atlas-viewline"><div><strong>USDOT {dot}</strong><span>Published event-state grouping; no route inference</span></div><a href={'#/carrier/'+dot+'/safety'}>Open full safety evidence →</a></div>
      {partial&&<div className="t3-atlas-warning" role="status">Some source data is missing, truncated or unavailable. Counts below describe only the successfully loaded request; they are not comprehensive lifetime totals.</div>}
      <RecentEventMap evidence={evidence}/>
-     <div className="t3-atlas-provenance"><span>Inspections: {inspections?.acquiredAt??'not loaded'}</span><span>Crash reports: {crashes?.acquiredAt??'not loaded'}</span><span>Data lineage: FMCSA source IDs fx4q-ay7w and aayw-vxb3</span></div>
+     <div className="t3-atlas-provenance"><span>Inspections retrieved in browser: {inspections?.acquiredAt??'not loaded'}</span><span>Crashes retrieved in browser: {crashes?.acquiredAt??'not loaded'}</span><span>Data lineage: FMCSA source IDs fx4q-ay7w and aayw-vxb3. Retrieval times are not official publication dates.</span></div>
    </div>}
    <section className="t3-atlas-layer-section"><div className="t3-atlas-section-head"><div><span className="t3-atlas-overline">Upcoming, not yet ingested</span><h2>External hazard & freight layers</h2><p>The official sources below are tracked for integration. No geographic hazard score is calculated until datasets, provenance, coordinates, temporal coverage and carrier/route joins pass validation.</p></div><a href="#/sources">View FMCSA source health →</a></div><div className="t3-atlas-layers">{SOURCES.map(item=><article key={item.name}><div className="t3-atlas-layer-top"><span className="t3-atlas-unavailable">Not integrated</span><span>Official source candidate</span></div><h3>{item.name}</h3><p>{item.category}</p><small>{item.limit}</small><a href={item.url} target="_blank" rel="noreferrer">Source documentation →</a></article>)}</div></section>
    <p className="t3-atlas-bottom">Coverage is observational and has reporting limitations. H3 cells, verified geocoded terminals, actual traveled routes, FEMA risk polygons and prospective modeled exposure are not yet available. Unavailable evidence is not zero risk.</p>
