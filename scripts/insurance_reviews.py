@@ -44,14 +44,45 @@ def _bounded(body, field, limit, required=False):
         raise ValueError(field + ' exceeds maximum length')
     return value
 
+def _policy_identifier(body, field):
+    # Keep the exact account/policy key already accepted by portfolio_store.
+    # Earlier versions of INSURER_PORTFOLIO_1 preserved outer whitespace.
+    value=body.get(field,'')
+    if not isinstance(value,str) or not value.strip():
+        raise ValueError(field+' is required')
+    if len(value)>250:
+        raise ValueError(field+' exceeds maximum length')
+    return value
+
+def guard_policy_identity_changes(db, proposals, portfolio_rows):
+    """Refuse changing a saved policy's DOT while attached reviews exist."""
+    ensure(db)
+    if not isinstance(proposals,list):
+        return
+    existing={(p['account_id'],p['policy_id']):p['dot_number'] for p in portfolio_rows}
+    for item in proposals:
+        if not isinstance(item,dict):
+            continue
+        account,policy=item.get('account_id'),item.get('policy_id')
+        if not isinstance(account,str) or not isinstance(policy,str):
+            continue
+        old_dot=existing.get((account,policy))
+        new_dot=item.get('dot_number')
+        if old_dot is not None and new_dot!=old_dot:
+            linked=db.execute(
+                'SELECT 1 FROM insurance_reviews WHERE account_id=? AND policy_id=? LIMIT 1',
+                (account,policy)).fetchone()
+            if linked:
+                raise ValueError('Policy USDOT cannot change while linked insurance reviews exist; create a separate policy or archive the review first')
+
 def validate_review(body, portfolio_rows):
     if not isinstance(body,dict):
         raise ValueError('Review must be a JSON object')
     permitted={'account_id','policy_id','dot_number','line','status','notes','evidence_url','source_cut','due_date'}
     if set(body)-permitted:
         raise ValueError('Unknown review fields')
-    account=_bounded(body,'account_id',250,True)
-    policy=_bounded(body,'policy_id',250,True)
+    account=_policy_identifier(body,'account_id')
+    policy=_policy_identifier(body,'policy_id')
     dot=_bounded(body,'dot_number',10,True)
     if not dot.isascii() or not dot.isdigit() or dot[0]=='0':
         raise ValueError('Positive numeric USDOT required')
