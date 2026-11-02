@@ -70,12 +70,23 @@ class NriCountyIngestTests(unittest.TestCase):
 
     def test_unexpected_headers_and_bad_version_fail(self):
         fixture(self.src, header=HEADER[:-1], rows=[row[:-1] for row in ROWS])
-        # A missing version column is legal; provenance remains pinned to download URL.
-        self.assertEqual(normalize(self.src, min_rows=3)["accepted_rows"], 3)
+        # Even an explicit archive must contain the exact pinned source vintage.
+        with self.assertRaisesRegex(ValueError, "missing required fields"):
+            normalize(self.src, min_rows=3)
         fixture(self.src, header=HEADER[:-2], rows=[row[:-2] for row in ROWS])
         with self.assertRaisesRegex(ValueError, "missing required fields"):
             normalize(self.src, min_rows=3)
         fixture(self.src, rows=[ROWS[0][:-1] + ["1.10"], *ROWS[1:]])
+        with self.assertRaisesRegex(ValueError, "Rejected"):
+            normalize(self.src, min_rows=3)
+
+    def test_explicit_archive_requires_known_december_2025_vintage(self):
+        fixture(self.src, rows=[r[:-1] + ["December 2025"] for r in ROWS])
+        self.assertEqual(normalize(self.src, min_rows=3)["accepted_rows"], 3)
+        fixture(self.src, rows=[r[:-1] + ["December 2024"] for r in ROWS])
+        with self.assertRaisesRegex(ValueError, "Rejected"):
+            normalize(self.src, min_rows=3)
+        fixture(self.src, rows=[r[:-1] + [""] for r in ROWS])
         with self.assertRaisesRegex(ValueError, "Rejected"):
             normalize(self.src, min_rows=3)
 
