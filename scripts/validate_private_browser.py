@@ -75,6 +75,46 @@ def run(output):
                         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+2')
                         page.screenshot(path=str(output/f'private-synthetic-review-{width}.png'))
                     result['checks'].append('Authenticated policy-to-USDOT review, edit and two immutable history entries pass in a real browser')
+                    page.get_by_role('button',name='Requested documents',exact=True).click()
+                    page.get_by_role('heading',name='Coverage document checklist',exact=True).wait_for()
+                    assert page.locator('#coverageChecklistItems .record').count()==4
+                    assert '4 outstanding' in page.locator('#coverageChecklistSummary').inner_text()
+                    card=page.locator('[data-requirement-key="commodity-mix"]')
+                    card.get_by_role('button',name='Edit document request',exact=True).click()
+                    followup=page.locator('#coverageRequirementForm')
+                    followup.locator('[name=status]').select_option('requested')
+                    followup.locator('[name=due_date]').fill('2030-01-01')
+                    followup.locator('[name=notes]').fill('SYNTHETIC ONLY: request shipment values and commodity schedule')
+                    followup.get_by_role('button',name='Save document follow-up',exact=True).click()
+                    page.get_by_text('Document follow-up saved locally with change history.',exact=True).wait_for()
+                    card.get_by_role('button',name='Edit document request',exact=True).click()
+                    followup.locator('[name=status]').select_option('received')
+                    followup.locator('[name=received_on]').fill('2020-01-01')
+                    followup.locator('[name=evidence_url]').fill('https://example.org/synthetic-document')
+                    with page.expect_response(lambda r: r.url.endswith('/api/insurance-requirement') and r.request.method=='POST') as written:
+                        followup.get_by_role('button',name='Save document follow-up',exact=True).click()
+                    assert written.value.status==200
+                    card.get_by_text('Received, not yet reviewed',exact=True).wait_for()
+                    assert '4 outstanding' in page.locator('#coverageChecklistSummary').inner_text()
+                    card.get_by_role('button',name='Edit document request',exact=True).click()
+                    followup.locator('[name=status]').select_option('reviewed')
+                    followup.locator('[name=notes]').fill('SYNTHETIC ONLY: analyst checked document date and exact policy identity')
+                    with page.expect_response(lambda r: r.url.endswith('/api/insurance-requirement') and r.request.method=='POST') as written:
+                        followup.get_by_role('button',name='Save document follow-up',exact=True).click()
+                    assert written.value.status==200
+                    card.get_by_text('Reviewed by analyst',exact=True).wait_for()
+                    assert '3 outstanding' in page.locator('#coverageChecklistSummary').inner_text()
+                    plan=context.request.get(base+'/api/insurance-requirements?review_id='+saved['id']).json()
+                    assert plan['coverage_determined'] is False
+                    documents=context.request.get(base+'/api/insurance-requirement-history?review_id='+saved['id']+'&requirement_key=commodity-mix').json()
+                    assert len(documents)==3 and documents[0]['previous_json'] is None
+                    assert json.loads(documents[2]['previous_json'])['status']=='received'
+                    for width in (1440,390):
+                        page.set_viewport_size({'width':width,'height':1000})
+                        page.locator('#coverageChecklist').scroll_into_view_if_needed()
+                        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+2')
+                        page.screenshot(path=str(output/f'private-synthetic-documents-{width}.png'))
+                    result['checks'].append('Private four-document coverage checklist, request/receive/review states, revision checks and three immutable history entries pass')
                     bad=context.request.post(base+'/api/insurance-review',headers={'Origin':'https://unrelated.example','Content-Type':'application/json'},data={})
                     assert bad.status==403
                     page.get_by_role('button',name='Sign out',exact=True).click()
