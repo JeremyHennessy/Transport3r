@@ -152,6 +152,9 @@ def run(output):
                                 before=page.evaluate('window.__atlasRequests.length')
                                 page.get_by_role('button',name='Load carrier map',exact=True).click()
                                 page.wait_for_function('(n)=>window.__atlasRequests.length>n',arg=before)
+                                # Source requests can arrive after the first refresh request. Wait until
+                                # the real load completes before counting requests from invalid input.
+                                page.get_by_role('button',name='Load carrier map',exact=True).wait_for(state='visible',timeout=45000)
                                 page.locator('.t3-atlas-map-panel').wait_for()
                                 assert '#/atlas?dot=3938496' in page.url
                                 before=page.evaluate('window.__atlasRequests.length')
