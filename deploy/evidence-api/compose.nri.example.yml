@@ -1,0 +1,41 @@
+# Local-only reference deployment. Do not publish :8787 directly on the Internet.
+# Run behind an independently configured TLS reverse proxy with access policy
+# and rate limits before making endpoints accessible to public GitHub Pages.
+services:
+  transport3r-evidence:
+    build:
+      context: ../..
+      dockerfile: deploy/evidence-api/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      EVIDENCE_WAREHOUSE: /app/source/warehouse.duckdb
+      NRI_COUNTY_INDEX: /app/source/nri-counties-dec2025.sqlite
+      EVIDENCE_HOST: 0.0.0.0
+      EVIDENCE_ALLOW_ORIGIN: https://jeremyhennessy.github.io
+      PORT: "8787"
+    volumes:
+      - type: bind
+        source: ${TRANSPORT3R_WAREHOUSE_PATH:?Set a verified nationwide DuckDB path}
+        target: /app/source/warehouse.duckdb
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_NRI_INDEX_PATH:?Set an accepted, installed FEMA source index path}
+        target: /app/source/nri-counties-dec2025.sqlite
+        read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: "2.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
