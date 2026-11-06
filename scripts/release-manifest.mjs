@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertPublicAsset, assertPublicDirectory } from './public-asset-policy.mjs';
 
 export const sha256 = (body) => createHash('sha256').update(body).digest('hex');
 
@@ -12,10 +13,15 @@ export async function createManifest(directory, commit) {
   async function walk(folder) {
     for (const entry of await readdir(folder, { withFileTypes: true })) {
       const path = resolve(folder, entry.name);
-      if (entry.isDirectory()) await walk(path);
-      else {
-        const key = relative(directory, path).replaceAll('\\', '/');
+      const key = relative(directory, path).replaceAll('\\', '/');
+      if (entry.isSymbolicLink()) throw new Error(`Symlink is not a public build asset: ${key}`);
+      if (entry.isDirectory()) {
+        assertPublicDirectory(key);
+        await walk(path);
+      } else {
+        if (!entry.isFile()) throw new Error(`Unsupported build artifact: ${key}`);
         if (key === 'release-manifest.json') continue;
+        assertPublicAsset(key);
         const body = await readFile(path);
         files[key] = { sha256: sha256(body), bytes: body.length };
       }
