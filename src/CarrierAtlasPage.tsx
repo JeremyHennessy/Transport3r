@@ -1,6 +1,6 @@
 import {FormEvent,useEffect,useState} from 'react';
 import type {CarrierEvidence} from './carrierEvidence';
-import {loadCarrierEvidence} from './carrierEvidence';
+import {loadCarrierEvidence,clearCarrierEvidenceCache} from './carrierEvidence';
 import {RecentEventMap} from './RecentEventMap';
 import {atlasDotFromHash,atlasHash} from './atlasRoute';
 
@@ -17,6 +17,7 @@ export default function CarrierAtlasPage(){
  const [dot,setDot]=useState(()=>atlasDotFromHash(window.location.hash));
  const [evidence,setEvidence]=useState<CarrierEvidence|null>(null);
  const [loading,setLoading]=useState(false);
+ const [refreshVersion,setRefreshVersion]=useState(0);
  const [error,setError]=useState('');
  useEffect(()=>{
   const change=()=>{const next=atlasDotFromHash(window.location.hash);setDot(next);setInput(next);};
@@ -29,18 +30,19 @@ export default function CarrierAtlasPage(){
    .then(result=>{if(active){setEvidence(result);setLoading(false);}})
    .catch(cause=>{if(active){setError(cause instanceof Error?cause.message:String(cause));setLoading(false);}});
   return()=>{active=false;};
- },[dot]);
+ },[dot,refreshVersion]);
  const search=(event:FormEvent<HTMLFormElement>)=>{
   event.preventDefault();const normalized=input.trim();
-  if(!/^[1-9][0-9]{0,9}$/.test(normalized)){setError('Enter a valid positive USDOT number (up to ten digits).');return;}
-  window.location.hash=atlasHash(normalized);
+  if(!/^[1-9][0-9]{0,9}$/.test(normalized)){setEvidence(null);setError('Enter a valid positive USDOT number (up to ten digits).');return;}
+  if(normalized===dot){clearCarrierEvidenceCache(normalized);setRefreshVersion(value=>value+1);}
+  else window.location.hash=atlasHash(normalized);
  };
  const inspections=evidence?.slices.inspections,crashes=evidence?.slices.crash;
  const partial=evidence&&(Boolean(evidence.errors.inspections)||Boolean(evidence.errors.crash)||!inspections||!crashes||Boolean(inspections?.truncated)||Boolean(crashes?.truncated));
  return <main className="t3-main t3-atlas-main" data-testid="carrier-atlas">
    <section className="t3-atlas-banner">
     <div><span className="t3-atlas-overline">Transport3r · geographic evidence</span><h1>Carrier Geography Atlas</h1><p>Inspect where official roadside events were reported. Select state-level inspection and crash layers, open linked records and share a USDOT-specific view. Verified operating routes and natural-hazard overlays are separate future data products.</p></div>
-    <form onSubmit={search} className="t3-atlas-search"><label htmlFor="t3-atlas-dot">USDOT number</label><div><input id="t3-atlas-dot" inputMode="numeric" value={input} onChange={event=>setInput(event.target.value)} placeholder="e.g. 3938496" maxLength={10} aria-label="USDOT number"/><button type="submit">Load carrier map</button></div><small>View is linkable; no policy, location or private account data is uploaded.</small></form>
+    <form onSubmit={search} className="t3-atlas-search"><label htmlFor="t3-atlas-dot">USDOT number</label><div><input id="t3-atlas-dot" inputMode="numeric" value={input} onChange={event=>setInput(event.target.value)} placeholder="e.g. 3938496" maxLength={10} aria-label="USDOT number"/><button type="submit" disabled={loading}>{loading?'Loading carrier map...':'Load carrier map'}</button></div><small>View is linkable; no policy, location or private account data is uploaded.</small></form>
    </section>
    <div className="t3-atlas-proof"><div><strong>Published state locations</strong><span>Inspections and crash involvement</span></div><div><strong>No invented routes</strong><span>Carrier headquarters is not a freight corridor</span></div><div><strong>Hazards not scored</strong><span>External source layers await verified ingestion</span></div></div>
    {!dot&&!loading&&<section className="t3-atlas-empty"><h2>Select a carrier</h2><p>Open the official state-level event map using its USDOT. Suggested regression fixtures: <a href={atlasHash('3938496')}>3938496</a>, <a href={atlasHash('3706')}>3706</a>, <a href={atlasHash('2855794')}>2855794</a>. Their values may change with the source publication.</p></section>}
@@ -52,7 +54,7 @@ export default function CarrierAtlasPage(){
      <RecentEventMap evidence={evidence}/>
      <div className="t3-atlas-provenance"><span>Inspections retrieved in browser: {inspections?.acquiredAt??'not loaded'}</span><span>Crashes retrieved in browser: {crashes?.acquiredAt??'not loaded'}</span><span>Data lineage: FMCSA source IDs fx4q-ay7w and aayw-vxb3. Retrieval times are not official publication dates.</span></div>
    </div>}
-   <section className="t3-atlas-layer-section"><div className="t3-atlas-section-head"><div><span className="t3-atlas-overline">Source integration status</span><h2>External hazard & freight layers</h2><p>The FEMA county ingestion/index is implemented but not yet connected to this map; the other sources remain candidates. No geographic hazard score is calculated until datasets, provenance, coordinates, temporal coverage and carrier/route joins pass validation.</p></div><a href="#/sources">View FMCSA source health →</a></div><div className="t3-atlas-layers">{SOURCES.map(item=><article key={item.name}><div className="t3-atlas-layer-top"><span className="t3-atlas-unavailable">Not integrated</span><span>Official source candidate</span></div><h3>{item.name}</h3><p>{item.category}</p><small>{item.limit}</small><a href={item.url} target="_blank" rel="noreferrer">Source documentation →</a></article>)}</div></section>
+   <section className="t3-atlas-layer-section"><div className="t3-atlas-section-head"><div><span className="t3-atlas-overline">Source integration status</span><h2>External hazard & freight layers</h2><p>The FEMA county ingestion/index is implemented but not yet connected to this map; the other sources remain candidates. No geographic hazard score is calculated until datasets, provenance, coordinates, temporal coverage and carrier/route joins pass validation.</p></div><a href="#/integrity">Inspect source totals and integrity →</a></div><div className="t3-atlas-layers">{SOURCES.map(item=><article key={item.name}><div className="t3-atlas-layer-top"><span className="t3-atlas-unavailable">Not integrated</span><span>Official source candidate</span></div><h3>{item.name}</h3><p>{item.category}</p><small>{item.limit}</small><a href={item.url} target="_blank" rel="noreferrer">Source documentation →</a></article>)}</div></section>
    <p className="t3-atlas-bottom">Coverage is observational and has reporting limitations. H3 cells, verified geocoded terminals, actual traveled routes, FEMA risk polygons and prospective modeled exposure are not yet available. Unavailable evidence is not zero risk.</p>
  </main>;
 }

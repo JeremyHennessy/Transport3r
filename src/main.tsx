@@ -5,6 +5,7 @@ import CarrierRouteApp from './CarrierRouteApp';
 import CarrierReport from './CarrierReport';
 import FleetRouteApp from './FleetRouteApp';
 import WorkspaceApp from './WorkspaceApp';
+import DataIntegrityPage from './DataIntegrityPage';
 import './workspace.css';
 import './coverage.css';
 import './insight.css';
@@ -51,6 +52,7 @@ function RootRouter() {
   }, []);
 
   // A new USDOT must never inherit another carrier's identity, counts or failed-request state.
+  if (/^#\/integrity(?:\?|$)/.test(hash)) return <DataIntegrityPage />;
   const carrierKey = hash.split('/')[2];
   if (/^#\/carrier\/\d+\/report(?:\?|$)/.test(hash)) return <CarrierReport key={hash.split('?')[0]+new URLSearchParams(hash.split('?')[1]??'').get('format')}/>;
   if (/^#\/carrier\/\d+\/fleet(?:\?|$)/.test(hash)) return <FleetRouteApp key={carrierKey} />;

@@ -14,8 +14,8 @@ import sys
 from datetime import datetime, timezone
 
 from nationwide_evidence import acceptance, connect
-from nationwide_warehouse import duplicate_rows, ident, table
-from source_contract import catalog_sources
+from nationwide_warehouse import duplicate_rows, ident, table, mapping_sql, canonical, text, docket_key
+from source_contract import catalog_sources, source_contracts
 
 SCHEMA = 'TRANSPORT3R_WAREHOUSE_AUDIT_2'
 DUPLICATE_RULE = 'EXACT_ORIGINAL_SOURCE_COLUMNS_V2'
@@ -39,6 +39,30 @@ def count(value: object) -> bool:
     return type(value) is int and value >= 0
 
 
+def identity_disagreements(db, source, columns, contract):
+    """Rebuild identity bridges from raw rows; do not trust installed bridges."""
+    dot = canonical('dot_number')
+    ctes = (
+        f"census_identity AS (SELECT {dot} AS dot,count(*) AS census_rows "
+        f"FROM raw_az4n_8mr2 WHERE {dot} IS NOT NULL GROUP BY 1),"
+        f"inspection_identity AS (SELECT {text('inspection_id')} AS inspection_id,"
+        f"count(*) AS parent_rows,count(DISTINCT {dot}) AS parent_dots,"
+        f"count(*) FILTER(WHERE {dot} IS NULL) AS invalid_parent_dots,min({dot}) AS dot "
+        "FROM raw_fx4q_ay7w GROUP BY 1),"
+        f"docket_identity AS (SELECT {docket_key('docket_number')} AS docket_number,"
+        f"count(DISTINCT {dot}) AS owners,count(*) FILTER(WHERE {dot} IS NULL) AS unknown_owners,"
+        f"min({dot}) AS dot FROM raw_6eyk_hxee GROUP BY 1)"
+    )
+    expected_sql = mapping_sql(source, columns, contract)
+    mapping = table(source).replace('raw_', 'mapping_')
+    return db.execute(f"WITH {ctes}, expected AS ({expected_sql}) "
+        f"SELECT count(*) FROM expected e FULL OUTER JOIN {ident(mapping)} m USING (_warehouse_row_id) "
+        "WHERE e._warehouse_row_id IS NULL OR m._warehouse_row_id IS NULL "
+        "OR e._dot_number IS DISTINCT FROM m._dot_number "
+        "OR e._mapping_status IS DISTINCT FROM m._mapping_status "
+        "OR e._mapping_reason IS DISTINCT FROM m._mapping_reason").fetchone()[0]
+
+
 def audit(path: str | pathlib.Path, deep: bool = False) -> dict:
     """Return a failing receipt rather than accepting partial or corrupt evidence."""
     path = pathlib.Path(path).resolve(strict=True)
@@ -56,7 +80,7 @@ def audit(path: str | pathlib.Path, deep: bool = False) -> dict:
         'limits': [
             'Raw source rows are not unique carriers, incidents, vehicles or claims.',
             'Source digests are compared with receipts; original source byte files are not re-read.',
-            'Mapping counts are checked; source statements are not independently adjudicated.',
+            'Deep audit reconstructs carrier identity bridges from raw rows; source statements are not adjudicated.',
             'Does not certify current API/browser counts or actuarial/geographic risk.',
             'A shallow PASS is not a release-ready exact-duplicate audit.',
         ],
@@ -74,6 +98,7 @@ def audit(path: str | pathlib.Path, deep: bool = False) -> dict:
         if receipt is not None:
             report.update(cut_id=receipt['cut_id'], cut_available_at=receipt['cut_available_at'],
                           receipt_rows=receipt['rows'])
+            contracts = source_contracts()
             entries = {item['source']: item for item in receipt['source_acceptance']}
             expected = {source['id'] for source in catalog_sources()}
             embedded = {item['source']: item for item in receipt['source_lineage']}
@@ -121,7 +146,11 @@ def audit(path: str | pathlib.Path, deep: bool = False) -> dict:
                                   and digest == item.get('sha256'),
                 }
                 duplicates = None
+                disagreements = None
                 if deep:
+                    columns = [row[1] for row in db.execute(f"PRAGMA table_info('{raw}')").fetchall() if row[1] != '_warehouse_row_id']
+                    disagreements = identity_disagreements(db, sid, columns, contracts[sid])
+                    checks['identity_mapping'] = disagreements == 0
                     duplicates = duplicate_rows(db, raw)
                     checks['exact_duplicates'] = count(item.get('exact_duplicate_rows')) and duplicates == item['exact_duplicate_rows']
                 for key, passed in checks.items():
@@ -135,6 +164,7 @@ def audit(path: str | pathlib.Path, deep: bool = False) -> dict:
                     'actual_raw': raw_count, 'actual_mapping': map_count, 'actual_joined': joined_count,
                     'distinct_mapping_rows': map_unique, 'missing_mapping_rows': missing,
                     'orphan_mapping_rows': orphan, 'mapping_status': statuses,
+                    'identity_mapping_disagreements': disagreements,
                     'exact_duplicate_rows': duplicates,
                     'distinct_source_rows': raw_count - duplicates if duplicates is not None else None,
                     'checks': checks,
