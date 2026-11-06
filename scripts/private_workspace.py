@@ -16,6 +16,7 @@ import urllib.request
 from private_workspace_store import connect, dot, save_portfolio, portfolio, relationship, review_relationship, group_members, deliver, save_screening_case
 from snapshot_store import now, digest
 from insurance_reviews import save_review, list_reviews, history as insurance_review_history, guard_policy_identity_changes
+from coverage_requirements import checklist, save_requirement, history as requirement_history
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
@@ -101,7 +102,9 @@ class Handler(BaseHTTPRequestHandler):
         request=urllib.parse.urlsplit(self.path);route=request.path
         if self.command=='GET' and route in ('/','/app.js','/style.css'):
             name={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}[route]
-            return self.send(200,(ROOT/'local_workspace'/name).read_bytes(),{'/':'text/html','/app.js':'text/javascript','/style.css':'text/css'}[route])
+            content=(ROOT/'local_workspace'/name).read_bytes()
+            if route=='/app.js':content+=b'\n'+(ROOT/'local_workspace/coverage-documents.js').read_bytes()
+            return self.send(200,content,{'/':'text/html','/app.js':'text/javascript','/style.css':'text/css'}[route])
         if self.command=='GET' and route=='/favicon.ico':return self.send(204,b'','image/x-icon')
         body={}
         if self.command=='POST':
@@ -160,6 +163,15 @@ class Handler(BaseHTTPRequestHandler):
             if route=='/api/insurance-review-history' and self.command=='GET':
                 params=urllib.parse.parse_qs(request.query)
                 return self.send(200,insurance_review_history(db,params.get('id',[''])[0]))
+            if route=='/api/insurance-requirements' and self.command=='GET':
+                params=urllib.parse.parse_qs(request.query)
+                return self.send(200,checklist(db,params.get('review_id',[''])[0]))
+            if route=='/api/insurance-requirement' and self.command=='POST':
+                with self.server.policy_lock:
+                    return self.send(200,save_requirement(db,body,portfolio(self.app.folder),owner))
+            if route=='/api/insurance-requirement-history' and self.command=='GET':
+                params=urllib.parse.parse_qs(request.query)
+                return self.send(200,requirement_history(db,params.get('review_id',[''])[0],params.get('requirement_key',[''])[0]))
             if route=='/api/subscribe' and self.command=='POST':
                 identifier=dot(body.get('dot'));enabled=body.get('enabled')
                 if type(enabled)is not bool:raise ValueError('Subscription enabled must be true or false')

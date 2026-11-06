@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { sha256 } from './release-manifest.mjs';
+import { assertPublicAsset } from './public-asset-policy.mjs';
 
 export async function verifyRelease(pageUrl, expectedSha, get = fetch) {
   if (!/^[a-f0-9]{40}$/.test(expectedSha ?? '')) throw new Error('EXPECTED_SHA must be a full commit SHA');
@@ -19,6 +20,7 @@ export async function verifyRelease(pageUrl, expectedSha, get = fetch) {
   const bodies = new Map();
   for (const [path, record] of Object.entries(manifest.files ?? {})) {
     if (!path || path.startsWith('/') || path.split('/').includes('..')) throw new Error(`Invalid manifest path: ${path}`);
+    assertPublicAsset(path);
     const body = await load(path);
     if (body.length !== record.bytes || sha256(body) !== record.sha256) throw new Error(`Artifact hash mismatch: ${path}`);
     bodies.set(path, body);

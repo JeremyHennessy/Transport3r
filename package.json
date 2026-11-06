@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p tsconfig.json && vite build && node scripts/release-manifest.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/build-public.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test scripts/*.test.mjs"
   },

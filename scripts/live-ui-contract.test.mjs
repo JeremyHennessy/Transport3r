@@ -37,3 +37,18 @@ test('an Atlas heading without a rendered map is not ready',()=>{
 test('an integrity loading state is not a passing installation check',()=>{
  assert.equal(check('Data Integrity CHECKING THE INSTALLED EVIDENCE SERVICE','integrity',['Data Integrity']),false);
 });
+
+test('evidence navigation and loading cards cannot pass as loaded lineage',()=>{
+ assert.equal(check('Evidence loading complete carrier evidence','evidence',['Evidence']),false);
+ assert.equal(check('Evidence lineage','evidence',['Evidence lineage']),false);
+ assert.deepEqual(check('Evidence lineage','evidence',['Evidence lineage'],{selectors:['.c360-card .c360-raw-census']}),{ready:true});
+});
+test('authority navigation cannot pass without the actual authority table',()=>{
+ assert.equal(check('Authority Operating authority','authority',['Operating authority']),false);
+ assert.deepEqual(check('Operating authority','authority',['Operating authority'],{selectors:['.c360-table.authority']}),{ready:true});
+});
+test('section capture excludes shared loading cards and selects actual evidence lineage',()=>{
+ assert.ok(source.includes("'evidence': '.c360-card:has(.c360-raw-census)'"));
+ assert.ok(source.includes(':not([data-testid="complete-data-status"])'));
+ assert.ok(source.includes('target.scroll_into_view_if_needed(timeout=45000)'));
+});

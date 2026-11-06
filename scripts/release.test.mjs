@@ -6,9 +6,9 @@ import { sha256 } from './release-manifest.mjs';
 const commit = 'a'.repeat(40);
 function fixture() {
   const files = {
-    'index.html': '<div id="root"></div><script src="/Transport3r/assets/app.js"></script><link href="/Transport3r/assets/app.css">',
-    'assets/app.js': 'Know the carrier before you price the risk; Runtime recovery',
-    'assets/app.css': 'body{}',
+    'index.html': '<div id="root"></div><script src="/Transport3r/assets/index-TEST1234.js"></script><link href="/Transport3r/assets/index-TEST5678.css">',
+    'assets/index-TEST1234.js': 'Know the carrier before you price the risk; Runtime recovery',
+    'assets/index-TEST5678.css': 'body{}',
     'data/source-health.json': JSON.stringify({ generated_at: '2026-09-08', sources: Array(36).fill({}) }),
     'data/source-schemas.json': JSON.stringify({ generated_at: '2026-09-08', source_count: 36, field_count: 810 }),
   };
@@ -27,7 +27,7 @@ test('rejects a successful but stale deployment', async () => {
   await assert.rejects(verifyRelease('https://example.com/Transport3r/', 'b'.repeat(40), fixture().get), /Served commit/);
 });
 test('rejects mixed release files even when the manifest is current', async () => {
-  const f = fixture(); f.files['assets/app.js'] += 'stale';
+  const f = fixture(); f.files['assets/index-TEST1234.js'] += 'stale';
   await assert.rejects(verifyRelease('https://example.com/Transport3r/', commit, f.get), /hash mismatch/);
 });
 test('rejects root-published development HTML even with a valid hash', async () => {
@@ -36,6 +36,6 @@ test('rejects root-published development HTML even with a valid hash', async () 
   await assert.rejects(verifyRelease('https://example.com/Transport3r/', commit, f.get), /not a built application/);
 });
 test('fails on unavailable files', async () => {
-  const f = fixture(); delete f.files['assets/app.css'];
+  const f = fixture(); delete f.files['assets/index-TEST5678.css'];
   await assert.rejects(verifyRelease('https://example.com/Transport3r/', commit, f.get), /HTTP 404/);
 });
