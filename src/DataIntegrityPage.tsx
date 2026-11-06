@@ -1,27 +1,30 @@
 import {useEffect,useMemo,useState} from 'react';
 import catalog from '../data/fmcsa_sources.json';
-import {loadIntegrity,validateRelease,type IntegrityReport,type ReleaseInfo} from './integrityModel';
+import {loadIntegrity,type IntegrityReport,type ReleaseInfo} from './integrityModel';
 import './dataIntegrity.css';
+import {loadRelease} from './releaseLoader';
 
 const fmt = (value:number|null|undefined) => value == null ? '\u2014' : value.toLocaleString();
 const time = (value:string|null|undefined) => value ? new Date(value).toLocaleString() : 'Not verified';
 const queryFromHash = () => new URLSearchParams(window.location.hash.split('?')[1]??'').get('q')??'';
 const api = String(import.meta.env?.VITE_EVIDENCE_API_URL??'').trim();
+type ReleaseState = {kind:'loading'|'verified'|'unavailable';value:ReleaseInfo|null;error:string};
 type State = {kind:'loading'|'not-configured'|'unavailable'|'verified';report:IntegrityReport|null;error:string};
 
 export default function DataIntegrityPage(){
   const [state,setState] = useState<State>({kind:api?'loading':'not-configured',report:null,error:''});
-  const [release,setRelease] = useState<ReleaseInfo|null>(null);
+  const [releaseState,setReleaseState] = useState<ReleaseState>({kind:'loading',value:null,error:''});
+  const release=releaseState.value;
   const [version,setVersion] = useState(0),[query,setQuery] = useState(queryFromHash);
   const [copied,setCopied] = useState(false);
   useEffect(()=>{document.title='Data Integrity \u00b7 Transport3r';const changed=()=>setQuery(queryFromHash());
     window.addEventListener('hashchange',changed);return()=>window.removeEventListener('hashchange',changed);},[]);
   useEffect(()=>{
     const controller=new AbortController();let active=true;
-    setState({kind:api?'loading':'not-configured',report:null,error:''});setRelease(null);
-    fetch(`${import.meta.env.BASE_URL}release-manifest.json`,{signal:controller.signal,cache:'no-store',credentials:'omit'})
-      .then(response=>{if(!response.ok)throw Error('Release unavailable');return response.json();})
-      .then(value=>{if(active)setRelease(validateRelease(value));}).catch(()=>{});
+    setState({kind:api?'loading':'not-configured',report:null,error:''});setReleaseState({kind:'loading',value:null,error:''});
+    loadRelease(`${import.meta.env.BASE_URL}release-manifest.json`,controller.signal)
+      .then(value=>{if(active)setReleaseState({kind:'verified',value,error:''});})
+      .catch(error=>{if(active)setReleaseState({kind:'unavailable',value:null,error:error instanceof Error?error.message:'Release request failed'});});
     if(api)loadIntegrity(api,controller.signal).then(report=>{if(active)setState({kind:'verified',report,error:''});})
       .catch(error=>{if(active)setState({kind:'unavailable',report:null,error:error instanceof Error?error.message:String(error)});});
     return()=>{active=false;controller.abort();};
@@ -60,7 +63,7 @@ export default function DataIntegrityPage(){
           {rows.map(source=>{const row=byId.get(source.id);return <tr key={source.id}><th scope="row"><a href={`https://data.transportation.gov/d/${source.id}`} target="_blank" rel="noreferrer">{source.name}</a><small>{source.id} / {source.family}</small>{row&&<details><summary>Source provenance</summary><span>Retrieved: {time(row.available_at)}</span><span>Publisher update: {new Date(row.rows_updated_at*1000).toLocaleString()}</span><code>{row.sha256}</code><span>Resolved: {fmt(row.mapping_status.RESOLVED??0)} / identified only: {fmt(row.mapping_status.IDENTIFIED_ONLY??0)} / unresolved: {fmt(row.mapping_status.UNRESOLVED??0)}</span><span>Carrier identity disagreements: {row.identity_mapping_disagreements}</span></details>}</th><td>{fmt(row?.published)}</td><td>{fmt(row?.actual_raw)}</td><td>{fmt(row?.actual_joined)}</td><td>{fmt(row?.exact_duplicate_rows)}</td><td><span className={'t3-integrity-badge '+(row?'verified':'unknown')}>{row?'Reconciled':'Not verified'}</span></td></tr>;})}
         </tbody></table>{rows.length===0&&<p className="t3-integrity-no-results">No registered sources match this search.</p>}</div>
       </section>
-      <section className="t3-integrity-provenance"><article><div className="t3-eyebrow">Public application</div><h2>Release provenance</h2><dl><dt>Pages manifest commit</dt><dd><code>{release?.commit??'Not verified'}</code></dd><dt>Application built</dt><dd>{time(release?.builtAt)}</dd><dt>Bundled source-probe snapshot</dt><dd>{time(release?.metadataAt)}{metadataAge!==null&&<span className="t3-integrity-age">{metadataAge} days old; not a live check</span>}</dd></dl></article>
+      <section className="t3-integrity-provenance"><article data-release-status={releaseState.kind}><div className="t3-eyebrow">Public application</div><h2>Release provenance</h2><p role="status" aria-live="polite">{releaseState.kind==='loading'?'Loading release metadata...':releaseState.kind==='verified'?'Release metadata loaded; warehouse acceptance is a separate check.':`Release metadata unavailable: ${releaseState.error}. Recheck installation to retry.`}</p><dl><dt>Pages manifest commit</dt><dd><code>{release?.commit??'Not verified'}</code></dd><dt>Application built</dt><dd>{time(release?.builtAt)}</dd><dt>Bundled source-probe snapshot</dt><dd>{time(release?.metadataAt)}{metadataAge!==null&&<span className="t3-integrity-age">{metadataAge} days old; not a live check</span>}</dd></dl></article>
         <article><div className="t3-eyebrow">Installed evidence service</div><h2>Immutable data cut</h2><dl><dt>Cut identity</dt><dd>{report?.cut_id??'Not verified'}</dd><dt>Independent audit completed</dt><dd>{time(report?.audited_at)}</dd><dt>Warehouse SHA-256</dt><dd><code>{report?.warehouse_sha256??'Not verified'}</code></dd></dl></article></section>
       <p className="t3-integrity-boundary">Private insurer data is never loaded by this page. FEMA county context is a separate data product, not a carrier route or a hazard score. Source probes, accepted warehouse receipts, independent audits and live screen checks are distinct release gates.</p>
       <div className="t3-integrity-links"><a href="#/sources">Review source connectivity</a><a href="#/atlas">Open Carrier Geography Atlas</a><a href="https://github.com/JeremyHennessy/Transport3r/blob/main/docs/release-data-visual-audit.md" target="_blank" rel="noreferrer">Audit and installation requirements</a></div>
