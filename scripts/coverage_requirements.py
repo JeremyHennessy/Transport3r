@@ -34,7 +34,7 @@ TEMPLATES = {
                     ('verified-lanes', 'Verified operating lanes and stops'), ('theft-loss-runs', 'Dated theft loss runs')],
 }
 STATES = {'not_requested', 'requested', 'received', 'reviewed', 'not_applicable'}
-FIELDS = {'review_id', 'requirement_key', 'status', 'due_date', 'received_on', 'evidence_url', 'notes', 'expected_revision'}
+FIELDS = {'review_id', 'requirement_key', 'status', 'due_date', 'received_on', 'evidence_url', 'notes', 'expected_revision', 'expected_template_version'}
 DDL = '''
 CREATE TABLE IF NOT EXISTS coverage_requirements (
  id TEXT PRIMARY KEY, review_id TEXT NOT NULL, requirement_key TEXT NOT NULL,
@@ -95,10 +95,12 @@ def checklist(db, review_id):
         item = saved.get(key, {'id': None, 'review_id': review_id, 'requirement_key': key, 'template_version': VERSION,
                                'status': 'not_requested', 'due_date': None, 'received_on': None, 'evidence_url': None,
                                'notes': '', 'revision': 0, 'reviewer': None, 'updated_at': None})
-        items.append({**item, 'title': title})
-    closed = sum(item['status'] in ('reviewed', 'not_applicable') for item in items)
+        items.append({**item, 'title': title, 'needs_template_review': item['template_version'] != VERSION})
+    closed = sum(item['status'] in ('reviewed', 'not_applicable') and not item['needs_template_review'] for item in items)
+    active_keys = {key for key, _ in TEMPLATES[review['line']]}
+    retired = [{**item, 'title': key, 'retired': True} for key, item in saved.items() if key not in active_keys]
     return {'template_version': VERSION, 'review_id': review_id, 'account_id': review['account_id'],
-            'policy_id': review['policy_id'], 'dot_number': review['dot'], 'line': review['line'], 'items': items,
+            'policy_id': review['policy_id'], 'dot_number': review['dot'], 'line': review['line'], 'items': items, 'retired_items': retired,
             'summary': {'total': len(items), 'reviewed_or_not_applicable': closed, 'outstanding': len(items) - closed},
             'scope': 'PRIVATE_ANALYST_DOCUMENT_CHECKLIST', 'coverage_determined': False,
             'limitation': 'Analyst prompts only. Receipt is not verification; missing loss runs do not mean no claims. No coverage or eligibility decision is made.'}
@@ -119,6 +121,8 @@ def save_requirement(db, body, portfolio_rows, reviewer):
     status = _text(body, 'status', 32)
     if status not in STATES:
         raise ValueError('Unsupported document status')
+    if body.get('expected_template_version') != VERSION:
+        raise ValueError('Checklist template changed or is missing; refresh before saving')
     revision = body.get('expected_revision')
     if type(revision) is not int or revision < 0:
         raise ValueError('Nonnegative expected_revision required')
@@ -137,14 +141,15 @@ def save_requirement(db, body, portfolio_rows, reviewer):
         raise ValueError('Received date cannot be in the future')
     if status in ('reviewed', 'not_applicable') and len(notes) < 10:
         raise ValueError('Reviewed or not applicable items require a rationale of at least 10 characters')
-    identity = digest([VERSION, review['id'], key])
-    value = {'id': identity, 'review_id': review['id'], 'requirement_key': key, 'template_version': VERSION,
-             'status': status, 'due_date': due, 'received_on': received, 'evidence_url': url, 'notes': notes}
-    # BEGIN IMMEDIATE protects both the compare-and-swap revision and append-only
-    # history even for callers outside the single-owner service's policy lock.
+    # Logical identity is review+key, not the current template. Preserve legacy
+    # version-derived IDs so every historical entry stays reachable after upgrades.
     db.execute('BEGIN IMMEDIATE')
     try:
-        prior = db.execute('SELECT * FROM coverage_requirements WHERE id=?', (identity,)).fetchone()
+        prior = db.execute('SELECT * FROM coverage_requirements WHERE review_id=? AND requirement_key=?',
+                           (review['id'], key)).fetchone()
+        identity = prior['id'] if prior else digest(['COVERAGE_REQUIREMENT_ID_1', review['id'], key])
+        value = {'id': identity, 'review_id': review['id'], 'requirement_key': key, 'template_version': VERSION,
+                 'status': status, 'due_date': due, 'received_on': received, 'evidence_url': url, 'notes': notes}
         actual_revision = prior['revision'] if prior else 0
         if revision != actual_revision:
             raise ValueError('Document changed since it was loaded; refresh before saving')
@@ -153,7 +158,12 @@ def save_requirement(db, body, portfolio_rows, reviewer):
             return {'id': identity, 'changed': False, 'revision': actual_revision, 'status': 'SAVED_LOCALLY'}
         current = {**value, 'revision': actual_revision + 1, 'reviewer': reviewer, 'updated_at': now()}
         keys = tuple(current)
-        db.execute('INSERT OR REPLACE INTO coverage_requirements (' + ','.join(keys) + ') VALUES (' + ','.join('?' for _ in keys) + ')', tuple(current.values()))
+        if prior:
+            fields = tuple(k for k in keys if k != 'id')
+            db.execute('UPDATE coverage_requirements SET ' + ','.join(k + '=?' for k in fields) + ' WHERE id=?',
+                       tuple(current[k] for k in fields) + (identity,))
+        else:
+            db.execute('INSERT INTO coverage_requirements (' + ','.join(keys) + ') VALUES (' + ','.join('?' for _ in keys) + ')', tuple(current.values()))
         db.execute('INSERT INTO coverage_requirement_history(requirement_id,previous_json,current_json,reviewer,changed_at) VALUES (?,?,?,?,?)',
                    (identity, json.dumps(dict(prior), sort_keys=True) if prior else None, json.dumps(current, sort_keys=True), reviewer, current['updated_at']))
         db.commit()
@@ -166,7 +176,14 @@ def save_requirement(db, body, portfolio_rows, reviewer):
 def history(db, review_id, requirement_key):
     ensure(db)
     review = _review(db, review_id)
-    if requirement_key not in dict(TEMPLATES[review['line']]):
-        raise ValueError('Requirement does not belong to this insurance line')
-    identity = digest([VERSION, review['id'], requirement_key])
-    return [dict(r) for r in db.execute('SELECT * FROM coverage_requirement_history WHERE requirement_id=? ORDER BY change_id', (identity,))]
+    if not isinstance(requirement_key, str) or not re.fullmatch('[a-z0-9-]{1,64}', requirement_key):
+        raise ValueError('Exact requirement key required')
+    # Even retired prompts keep their recorded ID/history; never recompute it
+    # from a new template version or silently replace the original row.
+    item = db.execute('SELECT id FROM coverage_requirements WHERE review_id=? AND requirement_key=?',
+                      (review['id'], requirement_key)).fetchone()
+    if item is None:
+        if requirement_key not in dict(TEMPLATES[review['line']]):
+            raise ValueError('Requirement does not belong to this insurance line')
+        return []
+    return [dict(r) for r in db.execute('SELECT * FROM coverage_requirement_history WHERE requirement_id=? ORDER BY change_id', (item['id'],))]

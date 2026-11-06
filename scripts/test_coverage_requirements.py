@@ -7,6 +7,9 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
+import coverage_requirements as requirements
+from snapshot_store import digest
 
 from coverage_requirements import TEMPLATES, checklist, save_requirement, history
 from insurance_reviews import LINES, save_review
@@ -22,7 +25,7 @@ class CoverageRequirementTests(unittest.TestCase):
         self.addCleanup(self.db.close)
         self.review_id = save_review(self.db, REVIEW, [POLICY], 'Synthetic owner')['id']
         self.body = {'review_id': self.review_id, 'requirement_key': 'loss-runs', 'status': 'requested',
-                     'due_date': '2030-01-01', 'received_on': '', 'evidence_url': '', 'notes': '', 'expected_revision': 0}
+                     'due_date': '2030-01-01', 'received_on': '', 'evidence_url': '', 'notes': '', 'expected_revision': 0, 'expected_template_version': requirements.VERSION}
 
     def save(self, patch=None):
         return save_requirement(self.db, {**self.body, **(patch or {})}, [POLICY], 'Synthetic owner')
@@ -98,6 +101,59 @@ class CoverageRequirementTests(unittest.TestCase):
         self.assertEqual(item['notes'], notes)
         self.assertNotIn('claims_count', item)
 
+    def test_template_upgrade_preserves_legacy_id_and_history(self):
+        first = self.save()
+        legacy_id = digest([requirements.VERSION, self.review_id, 'loss-runs'])
+        self.db.execute('UPDATE coverage_requirements SET id=? WHERE id=?', (legacy_id, first['id']))
+        self.db.execute('UPDATE coverage_requirement_history SET requirement_id=? WHERE requirement_id=?', (legacy_id, first['id']))
+        self.db.commit()
+        with patch.object(requirements, 'VERSION', 'COVERAGE_CHECKLIST_2'):
+            plan = checklist(self.db, self.review_id)
+            self.assertEqual(plan['items'][0]['id'], legacy_id)
+            self.assertTrue(plan['items'][0]['needs_template_review'])
+            self.assertEqual(len(history(self.db, self.review_id, 'loss-runs')), 1)
+            with self.assertRaisesRegex(ValueError, 'template'):
+                self.save({'expected_revision': 1})
+            second = self.save({'expected_revision': 1, 'expected_template_version': requirements.VERSION})
+            self.assertEqual(second['id'], legacy_id)
+            self.assertEqual(second['revision'], 2)
+            events = history(self.db, self.review_id, 'loss-runs')
+            self.assertEqual(len(events), 2)
+            self.assertEqual(json.loads(events[-1]['previous_json'])['template_version'], 'COVERAGE_CHECKLIST_1')
+            self.assertEqual(json.loads(events[-1]['current_json'])['template_version'], 'COVERAGE_CHECKLIST_2')
+            self.assertEqual(self.db.execute('SELECT count(*) FROM coverage_requirements').fetchone()[0], 1)
+            repeat = self.save({'expected_revision': 2, 'expected_template_version': requirements.VERSION})
+            self.assertFalse(repeat['changed'])
+            self.assertEqual(len(history(self.db, self.review_id, 'loss-runs')), 2)
+
+    def test_prior_template_completion_requires_explicit_rereview(self):
+        self.save({'status': 'not_applicable', 'notes': 'SYNTHETIC: prior template reviewed'})
+        self.assertEqual(checklist(self.db, self.review_id)['summary']['outstanding'], 3)
+        with patch.object(requirements, 'VERSION', 'COVERAGE_CHECKLIST_2'):
+            self.assertEqual(checklist(self.db, self.review_id)['summary']['outstanding'], 4)
+            self.save({'status': 'not_applicable', 'notes': 'SYNTHETIC: current template reviewed',
+                       'expected_revision': 1, 'expected_template_version': requirements.VERSION})
+            self.assertEqual(checklist(self.db, self.review_id)['summary']['outstanding'], 3)
+
+    def test_retired_prompt_keeps_history_but_cannot_be_rewritten(self):
+        original = self.save()
+        changed = dict(requirements.TEMPLATES)
+        changed['auto-liability'] = [(key, title) for key, title in changed['auto-liability'] if key != 'loss-runs']
+        with patch.object(requirements, 'VERSION', 'COVERAGE_CHECKLIST_2'), patch.object(requirements, 'TEMPLATES', changed):
+            plan = checklist(self.db, self.review_id)
+            self.assertEqual(len(plan['items']), 3)
+            self.assertEqual(plan['retired_items'][0]['id'], original['id'])
+            self.assertEqual(len(history(self.db, self.review_id, 'loss-runs')), 1)
+            with self.assertRaisesRegex(ValueError, 'does not belong'):
+                self.save({'expected_revision': 1, 'expected_template_version': requirements.VERSION})
+        self.assertEqual(checklist(self.db, self.review_id)['items'][0]['id'], original['id'])
+
+    def test_missing_template_version_does_not_write(self):
+        body = dict(self.body); body.pop('expected_template_version')
+        with self.assertRaisesRegex(ValueError, 'template'):
+            save_requirement(self.db, body, [POLICY], 'Synthetic owner')
+        self.assertEqual(history(self.db, self.review_id, 'loss-runs'), [])
+
 
 class CoverageRequirementApiTests(unittest.TestCase):
     def setUp(self):
@@ -129,7 +185,7 @@ class CoverageRequirementApiTests(unittest.TestCase):
         status, review = self.request('/api/insurance-review', REVIEW); self.assertEqual(status, 200)
         rid = review['id']
         self.assertEqual(self.request('/api/insurance-requirements?review_id=' + rid)[1]['summary']['outstanding'], 4)
-        body = {'review_id': rid, 'requirement_key': 'loss-runs', 'status': 'requested', 'due_date': '2030-01-01', 'expected_revision': 0}
+        body = {'review_id': rid, 'requirement_key': 'loss-runs', 'status': 'requested', 'due_date': '2030-01-01', 'expected_revision': 0, 'expected_template_version': requirements.VERSION}
         self.assertEqual(self.request('/api/insurance-requirement', body, origin=False)[0], 403)
         self.assertEqual(self.request('/api/insurance-requirement', body, host='example.org')[0], 403)
         self.assertEqual(self.request('/api/insurance-requirement', body)[0], 200)

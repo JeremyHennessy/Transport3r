@@ -8,7 +8,7 @@ documentPanel.append(identified('p','coverageChecklistContext'),node('p','These 
 const documentSummary=identified('p','coverageChecklistSummary');documentSummary.setAttribute('role','status');
 documentPanel.append(documentSummary,identified('div','coverageChecklistItems'));
 const documentForm=identified('form','coverageRequirementForm');documentForm.className='grid';documentForm.hidden=true;
-for(const name of ['review_id','requirement_key','expected_revision']){const input=node('input');input.name=name;input.type='hidden';documentForm.append(input);}
+for(const name of ['review_id','requirement_key','expected_revision','expected_template_version']){const input=node('input');input.name=name;input.type='hidden';documentForm.append(input);}
 documentForm.append(identified('h4','coverageRequirementTitle','Document follow-up'));
 function documentField(title,name,type){const label=node('label',title),input=node(type==='textarea'?'textarea':'input');input.name=name;if(type!=='textarea')input.type=type;label.append(input);documentForm.append(label);return input;}
 const stateLabel=node('label','Document state'),documentState=node('select');documentState.name='status';
@@ -38,17 +38,27 @@ async function loadCoverageChecklist(reviewId){
   const names={not_requested:'Not requested',requested:'Requested',received:'Received, not yet reviewed',reviewed:'Reviewed by analyst',not_applicable:'Not applicable'};
   for(const item of plan.items){
     const card=record($('coverageChecklistItems'),item.title);card.dataset.requirementKey=item.requirement_key;
+    if(item.needs_template_review)card.append(node('p','Template updated: this prior review is not counted complete until explicitly reviewed against the current prompts.'));
     card.append(node('p',names[item.status]),node('small',`Revision ${item.revision}${item.due_date?' / follow-up '+item.due_date:''}${item.received_on?' / received '+item.received_on:''}`));
     if(item.notes)card.append(node('p',item.notes));
     if(item.evidence_url){const link=node('a','Open private evidence reference');link.href=item.evidence_url;link.target='_blank';link.rel='noopener noreferrer';card.append(link);}
     card.append(button('Edit document request',()=>{
       const form=$('coverageRequirementForm');
-      const fields={review_id:plan.review_id,requirement_key:item.requirement_key,expected_revision:String(item.revision),
+      const fields={review_id:plan.review_id,requirement_key:item.requirement_key,expected_revision:String(item.revision),expected_template_version:plan.template_version,
         status:item.status,due_date:item.due_date||'',received_on:item.received_on||'',evidence_url:item.evidence_url||'',notes:item.notes};
       for(const [name,value]of Object.entries(fields))form.elements.namedItem(name).value=value;
       $('coverageRequirementTitle').textContent=item.title;form.hidden=false;form.scrollIntoView();
     }));
     if(item.revision)card.append(button('Document change history',async()=>{
+      const events=await api('/api/insurance-requirement-history?'+new URLSearchParams({review_id:plan.review_id,requirement_key:item.requirement_key}));
+      if(!state||generation!==checklistGeneration)return;
+      showJson('coverageRequirementHistory',events);$('coverageRequirementHistory').scrollIntoView();
+    }));
+  }
+  for(const item of plan.retired_items||[]){
+    const card=record($('coverageChecklistItems'),'Retired prompt: '+item.requirement_key);
+    card.append(node('p',`Saved under ${item.template_version}. Read-only historical record; not part of current checklist completion.`));
+    card.append(button('Retired document history',async()=>{
       const events=await api('/api/insurance-requirement-history?'+new URLSearchParams({review_id:plan.review_id,requirement_key:item.requirement_key}));
       if(!state||generation!==checklistGeneration)return;
       showJson('coverageRequirementHistory',events);$('coverageRequirementHistory').scrollIntoView();
