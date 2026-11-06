@@ -137,7 +137,7 @@ def run(output):
                         with page.expect_response(lambda r: r.url.endswith('/api/insurance-requirement') and r.request.method=='POST') as rewritten:
                             followup.get_by_role('button',name='Save document follow-up',exact=True).click()
                         assert rewritten.value.status==200
-                        page.wait_for_function("document.getElementById('coverageChecklistSummary').innerText.includes('3 outstanding')")
+                        page.locator('#coverageChecklistSummary').filter(has_text='3 outstanding').wait_for()
                         plan=context.request.get(base+'/api/insurance-requirements?review_id='+saved['id']).json()
                         current=next(item for item in plan['items'] if item['requirement_key']=='commodity-mix')
                         assert current['id']==prior_item['id'] and current['revision']==4 and not current['needs_template_review']

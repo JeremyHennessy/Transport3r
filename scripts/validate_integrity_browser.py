@@ -139,7 +139,7 @@ def run(output):
                     # Test public insurance and Atlas UI with explicitly synthetic browser data.
                     web.root=(ROOT/'dist').resolve()
                     fixture=(ROOT/'scripts/report-fixture-browser.js').read_text()+"\n(()=>{window.__atlasRequests=[];const fetcher=window.fetch;window.fetch=(input,options)=>{if(String(input).includes('data.transportation.gov/resource/'))window.__atlasRequests.push(String(input));return fetcher(input,options);};})();"
-                    for label in ('insurance','atlas-carrier'):
+                    for label in ('insurance','atlas-carrier','evidence','authority'):
                         route=next(r for r in ROUTES if r[0]==label)
                         for width in (1440,390):
                             context=browser.new_context()
@@ -161,7 +161,7 @@ def run(output):
                                 assert page.locator('.t3-atlas-map-panel').count()==0
                                 assert page.evaluate('window.__atlasRequests.length')==before
                             context.close()
-                    receipt['checks'].append('Insurance and Atlas desktop/mobile capture, unchanged-USDOT refresh and invalid-identity no-request/no-stale-map gates pass with synthetic data')
+                    receipt['checks'].append('Insurance, Atlas, actual Evidence/Authority desktop/mobile capture, unchanged-USDOT refresh and invalid-identity no-request/no-stale-map gates pass with synthetic data')
                     assert not errors,errors
                     receipt['status']='PASS'
                 finally:browser.close()

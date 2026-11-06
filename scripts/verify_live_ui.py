@@ -24,8 +24,8 @@ ROUTES = [
     ('atlas-carrier', '#/atlas?dot=3938496', ['Carrier Geography Atlas']),
     ('summary', '#/carrier/3938496/summary', ['Underwriting evidence at a glance']),
     ('safety', '#/carrier/3938496/safety', ['Violation evidence']),
-    ('authority', '#/carrier/3938496/authority', ['Authority']),
-    ('evidence', '#/carrier/3938496/evidence', ['Evidence']),
+    ('authority', '#/carrier/3938496/authority', ['Authority', 'Operating authority']),
+    ('evidence', '#/carrier/3938496/evidence', ['Evidence', 'Evidence lineage']),
     ('portfolio', '#/portfolio', ['Portfolio']),
     ('alerts', '#/alerts', ['Alerts']),
     ('methodology', '#/methodology', ['Methodology']),
@@ -53,6 +53,8 @@ READINESS_JS = r'''({expected, errors, label}) => {
     if (label === 'integrity' && text.includes(normal('Checking the installed evidence service'))) return false;
     if (label === 'carriers' && !document.querySelector('.t3-carrier-row:not(.header) .carrier-name a')) return false;
     if (label === 'vin' && !document.querySelector('[data-testid="vin-detail"]')) return false;
+    if (label === 'evidence' && !document.querySelector('.c360-card .c360-raw-census')) return false;
+    if (label === 'authority' && !document.querySelector('.c360-table.authority')) return false;
     return {ready:true};
 }'''
 
@@ -122,12 +124,12 @@ def capture_route(page, base, route, output, viewport):
 SECTION_SELECTORS = {
     'carriers': '.t3-table-panel',
     'atlas-carrier': '.t3-atlas-map-panel',
-    'summary': '.c360-card:not([data-testid="carrier-insight"])',
-    'safety': '.c360-card:not([data-testid="carrier-insight"])',
-    'authority': '.c360-card:not([data-testid="carrier-insight"])',
-    'evidence': '.c360-card:not([data-testid="carrier-insight"])',
+    'summary': '.c360-card:not([data-testid="carrier-insight"]):not([data-testid="complete-data-status"])',
+    'safety': '.c360-card:not([data-testid="carrier-insight"]):not([data-testid="complete-data-status"])',
+    'authority': '.c360-card:not([data-testid="carrier-insight"]):not([data-testid="complete-data-status"])',
+    'evidence': '.c360-card:has(.c360-raw-census)',
     'insurance': '[data-testid="insurance-line-review"]',
-    'sms': '.c360-card:not([data-testid="carrier-insight"])',
+    'sms': '.c360-card:not([data-testid="carrier-insight"]):not([data-testid="complete-data-status"])',
     'inspection': '[data-testid="inspection-detail"]',
     'vin': '[data-testid="vin-detail"]',
     'integrity': '.t3-integrity-pipeline, .t3-integrity-table-wrap',
@@ -141,6 +143,8 @@ def retain_section(page, label, output, name, result):
         return
     target = page.locator(selector).first
     target.wait_for(state='visible', timeout=45000)
+    # Wait for target layout before scrolling; never capture the shared loading card.
+    target.scroll_into_view_if_needed(timeout=45000)
     # Scroll with allowance for sticky navigation; do not change page content.
     target.evaluate("el => window.scrollTo({top: Math.max(0, el.getBoundingClientRect().top + scrollY - 170), behavior: 'instant'})")
     page.wait_for_timeout(150)
