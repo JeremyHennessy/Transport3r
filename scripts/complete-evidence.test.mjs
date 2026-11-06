@@ -44,6 +44,13 @@ test('warehouse adapter rejects a valid-looking receipt with inconsistent aggreg
  t.mock.method(globalThis,'fetch',async input=>String(input).includes('source-schemas.json')?Response.json(registry):Response.json(payload));
  await assert.rejects(app.acquireWarehouseCarrier('3706',signal(),()=>{},'https://warehouse.example'),/carrier total/);
 });
+for(const mutation of ['duplicate-empty','duplicate-census','wrong-census']) test('warehouse rejects '+mutation,async t=>{
+ const sources=registry.sources.map(source=>({source_id:source.id,carrier_rows:source.id==='az4n-8mr2'?1:0,status:source.id==='az4n-8mr2'?'ROWS_RETURNED':'NO_ROWS_RETURNED',scope:'ALL_RESOLVED_ROWS_FOR_USDOT_IN_VERIFIED_NATIONWIDE_CUT',source_available_at:'2026-10-23T00:00:00Z',source_rows_updated_at:1,source_sha256:'b'.repeat(64),rows:source.id==='az4n-8mr2'?[{dot_number:mutation==='wrong-census'?'999':'3706'}]:[]}));
+ if(mutation.startsWith('duplicate'))sources.push(structuredClone(sources.find(s=>mutation==='duplicate-census'?s.source_id==='az4n-8mr2':s.carrier_rows===0)));
+ const payload={dot_number:'3706',cut_id:'cut-1',cut_available_at:'2026-10-23T00:00:00Z',identity_contract:'FMCSA_CARRIER_IDENTITY_1',source_count:36,carrier_rows:mutation==='duplicate-census'?2:1,warehouse_sha256:'a'.repeat(64),sources,completeness_receipt:{status:'VERIFIED',sources_expected:36,sources_returned:36,unresolved_rows_excluded_from_carrier_assignment:true,mapping_totals:{resolved:100,identified_only:2,unresolved:3},sms_release_binding:'UNVERIFIED',historical_feature_validity:'NOT_CERTIFIED'}};
+ t.mock.method(globalThis,'fetch',async input=>String(input).includes('source-schemas.json')?Response.json(registry):Response.json(payload));
+ await assert.rejects(app.acquireWarehouseCarrier('3706',signal(),()=>{},'https://warehouse.example'),mutation==='wrong-census'?/Census identity/:/receipt is invalid/);
+});
 test('full result preserves explicit errors and marks fallback previews partial',()=>{
  const preview={dotNumber:'1',slices:{inspections:{rows:[{}],truncated:false}},errors:{}},full={dotNumber:'1',slices:{},errors:{inspections:'HTTP 503'},completeAll:false};
  const merged=app.mergeComplete(preview,full,'safety');assert.equal(merged.completeAttempted,true);assert.equal(merged.slices.inspections.truncated,true);assert.equal(merged.completeAll,false);

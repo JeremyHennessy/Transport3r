@@ -13,6 +13,7 @@ services:
       - "127.0.0.1:8787:8787"
     environment:
       EVIDENCE_WAREHOUSE: /app/source/warehouse.duckdb
+      EVIDENCE_AUDIT_FILE: /app/source/warehouse.integrity.json
       NRI_COUNTY_INDEX: /app/source/nri-counties-dec2025.sqlite
       EVIDENCE_HOST: 0.0.0.0
       EVIDENCE_ALLOW_ORIGIN: https://jeremyhennessy.github.io
@@ -21,6 +22,10 @@ services:
       - type: bind
         source: ${TRANSPORT3R_WAREHOUSE_PATH:?Set a verified nationwide DuckDB path}
         target: /app/source/warehouse.duckdb
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_AUDIT_PATH:?Set the matching independent deep-audit JSON path}
+        target: /app/source/warehouse.integrity.json
         read_only: true
       - type: bind
         source: ${TRANSPORT3R_NRI_INDEX_PATH:?Set an accepted, installed FEMA source index path}

@@ -46,6 +46,11 @@ jobs:
           if value.get('status')!='VERIFIED' or value.get('sources')!=36 or any(v!='PASS' for v in value.get('acceptance_gates',{}).values()):raise SystemExit('Nationwide acceptance gates failed')
           print(json.dumps({'status':value['status'],'sources':value['sources'],'rows':value['rows'],'mapping_totals':value['mapping_totals'],'acceptance_gates':value['acceptance_gates']},indent=2))
           PY
+      - name: Independently recount duplicates and reconstruct every carrier identity
+        run: |
+          warehouse="$(find warehouse/nationwide/curated -maxdepth 1 -name '*.duckdb' -print -quit)"
+          test -n "${warehouse}"
+          python scripts/audit_warehouse_integrity.py "${warehouse}" --deep --output "${warehouse%.duckdb}.integrity.json"
       - name: Reconcile frozen golden carriers against the exact nationwide publications
         run: |
           warehouse="$(find warehouse/nationwide/curated -maxdepth 1 -name '*.duckdb' -print -quit)"
@@ -68,6 +73,7 @@ jobs:
             warehouse/nationwide/raw/*/*/*/*.metadata-before.json
             warehouse/nationwide/raw/*/*/*/*.metadata-after.json
             warehouse/nationwide/curated/*.acceptance.json
+            warehouse/nationwide/curated/*.integrity.json
             /tmp/transport3r-nationwide-golden/
             /tmp/transport3r-nationwide-golden-result.json
           if-no-files-found: warn

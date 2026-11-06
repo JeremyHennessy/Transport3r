@@ -9,12 +9,21 @@ This is a **loopback-only installation reference**, not a secure public hosting 
 - A validated FEMA December 2025 v1.20 county SQLite index installed using the source manifest and original ArcGIS response hashes.
 - Mount read privileges for container UID 10001. All source files must be read-only to the app. This server may expose only **public** FMCSA/FEMA records.
 
+## Independently audit the immutable warehouse
+
+```bash
+python scripts/audit_warehouse_integrity.py /srv/transport3r/verified/warehouse.duckdb --deep --output /srv/transport3r/verified/warehouse.integrity.json
+```
+
+A production audit must say `PASS` and `release_ready: true`. It reconstructs identity links from original raw tables and recounts exact duplicate original rows. Its warehouse SHA-256, cut, all 36 source counts and Census carrier count must agree. Keep earlier receipts unchanged. A failed audit blocks installing the report; do not edit its fields to force acceptance. This operation needs adequate memory and disk for the full raw source cut.
+
 ## Start local source API
 
 Set host environment variables to **absolute index file paths**:
 
 ```bash
 export TRANSPORT3R_WAREHOUSE_PATH=/srv/transport3r/verified/warehouse.duckdb
+export TRANSPORT3R_AUDIT_PATH=/srv/transport3r/verified/warehouse.integrity.json
 export TRANSPORT3R_NRI_INDEX_PATH=/srv/transport3r/verified/nri-counties-dec2025.sqlite
 docker compose -f deploy/evidence-api/compose.nri.example.yml config --quiet
 docker compose -f deploy/evidence-api/compose.nri.example.yml up --build -d
@@ -26,6 +35,7 @@ The service binds only to localhost. It uses nonroot UID 10001, read-only mounts
 
 ```bash
 curl --fail http://127.0.0.1:8787/healthz
+curl --fail http://127.0.0.1:8787/v1/integrity
 curl --fail http://127.0.0.1:8787/v1/geography/nri/status
 curl --fail http://127.0.0.1:8787/v1/geography/nri/counties/01001
 curl --fail http://127.0.0.1:8787/v1/carriers/3706/evidence
@@ -48,3 +58,7 @@ Expected with correctly mounted sources: 36-source verified FMCSA warehouse heal
 A deployment requires HTTPS, firewall, authentication/rate limiting as dictated by insurer audience, TLS renewal, OS/image patching, immutable source backup, encrypted disk, monitoring, query resource limits, and independently reviewed security. The read-only public source index must remain completely separate from the local private policy/claims workbench.
 
 The FEMA county index is **not a carrier risk score**. To assess a facility or stop, independently verify real site coordinates, boundary/vintage, and a correct point-in-polygon match. To assess a traveled route, acquire verified GPS/trip geometry and documented time-varying exposure. Neither is established by carrier headquarters, county NRI relative score or FMCSA filings.
+
+## Data Integrity screen
+
+`#/integrity` displays installed audit totals only when `/healthz` and `/v1/integrity` identify the same immutable warehouse. Without a configured API or a matching deep audit, values remain unavailable, not zero. A previously installed database replaced during service operation causes HTTP 503 until the service restarts with its new verified cut. The endpoint exposes allow-listed public aggregate metadata, never policy or claims records. Saved source-probe timestamps in the public build are labeled separately from live service health.

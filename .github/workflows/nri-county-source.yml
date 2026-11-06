@@ -33,6 +33,8 @@ jobs:
         env:
           TRANSPORT3R_WAREHOUSE_PATH: /tmp/dry-run-warehouse.duckdb
           TRANSPORT3R_NRI_INDEX_PATH: /tmp/dry-run-nri-counties.sqlite
+          # Configuration-only placeholder; this step never starts the service.
+          TRANSPORT3R_AUDIT_PATH: /tmp/dry-run-warehouse.integrity.json
         run: |
           docker compose -f deploy/evidence-api/compose.nri.example.yml config --quiet
           docker compose -f deploy/evidence-api/compose.nri.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);x=d['services']['transport3r-evidence'];assert x['read_only'];assert x['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in x['volumes'])"
