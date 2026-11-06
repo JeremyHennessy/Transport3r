@@ -2,11 +2,12 @@ import { exposureQualityFlags } from './exposureQuality';
 import {SmsDirectoryCell} from './OfficialSmsPanel';
 import {loadOfficialSmsBatch,officialSmsView,type OfficialSmsView} from './officialSms';
 import { EnrichmentSources } from './EnrichmentSources';
+import CarrierAtlasPage from './CarrierAtlasPage';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import sourceCatalogJson from '../data/fmcsa_sources.json';
 import { DataRow, SchemaRegistry, loadSchemaRegistry, readValue, censusStatusLabel, driverReportDetail, formatDateValue, fetchSourceJson, mileageYearLabel } from './datahub';
 
-type Page = 'overview' | 'carriers' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
+type Page = 'overview' | 'carriers' | 'atlas' | 'portfolio' | 'alerts' | 'methodology' | 'sources';
 type SortMode = 'fleet_desc' | 'dot_desc' | 'name_asc' | 'drivers_desc' | 'drivers_asc';
 type RiskFilter = '' | 'available' | 'unavailable';
 
@@ -102,6 +103,7 @@ const PAGE_SIZE = 100;
 const NAV: Array<{ id: Page; label: string; short: string }> = [
   { id: 'overview', label: 'Overview', short: 'Overview' },
   { id: 'carriers', label: 'Carriers', short: 'Carriers' },
+  { id: 'atlas', label: 'Atlas', short: 'Atlas' },
   { id: 'portfolio', label: 'Portfolio', short: 'Portfolio' },
   { id: 'alerts', label: 'Alerts', short: 'Alerts' },
   { id: 'methodology', label: 'Methodology', short: 'Method' },
@@ -725,6 +727,7 @@ export default function WorkspaceApp() {
   return <Shell page={page} health={health}>
     {page === 'overview' && <OverviewPage health={health} schema={schema} />}
     {page === 'carriers' && <CarriersPage />}
+    {page === 'atlas' && <CarrierAtlasPage />}
     {page === 'portfolio' && <PortfolioPage />}
     {page === 'alerts' && <AlertsPage health={health} />}
     {page === 'methodology' && <MethodologyPage />}
