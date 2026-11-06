@@ -33,6 +33,8 @@ jobs:
           npm test
           npm run typecheck
           npm run build
+      - name: Verify release metadata delay and failure recovery (local test responses only)
+        run: python scripts/validate_release_browser.py /tmp/transport3r-review/release-browser
       - name: Verify raw-to-audit-to-API-to-browser integration (synthetic data only)
         run: python scripts/validate_integrity_browser.py /tmp/transport3r-review/browser
       - name: Verify authenticated local coverage review (synthetic data only)
