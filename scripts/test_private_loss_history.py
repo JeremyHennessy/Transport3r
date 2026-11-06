@@ -142,8 +142,56 @@ class PrivateLossHistoryTests(unittest.TestCase):
         self.accept();self.accept(envelope(source_id='SYNTHETIC-OTHER'))
         self.assertEqual(self.db.execute('SELECT count(*) FROM loss_observations').fetchone()[0],2)
         policies=self.policies+[{**POLICY,'policy_id':'CAD-TEST','currency':'CAD'}]
-        result=self.accept(envelope([CLAIM,{**CLAIM,'policy_id':'CAD-TEST','currency':'CAD'}]),policies)
+        result=self.accept(envelope([CLAIM,{**CLAIM,'claim_id':'SYNTHETIC-CAD-2','policy_id':'CAD-TEST','currency':'CAD'}]),policies)
         self.assertEqual([g['currency'] for g in summarize_batch(self.db,result['batch_id'])['groups']],['CAD','USD'])
+
+    def test_same_source_claim_cannot_reassign_policy_or_line_within_batch(self):
+        target={**POLICY,'account_id':'OTHER-ACCOUNT','policy_id':'OTHER-POLICY','dot_number':'123'}
+        policies=self.policies+[target]
+        for changed in ({**CLAIM,'coverage_line':'motor-truck-cargo'},
+                        {**CLAIM,'account_id':target['account_id'],'policy_id':target['policy_id'],'dot_number':target['dot_number']}):
+            with self.subTest(changed=changed):
+                data=envelope([CLAIM,changed]);plan=preview(raw(data),policies)
+                self.assertEqual(plan['status'],'REVIEW_REQUIRED')
+                self.assertEqual(plan['issues'],[{'row':2,'reason':'CONFLICTING_ROWS_IN_BATCH'}])
+                with self.assertRaisesRegex(ValueError,'REVIEW_REQUIRED'):
+                    self.accept(data,policies)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM sqlite_master').fetchone()[0],0)
+
+    def test_same_source_claim_cannot_reassign_valid_policy_across_valuations(self):
+        self.accept()
+        targets=[({**CLAIM,'policy_id':'OTHER-POLICY'}, {**POLICY,'policy_id':'OTHER-POLICY'}),
+                 ({**CLAIM,'account_id':'OTHER-ACCOUNT'}, {**POLICY,'account_id':'OTHER-ACCOUNT'}),
+                 ({**CLAIM,'account_id':'OTHER','policy_id':'OTHER','dot_number':'123'},
+                  {**POLICY,'account_id':'OTHER','policy_id':'OTHER','dot_number':'123'}),
+                 ({**CLAIM,'coverage_line':'motor-truck-cargo'},None)]
+        for row,policy in targets:
+            policies=self.policies+([policy] if policy else [])
+            for valuation in ('2020-12-31','2021-02-01'):
+                with self.subTest(row=row,valuation=valuation):
+                    # A valid alternative policy must not evade the saved claim identity guard.
+                    data=envelope([row],valuation_date=valuation)
+                    self.assertEqual(preview(raw(data),policies)['status'],'READY_FOR_PRIVATE_IMPORT')
+                    with self.assertRaisesRegex(ValueError,'CONFLICTING_SAVED|IDENTITY_CHANGED'):
+                        self.accept(data,policies)
+                    self.assertEqual(self.db.execute('SELECT count(*) FROM loss_observations').fetchone()[0],1)
+                    self.assertEqual(self.db.execute('SELECT count(*) FROM loss_import_history').fetchone()[0],1)
+
+    def test_unversioned_pre_release_ledger_cannot_silently_rekey_claims(self):
+        accepted=self.accept()
+        self.db.execute('DELETE FROM loss_ledger_schema');self.db.commit()
+        with self.assertRaisesRegex(ValueError,'LEGACY_LEDGER_IDENTITY'):
+            self.accept(envelope(document_reference='Another synthetic document'))
+        with self.assertRaisesRegex(ValueError,'LEGACY_LEDGER_IDENTITY'):
+            summarize_batch(self.db,accepted['batch_id'])
+        self.assertEqual(self.db.execute('SELECT count(*) FROM loss_observations').fetchone()[0],1)
+        self.assertEqual(self.db.execute('SELECT count(*) FROM loss_import_history').fetchone()[0],1)
+
+    def test_unknown_ledger_identity_version_rejects_import(self):
+        self.accept()
+        self.db.execute("UPDATE loss_ledger_schema SET schema='UNKNOWN'");self.db.commit()
+        with self.assertRaisesRegex(ValueError,'UNSUPPORTED_LEDGER_IDENTITY'):
+            self.accept()
 
     def test_large_aggregates_use_exact_decimal_strings(self):
         result=self.accept(envelope([{**CLAIM,'paid_minor':MAX_MONEY},{**CLAIM,'claim_id':'OTHER','paid_minor':MAX_MONEY}]))

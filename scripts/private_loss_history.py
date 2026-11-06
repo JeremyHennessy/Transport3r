@@ -19,6 +19,7 @@ from private_workspace_store import portfolio
 from snapshot_store import now, digest
 
 SCHEMA = 'PRIVATE_LOSS_HISTORY_1'
+LEDGER_SCHEMA = 'SOURCE_CLAIM_IDENTITY_1'
 MAX_BYTES = 2_000_000
 MAX_ROWS = 5000
 MAX_MONEY = 9_007_199_254_740_991
@@ -28,6 +29,8 @@ FIELDS = {'claim_id','account_id','policy_id','dot_number','coverage_line','loss
           'reported_date','status','currency','paid_minor','outstanding_minor'}
 MONEY = ('paid_minor','outstanding_minor')
 DDL = '''
+CREATE TABLE IF NOT EXISTS loss_ledger_schema(
+ singleton INTEGER PRIMARY KEY CHECK(singleton=1), schema TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS loss_batches(
  id TEXT PRIMARY KEY, source_id TEXT NOT NULL, valuation_date TEXT NOT NULL,
  source_sha256 TEXT NOT NULL, portfolio_sha256 TEXT NOT NULL,
@@ -94,7 +97,7 @@ def _prepare(raw, policies):
     # Bind the preview to the complete saved portfolio used to check identity.
     portfolio_hash=digest(sorted((json.dumps(p,sort_keys=True,allow_nan=False) for p in policies)))
     source_hash=hashlib.sha256(raw).hexdigest()
-    fingerprint=digest([SCHEMA,source_hash,portfolio_hash])
+    fingerprint=digest([SCHEMA,LEDGER_SCHEMA,source_hash,portfolio_hash])
     rows={};duplicates=0;issues=[]
     for number,row in enumerate(records,1):
         try:
@@ -119,7 +122,9 @@ def _prepare(raw, policies):
             start=_date(policy.get('policy_start'),'policy_start');end=_date(policy.get('policy_end'),'policy_end')
             if not start<=loss<end:raise ValueError('LOSS_OUTSIDE_POLICY_PERIOD_REVIEW')
             # This is an identity/date screen, not a coverage determination.
-            identity=digest([source,row['account_id'],row['policy_id'],row['claim_id'],row['coverage_line']])
+            # Source and claim number are stable; policy/coverage are validated attributes.
+            # A reassignment or multi-line allocation must be reviewed, not become a new claim.
+            identity=digest([source,row['claim_id']])
             if identity in rows:
                 if rows[identity]!=row:raise ValueError('CONFLICTING_ROWS_IN_BATCH')
                 duplicates+=1
@@ -128,7 +133,7 @@ def _prepare(raw, policies):
             reason=str(error) if isinstance(error,ValueError) else 'INVALID_CLAIM_FIELD_TYPE'
             issues.append({'row':number,'reason':reason})
     status='READY_FOR_PRIVATE_IMPORT' if not issues else 'REVIEW_REQUIRED'
-    receipt={'schema':SCHEMA,'status':status,'preview_sha256':fingerprint,'source_sha256':source_hash,
+    receipt={'schema':SCHEMA,'ledger_schema':LEDGER_SCHEMA,'status':status,'preview_sha256':fingerprint,'source_sha256':source_hash,
              'portfolio_sha256':portfolio_hash,'valuation_date':data['valuation_date'],
              'input_rows':len(records),'unique_candidate_rows':len(rows),'exact_duplicate_rows':duplicates,
              'review_required_rows':len(issues),'issues':issues,'imported_rows':0,
@@ -150,6 +155,19 @@ def _ensure(db):
         path=private_path(paths[0])
         if os.name=='posix' and path.stat().st_mode & 0o077:raise ValueError('PRIVATE_DATABASE_PERMISSIONS_REQUIRED')
     db.executescript(DDL)
+    db.execute('BEGIN IMMEDIATE')
+    try:
+        versions=db.execute('SELECT schema FROM loss_ledger_schema').fetchall()
+        if not versions:
+            if any(db.execute('SELECT 1 FROM '+name+' LIMIT 1').fetchone() for name in
+                   ('loss_observations','loss_batches','loss_batch_records','loss_import_history')):
+                raise ValueError('LEGACY_LEDGER_IDENTITY_REVIEW_REQUIRED')
+            db.execute('INSERT INTO loss_ledger_schema VALUES (1,?)',(LEDGER_SCHEMA,))
+        elif len(versions)!=1 or versions[0][0]!=LEDGER_SCHEMA:
+            raise ValueError('UNSUPPORTED_LEDGER_IDENTITY_SCHEMA')
+        db.commit()
+    except Exception:
+        db.rollback();raise
 
 
 def private_path(value):
@@ -186,7 +204,7 @@ def import_loss_history(db, raw, policies, reviewer, expected_preview):
                 old=db.execute('SELECT record_json FROM loss_observations WHERE claim_key=? LIMIT 1',(identity,)).fetchone()
                 if old:
                     old=json.loads(old[0])
-                    if any(old[k]!=row[k] for k in ('dot_number','loss_date','reported_date','currency')):
+                    if any(old[k]!=row[k] for k in ('account_id','policy_id','dot_number','coverage_line','loss_date','reported_date','currency')):
                         raise ValueError('CLAIM_IDENTITY_CHANGED_REVIEW_REQUIRED')
                 db.execute('INSERT INTO loss_observations VALUES (?,?,?,?)',(identity,valuation,payload,batch));inserted+=1
             db.execute('INSERT INTO loss_batch_records VALUES (?,?,?)',(batch,identity,valuation))

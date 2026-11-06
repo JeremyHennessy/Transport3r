@@ -44,9 +44,11 @@ Commit requires the exact preview fingerprint and the local reviewer's name:
 python scripts/private_loss_history.py --workspace /srv/transport3r-private --input /srv/transport3r-private/loss-history.json --commit --reviewer "Authorized local reviewer" --expected-preview <PREVIEW_SHA256>
 ```
 
-The fingerprint binds the exact input bytes and the complete saved portfolio snapshot. Changed input or portfolio requires renewed approval. Retain the original private input: its receipt SHA proves which normalized file was read, **not** that the upstream insurer document was independently authenticated.
+The fingerprint binds the exact input bytes, ledger identity schema and complete saved portfolio snapshot. Changed input or portfolio requires renewed approval. Retain the original private input: its receipt SHA proves which normalized file was read, **not** that the upstream insurer document was independently authenticated.
 
 ## Accounting and immutable history
+
+A claim is identified by the stable `(source_id, claim_id)` pair. Account, policy, USDOT and coverage line are attributes that must remain consistent, not additional identity keys. A policy/coverage reassignment within a batch or across valuations requires review and cannot create a second claim. Multi-policy or multi-line allocations need a separately approved component schema; they are not silently imported as separate losses. Existing pre-release ledgers without the current identity-schema marker, or with an unknown marker, are rejected without rewriting observations; explicit migration/reconciliation is separate.
 
 Every input row is counted as one unique candidate, one exact repeated normalized observation, or one row requiring review. Commit is atomic. Same-valuation conflicts roll back all writes, and reimporting the same approved input adds neither duplicate observations nor history. A new file can refer to an already stored observation without duplicating it. Later valuations append separate immutable observations; they never overwrite earlier reported amounts or silently reassign the claim.
 
