@@ -51,6 +51,9 @@ READINESS_JS = r'''({expected, errors, label}) => {
     if (label === 'atlas-carrier' && !document.querySelector('.t3-atlas-map-panel svg')) return false;
     if (label === 'insurance' && document.querySelectorAll('.t3-insurance-line').length !== 8) return false;
     if (label === 'integrity' && text.includes(normal('Checking the installed evidence service'))) return false;
+    // The 36 static registry rows can render before async release/probe metadata.
+    // Do not capture the initial "Not verified" provenance placeholders as final UI.
+    if (label === 'integrity' && !text.includes(normal('not a live check'))) return false;
     if (label === 'carriers' && !document.querySelector('.t3-carrier-row:not(.header) .carrier-name a')) return false;
     if (label === 'vin' && !document.querySelector('[data-testid="vin-detail"]')) return false;
     if (label === 'evidence' && !document.querySelector('.c360-card .c360-raw-census')) return false;
@@ -91,8 +94,8 @@ def capture_route(page, base, route, output, viewport):
             assert page.locator('.t3-atlas-provenance').count() == 1
             result['checks'].append('Actual state map and source retrieval provenance rendered')
         if label == 'integrity':
-            assert page.locator('tbody tr').count() == 36
-            assert 'not a live check' in page.locator('body').inner_text()
+            assert page.locator('tbody tr').count() == 36, 'Expected all 36 Data Integrity source rows'
+            assert 'not a live check' in page.locator('body').inner_text(), 'Bundled probe freshness did not finish rendering'
             result['checks'].append('All 36 sources shown with explicit saved-probe freshness')
         dimensions = page.evaluate('({viewport:innerWidth,document:document.documentElement.scrollWidth})')
         result['dimensions'] = dimensions
