@@ -14,6 +14,7 @@ import './visualPolish.css';
 import './visualPolishExtras.css';
 import './atlas.css';
 import './insuranceLineReview.css';
+import './mobileReview.css';
 
 type ErrorBoundaryState = { error: Error | null };
 

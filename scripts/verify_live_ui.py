@@ -41,6 +41,22 @@ ERRORS = ['Transport3r could not render this view.', 'Carrier identity could not
           'This evidence tab could not load.', 'Carrier geography could not load.']
 
 
+READINESS_JS = r'''({expected, errors, label}) => {
+    // CSS uppercase and whitespace do not change the asserted meaning.
+    const normal = value => value.replace(/\s+/g, ' ').trim().toLocaleLowerCase('en-US');
+    const text = normal(document.body.innerText);
+    const error = errors.find(message => text.includes(normal(message)));
+    if (error) return {error};
+    if (!expected.every(message => text.includes(normal(message)))) return false;
+    if (label === 'atlas-carrier' && !document.querySelector('.t3-atlas-map-panel svg')) return false;
+    if (label === 'insurance' && document.querySelectorAll('.t3-insurance-line').length !== 8) return false;
+    if (label === 'integrity' && text.includes(normal('Checking the installed evidence service'))) return false;
+    if (label === 'carriers' && !document.querySelector('.t3-carrier-row:not(.header) .carrier-name a')) return false;
+    if (label === 'vin' && !document.querySelector('[data-testid="vin-detail"]')) return false;
+    return {ready:true};
+}'''
+
+
 def chrome():
     executable = os.environ.get('CHROME_BIN') or next((shutil.which(name) for name in
         ('google-chrome', 'google-chrome-stable', 'chromium') if shutil.which(name)), None)
@@ -59,16 +75,7 @@ def capture_route(page, base, route, output, viewport):
     page.set_default_timeout(45000)
     try:
         page.goto(base.rstrip('/') + '/' + fragment, wait_until='domcontentloaded', timeout=45000)
-        outcome = page.wait_for_function('''({expected, errors, label}) => {
-            const text = document.body.innerText;
-            const error = errors.find(message => text.includes(message));
-            if (error) return {error};
-            if (!expected.every(message => text.includes(message))) return false;
-            if (label === 'atlas-carrier' && !document.querySelector('.t3-atlas-map-panel svg')) return false;
-            if (label === 'insurance' && document.querySelectorAll('.t3-insurance-line').length !== 8) return false;
-            if (label === 'integrity' && text.includes('Checking the installed evidence service')) return false;
-            return {ready:true};
-        }''', arg={'expected': expected, 'errors': ERRORS, 'label': label}, timeout=45000).json_value()
+        outcome = page.wait_for_function(READINESS_JS, arg={'expected': expected, 'errors': ERRORS, 'label': label}, timeout=45000).json_value()
         if outcome.get('error'):
             raise AssertionError(outcome['error'])
         result['checks'].append('Every required route assertion passed in the captured page')
@@ -103,11 +110,50 @@ def capture_route(page, base, route, output, viewport):
             page.screenshot(path=str(image), full_page=False, animations='disabled', timeout=15000)
             result['screenshot'] = image.name
             result['screenshot_sha256'] = hashlib.sha256(image.read_bytes()).hexdigest()
+            if result['status'] == 'PASS':
+                retain_section(page, label, output, name, result)
         except Exception as error:
             result['status'] = 'FAIL'
             result['errors'].append('Screenshot/DOM retention failed: ' + str(error))
         (output / (name + '.json')).write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
     return result
+
+
+SECTION_SELECTORS = {
+    'carriers': '.t3-table-panel',
+    'atlas-carrier': '.t3-atlas-map-panel',
+    'summary': '.c360-card:not([data-testid="carrier-insight"])',
+    'safety': '.c360-card:not([data-testid="carrier-insight"])',
+    'authority': '.c360-card:not([data-testid="carrier-insight"])',
+    'evidence': '.c360-card:not([data-testid="carrier-insight"])',
+    'insurance': '[data-testid="insurance-line-review"]',
+    'sms': '.c360-card:not([data-testid="carrier-insight"])',
+    'inspection': '[data-testid="inspection-detail"]',
+    'vin': '[data-testid="vin-detail"]',
+    'integrity': '.t3-integrity-pipeline, .t3-integrity-table-wrap',
+}
+
+
+def retain_section(page, label, output, name, result):
+    """Retain tab content, not another identical shared-header screenshot."""
+    selector = SECTION_SELECTORS.get(label)
+    if not selector:
+        return
+    target = page.locator(selector).first
+    target.wait_for(state='visible', timeout=45000)
+    # Scroll with allowance for sticky navigation; do not change page content.
+    target.evaluate("el => window.scrollTo({top: Math.max(0, el.getBoundingClientRect().top + scrollY - 170), behavior: 'instant'})")
+    page.wait_for_timeout(150)
+    box = target.bounding_box()
+    viewport = page.viewport_size
+    assert box and box['y'] < viewport['height'] and box['y'] + box['height'] > 0, 'Expected section is outside captured viewport'
+    image = output / (name + '-section.png')
+    page.screenshot(path=str(image), full_page=False, animations='disabled', timeout=15000)
+    result['section_selector'] = selector
+    result['section_screenshot'] = image.name
+    result['section_screenshot_sha256'] = hashlib.sha256(image.read_bytes()).hexdigest()
+    result['section_bounds'] = box
+    result['checks'].append('Tab-specific content is visible in a separate same-page screenshot')
 
 
 def run(base, expected_sha, output, labels=None):

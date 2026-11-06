@@ -10,14 +10,14 @@ export function Bars({title,rows,note}:{title:string;rows:{label:string;count:nu
 }
 export function Timeline({evidence,keys}:{evidence:CarrierEvidence;keys:EvidenceKey[]}) {
   const events=evidenceTimeline(evidence,keys);
-  return <div className="t3-insight-timeline"><h4>Dated evidence timeline</h4><p>Latest 12 of {events.length} dated loaded events. Historical and future-effective records do not certify current state.</p><ol>{events.slice(0,12).map(event=><li key={event.key}><time>{event.date}</time> <strong>{event.label}</strong> {event.detail} <small>{event.source}</small>{event.inspection&&<a href={`#/carrier/${evidence.dotNumber}/inspection/${event.inspection}`}>Open inspection</a>}</li>)}</ol>{!events.length&&<p>No usable event dates returned.</p>}</div>;
+  return <div className="t3-insight-timeline"><h4>Dated evidence timeline</h4><p>Showing {Math.min(12, events.length)} of {events.length} dated loaded {events.length === 1 ? 'event' : 'events'}. Historical and future-effective records do not certify current state.</p><ol>{events.slice(0,12).map(event=><li key={event.key}><time>{event.date}</time> <strong>{event.label}</strong> {event.detail} <small>{event.source}</small>{event.inspection&&<a href={`#/carrier/${evidence.dotNumber}/inspection/${event.inspection}`}>Open inspection</a>}</li>)}</ol>{!events.length&&<p>No usable event dates returned.</p>}</div>;
 }
 export function CarrierInsight({evidence,section}:{evidence:CarrierEvidence;section:string}) {
   const view=insight(evidence,section),oos=oosLoaded(evidence);
   const timeline:EvidenceKey[]=section==='authority'?['motusAuthHistory','motusAuthDelta','motusRevokeSuspend','newEntrantOos']:section==='insurance'?['motusInsurance','motusInsuranceHistory']:[];
   return <section className="c360-card t3-insight" data-testid="carrier-insight"><div className="t3-eyebrow">Evidence-backed context</div><h2>At a glance</h2><div className="t3-insight-summary">{view.paragraphs.map((text,index)=><article key={text} className={index===0?'lead':''}><span className="t3-insight-index">{String(index+1).padStart(2,'0')}</span><p>{text}</p></article>)}</div>
     {(section==='summary'||section==='safety')&&<div className="c360-split">{(['inspections','crash'] as const).map(key=>{const activity=dailyActivity(evidence,key);return activity?<Bars key={key} title={key==='inspections'?'Loaded daily inspections by month':'Loaded daily crash involvement by month'} rows={activity.months} note={`${activity.range.start??'No dates'} to ${activity.range.end??'no dates'}. ${activity.partial?'Partial records; counts are lower bounds.':'Loaded request only.'} ${activity.range.missing+activity.range.invalid+activity.range.conflicting} unusable dates. Missing months are not shown as zero.`}/>:<p key={key}>{key} activity unavailable.</p>;})}</div>}
-    {section==='safety'&&<RecentEventMap evidence={evidence}/>} 
+    {section==='safety'&&<RecentEventMap evidence={evidence}/>}
     {(section==='safety'||section==='inspection')&&<><p>Loaded OOS violation flags: {oos?`${oos.yes}${oos.partial?'+':''}; ${oos.unknown} unknown flags`:'Unavailable'}. This is a violation-row count, not an inspection OOS rate.</p><Bars title="Loaded violation themes" rows={distribution(evidence.errors.violations?[]:evidence.slices.violations?.rows??[],[...VIOLATION_FIELD_ALIASES.description])} note="Loaded violation rows; repeated violations are counted separately. Unknown categories remain visible."/></>}
     {section==='fleet'&&<Bars title="Observed unit make mix" rows={distribution(evidence.errors.units?[]:evidence.slices.units?.rows??[],[...UNIT_FIELD_ALIASES.make])} note="Unit observations, including repeat observations; not a current owned fleet mix."/>}
     {timeline.length>0&&<Timeline evidence={evidence} keys={timeline}/>}
@@ -25,4 +25,3 @@ export function CarrierInsight({evidence,section}:{evidence:CarrierEvidence;sect
     <p className="t3-insight-limit">{view.limitation}</p>
   </section>;
 }
-
