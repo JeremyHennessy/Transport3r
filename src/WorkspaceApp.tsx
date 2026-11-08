@@ -509,7 +509,24 @@ function CarriersPage() {
     setError(null);
     setRows([]);
     setHasNext(false);
-    loadCarrierPage(applied, controller.signal)
+    // Retry a single transient Census timeout without changing filters or claiming cached data.
+    // Never retry invalid queries, HTTP errors, or requests cancelled by navigation.
+    const loadWithTimeoutRecovery = async () => {
+      try {
+        return await loadCarrierPage(applied, controller.signal);
+      } catch (cause) {
+        if (controller.signal.aborted || !(cause instanceof Error) || cause.message !== 'FMCSA request timed out') throw cause;
+        // Give the upstream source one fresh opportunity; still fail visibly if unavailable.
+        await new Promise<void>((resolve, reject) => {
+          const timer = window.setTimeout(() => { controller.signal.removeEventListener('abort', cancel); resolve(); }, 350);
+          const cancel = () => { window.clearTimeout(timer); reject(new DOMException('Request cancelled', 'AbortError')); };
+          controller.signal.addEventListener('abort', cancel, { once: true });
+          if (controller.signal.aborted) cancel();
+        });
+        return loadCarrierPage(applied, controller.signal);
+      }
+    };
+    loadWithTimeoutRecovery()
       .then((loaded) => { if (current) { setRows(loaded.rows); setHasNext(loaded.hasNext); } })
       .catch((cause) => { if (current) { setRows([]); setError(cause instanceof Error ? cause.message : String(cause)); } })
       .finally(() => { if (current) setLoading(false); });
