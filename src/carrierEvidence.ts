@@ -1,3 +1,4 @@
+import {mapLimited} from './sourceHttp';
 import {
   DataRow,
   DataSlice,
@@ -246,13 +247,13 @@ export async function loadCarrierEvidence(
   const remaining = requested.filter((key) =>
     key !== 'inspections' && key !== 'legacyCarrier' && key !== 'legacyInsurance'
   );
-  const results = await Promise.all(
-    remaining.map((key) => {
+  const results = await mapLimited(
+    remaining, (key) => {
       if (CHILD_KEYS.has(key) && errors.inspections) {
         return Promise.resolve({ key, error: 'Parent inspections unavailable; child evidence was not queried.' });
       }
       return capture(key, cachedSourceTask(registry, key, dotNumber, inspectionIds));
-    }),
+    }, 4,
   );
   for (const result of results) {
     if ('slice' in result && result.slice) {
