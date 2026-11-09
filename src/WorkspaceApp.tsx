@@ -425,10 +425,24 @@ function Brand() {
 }
 
 function HealthPill({ health }: { health: SourceHealthPayload | null }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const refresh = () => setNowMs(Date.now());
+    // Keep a long-lived tab honest: 36 healthy probes can become stale
+    // without navigation, new data, or any other React rerender.
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
   if (!health) return <span className="t3-health neutral"><i/>Source snapshot loading</span>;
   const summary = sourceHealthSummary(health);
   if (!summary.available) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
-  const freshness = sourceSnapshotFreshness(health.generated_at);
+  const freshness = sourceSnapshotFreshness(health.generated_at, nowMs);
   const freshAndHealthy = freshness.fresh && summary.healthy === sourceCatalog.length;
   const label = freshness.fresh
     ? `Snapshot: ${summary.healthy}/${sourceCatalog.length} probes passed`
