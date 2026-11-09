@@ -56,5 +56,7 @@ def exercise(page,context,base,folder,output,result):
         assert preview.inner_text()=='Preview loss history'
         assert commit.inner_text()=='Import approved loss history'
         assert preview.evaluate('(element) => getComputedStyle(element).opacity')=='1'
-        page.locator('#loss-history').screenshot(path=str(pathlib.Path(output)/f'private-synthetic-loss-history-{width}.png'))
+        # Full-page capture includes the entire section even when its height exceeds
+        # the mobile viewport. Locator.screenshot repeatedly scrolls this tall section.
+        page.screenshot(path=str(pathlib.Path(output)/f'private-synthetic-loss-history-{width}.png'),full_page=True)
     result['checks'].append('Loss-file byte hash including BOM, nonwriting preview, invalid-file rejection, explicit approval, authenticated import, unknown/zero summary, private export and desktop/mobile layout pass with synthetic records')
