@@ -85,6 +85,56 @@ class InspectionChildTests(unittest.TestCase):
     def test_row_ceiling_fails_instead_of_returning_partial_success(self):
         with self.assertRaisesRegex(ValueError,'ceiling'):self.collect(max_rows=1)
 
+    def test_child_page_growth_is_source_drift_not_a_row_ceiling(self):
+        # A source can add rows after the initial per-batch count. Never accept
+        # extra rows, truncate them, or mistake this for max_rows exhaustion.
+        sid='wt8s-2hbx'
+        changed_rows=[{'inspection_id':'123','source_row_id':'child1'},
+                      {'inspection_id':'123','source_row_id':'child2'}]
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':1 if source==PARENT else len(changed_rows),
+                    'metadata':{'columns':[{'fieldName':'inspection_id',
+                                             'dataTypeName':CHILDREN.get(source,'number')} ]}}
+        def query(source,**params):
+            if params.get('select')=='count(*) as count':
+                return [{'count':'1'}]
+            return changed_rows[params['offset']:params['offset']+params['limit']]
+        with patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(cs.SourceChangedError,'preflight count'):
+                collect_children(sid,self.parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+        # The failed partial pages remain audit evidence, not a complete manifest.
+        self.assertTrue(list(self.root.glob('*.page-*.json')))
+
+    def test_child_final_count_mismatch_is_retryable_source_drift(self):
+        sid='wt8s-2hbx'
+        rows=[{'inspection_id':'123','source_row_id':'child1'}]
+        counter=0
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':1 if source==PARENT else 2,
+                    'metadata':{'columns':[{'fieldName':'inspection_id',
+                                             'dataTypeName':CHILDREN.get(source,'number')} ]}}
+        def query(source,**params):
+            if params.get('select')=='count(*) as count':
+                return [{'count':'2'}]
+            return rows[params['offset']:params['offset']+params['limit']]
+        with patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(cs.SourceChangedError,'preflight, page and final counts'):
+                collect_children(sid,self.parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+
+    def test_retry_policy_retries_only_changed_sources_not_actual_ceilings(self):
+        from validate_evidence_warehouse import retryable_acquisition
+        def manifest(error):
+            return {'status':'PARTIAL','datasets':[
+                {'id':'wt8s-2hbx','status':'FAILED','error':error}]}
+        self.assertTrue(retryable_acquisition(
+            manifest('SourceChangedError: Inspection child page exceeded preflight count')))
+        self.assertFalse(retryable_acquisition(
+            manifest('ValueError: Complete child source exceeds accepted row ceiling')))
+
     def test_combined_batch_ceiling_is_checked_before_downloading_pages(self):
         with patch('inspection_children.BATCH_SIZE',1):
             with self.assertRaisesRegex(ValueError,'ceiling'):
