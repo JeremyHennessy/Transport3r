@@ -1,0 +1,44 @@
+name: Dependency security audit
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/dependency-security*'
+      - '.github/workflows/dependency-security.yml'
+      - 'docs/dependency-security.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test audit response and candidate boundaries
+        run: node --test scripts/dependency-security.test.mjs
+      - name: Audit reviewed lockfile and retain isolated upgrade candidate
+        run: node scripts/dependency-security.mjs /tmp/transport3r-dependency-security --prepare-candidate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security-${{ github.sha }}
+          path: |
+            /tmp/transport3r-dependency-security/*.json
+            /tmp/transport3r-dependency-security/*.stdout
+            /tmp/transport3r-dependency-security/*.stderr
+            /tmp/transport3r-dependency-security/*.tar.gz
+            /tmp/transport3r-dependency-security/candidate/package.json
+            /tmp/transport3r-dependency-security/candidate/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
