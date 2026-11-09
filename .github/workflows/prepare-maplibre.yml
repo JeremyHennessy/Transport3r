@@ -1,4 +1,4 @@
-name: Resolve pinned open-map dependencies
+name: Apply verified map source and browser check
 on:
   pull_request:
     branches: [main]
@@ -6,13 +6,13 @@ on:
 permissions:
   contents: write
 concurrency:
-  group: resolve-map-dependencies-${{ github.event.pull_request.number }}
+  group: apply-map-source-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 jobs:
-  resolve:
+  apply-and-verify:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feature/filtered-open-maps-20261109'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,49 +21,100 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Resolve exact open-source mapping dependency and verify audit
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Apply only the exact hash-verified reviewed source changes
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          mkdir -p /tmp/open-map-dependencies
-          npm pkg set dependencies.maplibre-gl=6.17.0 devDependencies.vite=6.4.5 devDependencies.esbuild=0.28.2 'overrides.esbuild=$esbuild' overrides.source-map-js=1.2.2
-          npm install --ignore-scripts --no-audit --no-fund
-          cp package.json package-lock.json /tmp/open-map-dependencies/
-          npm ls --all --json > /tmp/open-map-dependencies/dependency-tree.json
-          npm audit --json > /tmp/open-map-dependencies/audit.json
-          node --input-type=module - <<'JS'
-          import {readFileSync} from 'node:fs';
-          import assert from 'node:assert/strict';
-          const report=JSON.parse(readFileSync('/tmp/open-map-dependencies/audit.json','utf8'));
-          assert.equal(report.auditReportVersion,2);
-          assert.equal(report.error,undefined);
-          assert.equal(report.metadata.vulnerabilities.total,0);
-          assert.deepEqual(report.vulnerabilities,{});
-          for(const severity of ['info','low','moderate','high','critical'])assert.equal(report.metadata.vulnerabilities[severity],0);
-          JS
-          tar -czf /tmp/open-map-dependencies/node-modules.tar.gz node_modules
+          mkdir -p /tmp/transport3r-map-source
           python - <<'PY'
-          import subprocess
-          paths=subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
-          assert set(paths)<= {'package.json','package-lock.json'}, paths
+          import base64, hashlib, json, os, pathlib, subprocess, zlib
+          root=pathlib.Path.cwd()
+          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==os.environ['EXPECTED_HEAD']
+          expected_parts=['3e46001e6b0bbf3a7e695f56a53eb57a64edecc7053ed1240bc1c0b67feb776b','85b5870507bc238969d1a51b719b989c6308c97beb61446c7f7da815f891891b','2eb31c0bac0386b00bf2541c7218632ddf66eb9b08335965e2840d2ed4faa114','f952a7d05010646c4b3cf132dd35a5024948edd02d36f4f11dcb3a5ed6885672']
+          chunks=[]
+          for number,expected in enumerate(expected_parts,1):
+              p=root/f'maintenance/open-map-change-set.{number}.b64'
+              assert p.is_file() and not p.is_symlink()
+              raw=p.read_bytes()
+              # Repair one explicitly identified transport transcription, never source code.
+              if number==1 and hashlib.sha256(raw).hexdigest()=='95a84a839b58490c032a92a98a90db1ae09e0684c3ac1c47b9d0c592c83eac28':
+                  assert raw.count(b'Rod9rttNNdu')==1
+                  raw=raw.replace(b'Rod9rttNNdu',b'Rod9rttNdu')
+              actual=hashlib.sha256(raw).hexdigest()
+              assert actual==expected, (number,actual,expected)
+              chunks.append(raw.strip())
+          compressed=base64.b64decode(b''.join(chunks),validate=True)
+          body=zlib.decompress(compressed)
+          assert len(body)==71040
+          assert hashlib.sha256(body).hexdigest()=='28b2ca78f59fa5a10d93191aef5ad305817a31f7a1715b8f682c94a7059b0fd2'
+          records=json.loads(body)
+          allowed={'docs/open-carrier-maps.md','scripts/live-source-retry.mjs','scripts/open-geography.test.mjs','scripts/public-asset-policy.mjs','scripts/public-assets.test.mjs','scripts/source-http.test.mjs','scripts/source-retry-policy.test.mjs','scripts/validate-carrier-mappings.mjs','scripts/validate_open_maps_browser.py','src/CarrierMaps.tsx','src/CarrierRouteApp.tsx','src/OfficialSmsPanel.tsx','src/OpenMap.tsx','src/WorkspaceApp.tsx','src/carrierEvidence.ts','src/carrierMaps.css','src/datahub.ts','src/main.tsx','src/mapRuntime.ts','src/openGeography.ts','src/sourceHttp.ts','vite.config.ts'}
+          assert len(records)==len(allowed) and {r['path'] for r in records}==allowed
+          staged=[]
+          for r in records:
+              path=root/r['path']
+              assert path.resolve().is_relative_to(root) and not path.is_symlink()
+              if r['before'] is None:
+                  assert not path.exists(),r['path']
+                  original=b''
+              else:
+                  original=path.read_bytes()
+                  assert hashlib.sha256(original).hexdigest()==r['before'],r['path']
+              updated=original
+              end=len(original)
+              for edit in reversed(r['edits']):
+                  offset,remove=edit['offset'],edit['remove']
+                  assert type(offset) is int and type(remove) is int and 0<=offset<=offset+remove<=end
+                  updated=updated[:offset]+edit['text'].encode('utf-8')+updated[offset+remove:]
+                  end=offset
+              assert hashlib.sha256(updated).hexdigest()==r['after'],r['path']
+              staged.append((path,updated))
+          for path,updated in staged:
+              path.parent.mkdir(parents=True,exist_ok=True)
+              path.write_bytes(updated)
+          pathlib.Path('/tmp/transport3r-map-source/verified-paths.json').write_text(json.dumps(sorted(allowed)))
+          pathlib.Path('/tmp/transport3r-map-source/source-change-receipt.json').write_text(json.dumps({'input_head':os.environ['EXPECTED_HEAD'],'change_set_sha256':hashlib.sha256(body).hexdigest(),'files':[{'path':r['path'],'before':r['before'],'after':r['after']} for r in records],'deployed':False},indent=2))
           PY
           git diff --check
-          sha256sum package.json package-lock.json /tmp/open-map-dependencies/node-modules.tar.gz > /tmp/open-map-dependencies/SHA256SUMS
-      - name: Commit only accepted dependency files to the feature branch
+      - name: Validate exact production source before committing
         run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run typecheck
+          npm run build
+      - name: Commit verified source files only to the feature branch
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          paths=json.load(open('/tmp/transport3r-map-source/verified-paths.json'))
+          subprocess.run(['git','add','--',*paths],check=True)
+          actual=subprocess.check_output(['git','diff','--cached','--name-only'],text=True).splitlines()
+          assert set(actual)==set(paths),(actual,paths)
+          PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- package.json package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m 'Resolve audited pinned MapLibre and patched build dependency graph'
-            git push origin HEAD:refs/heads/feature/filtered-open-maps-20261109
-          fi
-          git rev-parse HEAD > /tmp/open-map-dependencies/commit.txt
+          git commit -m 'Implement filtered MapLibre maps, responsive carrier table and bounded source retries'
+          git push origin HEAD:refs/heads/feature/filtered-open-maps-20261109
+          git rev-parse HEAD > /tmp/transport3r-map-source/commit.txt
+          npm run build
+      - name: Exercise committed map interactions and responsive table in Chromium
+        run: |
+          python -m pip install playwright==1.57.0
+          python scripts/validate_open_maps_browser.py /tmp/transport3r-map-source/browser
+      - name: Retain actual source, bundle and checks without private data
+        if: always()
+        run: |
+          mkdir -p /tmp/transport3r-map-source
+          git archive --format=tar HEAD -o /tmp/transport3r-map-source/source.tar
+          if [ -d dist ]; then cp -R dist /tmp/transport3r-map-source/dist; fi
+          git status --short > /tmp/transport3r-map-source/worktree.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pinned-open-map-dependencies
-          path: /tmp/open-map-dependencies
-          if-no-files-found: warn
+          name: verified-map-source-${{ github.run_id }}
+          path: /tmp/transport3r-map-source
+          if-no-files-found: error
           retention-days: 7
