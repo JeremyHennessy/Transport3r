@@ -1,0 +1,50 @@
+// Synthetic source-health snapshot regression against the real production React bundle.
+// Deliberately changes the clock without navigation to prove a long-lived green badge expires.
+(async () => {
+  const result = {status:'RUNNING',checks:[],simulation:true};
+  const fetchOriginal = window.fetch.bind(window);
+  const nowOriginal = Date.now;
+  const start = nowOriginal();
+  let now = start;
+  Date.now = () => now;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve,ms));
+  const waitFor = async (predicate,label) => {
+    for (let i=0;i<300;i++){ if(predicate())return;await sleep(20); }
+    throw new Error('Timed out: '+label);
+  };
+  const check = (condition,label) => {if(!condition)throw new Error(label);result.checks.push(label);};
+  window.fetch = async (url, options) => {
+    const key = String(url);
+    if (key.includes('source-health.json')) {
+      const original = await fetchOriginal(url,options);
+      const fixture = await original.json();
+      fixture.generated_at = new Date(start - (47*60+59)*60_000).toISOString();
+      return new Response(JSON.stringify(fixture),{status:200,headers:{'Content-Type':'application/json'}});
+    }
+    if (key.includes('/resource/az4n-8mr2.json')) {
+      return new Response(JSON.stringify(window.__carrierFixtures.filter(row => row.dot_number==='80806')),{status:200});
+    }
+    return fetchOriginal(url,options);
+  };
+  try {
+    await waitFor(() => document.querySelector('.t3-health.good')?.textContent.includes('36/36'),'fresh all-green source snapshot');
+    check(document.querySelector('.t3-health.good')!==null,'A fresh complete source snapshot is shown as a saved healthy probe result');
+    now = start + 2*60*60_000;
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => document.querySelector('.t3-health.warn')?.textContent.includes('Snapshot stale'),'stale badge without navigation');
+    check(document.querySelector('.t3-health.warn')!==null,'Advancing clock past 48h and focusing the same tab marks old success stale');
+    now = start;
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => document.querySelector('.t3-health.good')?.textContent.includes('Snapshot: 36/36'),'fresh badge rerender');
+    check(document.querySelector('.t3-health.good')!==null,'Returning the synthetic clock to the observation window updates the visible status');
+    result.status='PASS';
+  } catch (error) {result.status='FAIL';result.error=String(error);}
+  finally {
+    Date.now=nowOriginal;
+    window.fetch=fetchOriginal;
+    const pre=document.createElement('pre');
+    pre.id='carrier-recovery-result';
+    pre.textContent=JSON.stringify(result);
+    document.body.append(pre);
+  }
+})();
