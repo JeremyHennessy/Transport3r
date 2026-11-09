@@ -27,8 +27,8 @@ jobs:
           node-version: 22
       - name: Test audit response and candidate boundaries
         run: node --test scripts/dependency-security.test.mjs
-      - name: Audit reviewed lockfile and retain isolated upgrade candidate
-        run: node scripts/dependency-security.mjs /tmp/transport3r-dependency-security --prepare-candidate
+      - name: Audit reviewed committed lockfile without replacing build inputs
+        run: node scripts/dependency-security.mjs /tmp/transport3r-dependency-security
       - uses: actions/upload-artifact@v4
         if: always()
         with:

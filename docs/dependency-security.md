@@ -33,3 +33,22 @@ audit as a required check through the normal repository settings process.
 The first local npm-audit attempt could not reach registry.npmjs.org (EAI_AGAIN);
 it was recorded as unavailable, not vulnerability-free. A clean remote audit and
 successful tests are still required before calling the dependency remediation done.
+
+## Verified registry resolution and compatibility correction
+
+Initial dependency run `42634514561` correctly FAILED the committed old lockfile:
+three vulnerable dependencies (two high, one moderate), including Vite, esbuild
+and source-map-js. Its isolated candidate reported zero issues. Artifact
+`13682526313` ZIP SHA-256
+`5e34d18baa76057bf4322dbfe5222c04982799ff7299ba5c09342573021f208e`
+was downloaded and verified. The candidate manifest and lockfile are retained with
+all exact registry integrity digests; the final workflow audits committed inputs.
+
+The actual patched build initially rejected Vite 6's implicit Safari 14 lowering
+because esbuild 0.28.2 cannot lower destructuring to that target. The application
+now declares the syntax target explicitly: ES2020, Chrome 87, Edge 88, Firefox 78,
+and Safari 15. A regression compiles representative destructuring against those
+actual settings. This is a documented minimum syntax target, not a claim that all
+runtime APIs work in every listed browser. Real browser CI, application tests and
+cross-browser acceptance remain separate requirements. The code does not lie to
+the compiler by marking unsupported features as supported.
