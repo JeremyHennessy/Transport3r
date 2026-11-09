@@ -27,7 +27,7 @@ jobs:
         run: |
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           mkdir -p /tmp/open-map-dependencies
-          npm pkg set dependencies.maplibre-gl=6.17.0 devDependencies.vite=6.4.5 devDependencies.esbuild=0.28.2 'overrides.esbuild=$esbuild'
+          npm pkg set dependencies.maplibre-gl=6.17.0 devDependencies.vite=6.4.5 devDependencies.esbuild=0.28.2 'overrides.esbuild=$esbuild' overrides.source-map-js=1.2.2
           npm install --ignore-scripts --no-audit --no-fund
           cp package.json package-lock.json /tmp/open-map-dependencies/
           npm ls --all --json > /tmp/open-map-dependencies/dependency-tree.json
