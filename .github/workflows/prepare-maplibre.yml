@@ -1,0 +1,51 @@
+name: Resolve pinned open-map dependencies
+on:
+  pull_request:
+    branches: [main]
+    paths: ['.github/workflows/prepare-maplibre.yml']
+permissions:
+  contents: write
+jobs:
+  resolve:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'feature/filtered-open-maps-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/filtered-open-maps-20261109
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve exact open-source mapping dependency
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          npm pkg set dependencies.maplibre-gl=6.17.0 devDependencies.vite=6.4.5 devDependencies.esbuild=0.28.2 'overrides.esbuild=$esbuild'
+          npm install --ignore-scripts --no-audit --no-fund
+          mkdir -p /tmp/open-map-dependencies
+          cp package.json package-lock.json /tmp/open-map-dependencies/
+          npm ls --all --json > /tmp/open-map-dependencies/dependency-tree.json
+          npm audit --json > /tmp/open-map-dependencies/audit.json || echo 'Audit requires review; not a clean-security claim'
+          tar -czf /tmp/open-map-dependencies/node-modules.tar.gz node_modules
+          python - <<'PY'
+          import subprocess
+          paths=subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()
+          assert set(paths)<= {'package.json','package-lock.json'}, paths
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- package.json package-lock.json
+          git commit -m 'Resolve pinned MapLibre and patched build dependency graph'
+          git push origin HEAD:refs/heads/feature/filtered-open-maps-20261109
+          git rev-parse HEAD > /tmp/open-map-dependencies/commit.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pinned-open-map-dependencies
+          path: /tmp/open-map-dependencies
+          if-no-files-found: error
+          retention-days: 7
