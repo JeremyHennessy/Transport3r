@@ -100,4 +100,57 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(releases.current(self.store)['release_id'],first)
         self.assertFalse((self.store/'.activation.lock').exists())
 
+
+    def test_staged_directory_is_synced_before_rename_and_parent_after(self):
+        events=[]
+        real_sync=releases.sync_directory;real_rename=releases.os.rename
+        def sync(path):
+            path=pathlib.Path(path)
+            events.append(('sync',path))
+            real_sync(path)
+        def rename(source,target):
+            events.append(('rename',pathlib.Path(source),pathlib.Path(target)))
+            real_rename(source,target)
+        with patch('evidence_release.sync_directory',side_effect=sync),patch('evidence_release.os.rename',side_effect=rename):
+            release=self.stage()
+        index=next(i for i,event in enumerate(events) if event[0]=='rename')
+        pending=events[index][1]
+        self.assertEqual(events[index-1],('sync',pending))
+        self.assertEqual(events[index+1],('sync',self.store/'releases'))
+        self.assertEqual(releases.inspect(self.store,release['release_id']),release)
+
+    def test_activation_history_sync_precedes_pointer_and_root_sync_follows(self):
+        release=self.stage()['release_id'];events=[]
+        real_sync=releases.sync_directory;real_replace=releases.os.replace
+        def sync(path):
+            events.append(('sync',pathlib.Path(path)));real_sync(path)
+        def replace(source,target):
+            events.append(('replace',pathlib.Path(target)));real_replace(source,target)
+        with patch('evidence_release.sync_directory',side_effect=sync),patch('evidence_release.os.replace',side_effect=replace):
+            releases.activate(self.store,release,None,'Synthetic operator')
+        index=events.index(('replace',self.store/'current.json'))
+        self.assertEqual(events[index-1],('sync',self.store/'history'))
+        self.assertEqual(events[index+1],('sync',self.store))
+
+    def test_history_sync_failure_cannot_publish_new_current_pointer(self):
+        first=self.stage()['release_id'];releases.activate(self.store,first,None,'Synthetic operator')
+        second=self.second()['release_id'];real_sync=releases.sync_directory
+        def sync(path):
+            if pathlib.Path(path)==self.store/'history':raise OSError('Synthetic history durability failure')
+            real_sync(path)
+        with patch('evidence_release.sync_directory',side_effect=sync):
+            with self.assertRaises(OSError):releases.activate(self.store,second,first,'Synthetic operator')
+        self.assertEqual(releases.current(self.store)['release_id'],first)
+
+    def test_staging_directory_sync_failure_cannot_promote_release(self):
+        real_sync=releases.sync_directory
+        def sync(path):
+            if pathlib.Path(path).name.startswith('.staging-'):raise OSError('Synthetic staging durability failure')
+            real_sync(path)
+        with patch('evidence_release.sync_directory',side_effect=sync):
+            with self.assertRaises(OSError):self.stage()
+        self.assertFalse((self.store/'releases'/releases.sha256(self.warehouse)).exists())
+        self.assertIsNone(releases.current(self.store))
+
+
 if __name__=='__main__':unittest.main()

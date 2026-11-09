@@ -47,3 +47,12 @@ Required next security work: independently designed multi-user authorization and
 SSO/MFA integration, reviewed encrypted storage and backup key management, tenant-scoped audit /
 export / retention / deletion, application and infrastructure penetration tests, incident recovery
 and operating ownership. Preserve the existing public/private boundary while doing that work.
+
+## Follow-up reviewer corrections
+
+Rejected legacy or unknown-version ledgers must not acquire new schema objects. The DDL and
+compatibility check now share one rollback-capable transaction; tests compare the exact file
+SHA, sqlite_master objects and complete dump before/after rejection and injected SQL failure.
+Release staging now persists directory entries as well as file bytes. Activation history is
+fsynced before publishing its current pointer. Tests verify ordering and fail-before-switch
+behavior; they do not substitute for an actual production power-loss/recovery exercise.

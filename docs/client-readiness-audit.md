@@ -46,3 +46,23 @@ Submit this branch for independent review and exact-head CI. Reconcile concurren
 merging if its change is needed for live-source acceptance. Resolve findings on their actual
 reviewed head; do not self-approve or use earlier checks as approval for later code. After merge,
 verify the hosted full SHA and source-to-HTTP-to-UI agreement, not only navigation screenshots.
+
+## Independent review follow-up and retained browser evidence
+
+Initial PR #70 head `eb01c486fb5e562b7c3fda6fd0659a78fea568bd` passed fast validation,
+FEMA source validation and reproducible browser review. Run `42630237433` exercised the new
+private loss workflow and API/browser integrity integration. Artifact `13680785904` ZIP SHA-256
+`3e04c37074b37b795d87dd271266fdcfa457ffddc32f131e9d21909a22661981` was verified;
+all 279 archived source files matched the tested local source tree and all six release asset
+hashes matched. CI built merge ref `4aa2394c5848b6916c3dde11412850eec4484e49`, whose
+source tree matched the PR implementation. Actual desktop/mobile loss images were inspected.
+These are synthetic browser checks, not a private installation or new national source cut.
+
+Independent review then found that legacy-ledger rejection could mutate schema, and release
+staging/activation needed directory fsync ordering. The legacy defect was reproduced: four of
+five new regressions failed before the fix. Schema initialization now uses rollback-capable
+DDL, with byte-preserving rejection checks. Staging fsyncs populated directories before rename
+and their parent after rename; activation persists history before switching the current pointer.
+Durability-order and failure-injection regressions exercise the controls. Disabled-button text
+and full-section mobile captures are also improved. These subsequent changes require their own
+exact-head CI and independent rereview; earlier green checks do not approve newer code.

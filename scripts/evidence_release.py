@@ -27,6 +27,31 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 FILES = {'warehouse.duckdb', 'audit.json', 'manifest.json'}
 
 
+
+def sync_directory(path):
+    """Persist directory entries on POSIX; a file fsync alone is insufficient."""
+    if os.name == 'posix':
+        fd = os.open(path, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def durable_directory(path):
+    """Persist newly created parent links before publishing children beneath them."""
+    path = pathlib.Path(path)
+    missing = []
+    candidate = path
+    while not candidate.exists():
+        missing.append(candidate)
+        candidate = candidate.parent
+    path.mkdir(parents=True, exist_ok=True)
+    for created in reversed(missing):
+        sync_directory(created)
+        sync_directory(created.parent)
+
+
 def sha256(path):
     value = hashlib.sha256()
     with pathlib.Path(path).open('rb') as handle:
@@ -91,10 +116,10 @@ def validated_pair(warehouse, report_path):
 
 
 def stage(root, warehouse, report_path):
-    root = storage(root); root.mkdir(parents=True, exist_ok=True)
+    root = storage(root); durable_directory(root)
     receipt, report, digest = validated_pair(warehouse, report_path)
     target = root / 'releases' / digest
-    target.parent.mkdir(parents=True, exist_ok=True)
+    durable_directory(target.parent)
     if target.exists():
         raise FileExistsError('Release already exists; inspect it, do not overwrite it')
     fresh = audit(warehouse, deep=True)
@@ -117,11 +142,14 @@ def stage(root, warehouse, report_path):
         write_new(pending / 'manifest.json', manifest)
         for name in FILES:
             path = pending / name
+            path.chmod(0o444)
             with path.open('rb') as handle:
                 os.fsync(handle.fileno())
-            path.chmod(0o444)
-        # Both directories are on the same filesystem. Existing releases remain intact.
+        # Persist file entries before rename, and persist the renamed entry before
+        # returning success. File fsyncs do not make either directory durable.
+        sync_directory(pending)
         os.rename(pending, target)
+        sync_directory(target.parent)
         return manifest
     except Exception as error:
         if pending.exists():
@@ -191,15 +219,14 @@ def activate(root, release_id, expected_current, operator):
                  'operator': operator, 'activated_at': datetime.now(timezone.utc).isoformat(),
                  'state': 'POINTER_CHANGED_RESTART_AND_HTTP_VERIFICATION_REQUIRED',
                  'deployed': False, 'private_insurer_hosting': False}
-        history = root / 'history'; history.mkdir(exist_ok=True)
+        history = root / 'history'; durable_directory(history)
         write_new(history / (value['activation_id'] + '.json'), value)
+        # The pointer may reference only history whose directory entry is durable.
+        sync_directory(history)
         temporary = root / ('.current-' + value['activation_id'] + '.json')
         write_new(temporary, value)
         os.replace(temporary, root / 'current.json')
-        if os.name == 'posix':
-            fd = os.open(root, os.O_RDONLY)
-            try: os.fsync(fd)
-            finally: os.close(fd)
+        sync_directory(root)
         return value
 
 

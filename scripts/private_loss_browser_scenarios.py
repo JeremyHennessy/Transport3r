@@ -49,7 +49,12 @@ def exercise(page,context,base,folder,output,result):
     assert json.loads(export_path.read_text())==imported['summary']
     assert not any(word in export_path.read_text() for word in ('approval_token','source_base64','SYNTHETIC-CLAIM'))
     for width in (1440,390):
-        page.set_viewport_size({'width':width,'height':1000});page.locator('#loss-history').scroll_into_view_if_needed()
+        page.set_viewport_size({'width':width,'height':1000})
+        page.locator('#loss-history').scroll_into_view_if_needed()
+        page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
         assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+2')
-        page.screenshot(path=str(pathlib.Path(output)/f'private-synthetic-loss-history-{width}.png'))
+        assert preview.inner_text()=='Preview loss history'
+        assert commit.inner_text()=='Import approved loss history'
+        assert preview.evaluate('(element) => getComputedStyle(element).opacity')=='1'
+        page.locator('#loss-history').screenshot(path=str(pathlib.Path(output)/f'private-synthetic-loss-history-{width}.png'))
     result['checks'].append('Loss-file byte hash including BOM, nonwriting preview, invalid-file rejection, explicit approval, authenticated import, unknown/zero summary, private export and desktop/mobile layout pass with synthetic records')

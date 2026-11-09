@@ -15,11 +15,11 @@ This is not a blanket production signoff.
 | Date quality review flags | Local tests PASS | `test_date_plausibility.py`; real nationwide rerun NOT TESTED |
 | Public-source installation/rollback | Synthetic drills PASS | `test_evidence_release.py`; actual durable host/restart/restore NOT TESTED |
 | HTTPS hosting, monitoring, firewall and resource limits | BLOCKED deployment | No authorized host/DNS/billing/access integration supplied |
-| Single-owner private loss review | Implemented; unit and HTTP tests PASS locally | `test_private_loss_service.py`, `test_private_loss_api.py`; browser workflow gate pending its actual run |
+| Single-owner private loss review | Implemented; unit and HTTP tests PASS locally | `test_private_loss_service.py`, `test_private_loss_api.py`; initial PR-head browser PASS in run 42630237433; later changes require fresh exact-head checks |
 | Original file byte-hash approval / changed-file rejection | PASS locally with synthetic data | Includes UTF-8 BOM, stale portfolio, expired/wrong-session token and explicit approval |
 | Conflicting claims and policy changes | PASS locally with synthetic data | Atomic ledger rollback, identity protection, concurrent write serialization |
-| Private valuation JSON export | Implemented; browser acceptance pending | Byte/source/portfolio lineage; independent currencies; null/zero and historical valuations preserved |
-| Private UI desktop/mobile visual checks | NOT TESTED in local environment | Existing approved CI browser workflow includes new synthetic loss exercise and screenshots |
+| Private valuation JSON export | Synthetic browser PASS on initial PR head | Byte/source/portfolio lineage; independent currencies; null/zero and historical valuations preserved |
+| Private UI desktop/mobile visual checks | Initial PR-head CI PASS; images inspected | Run 42630237433 / artifact 13680785904; synthetic only, later changes need exact-head rerun |
 | Windows launcher and actual Windows ACLs | Python path tests PASS; Windows execution NOT TESTED | External OS data default; legacy migration blocked rather than silent |
 | Multi-user roles, SSO/MFA and tenant isolation | NOT IMPLEMENTED / NOT TESTED | Existing service remains single-owner loopback; must not be exposed as multi-tenant hosting |
 | Encrypted private storage and real backup recovery | NOT TESTED on actual installation | OS/host configuration and private operator acceptance required |
@@ -38,6 +38,6 @@ This is not a blanket production signoff.
 The new CI loss exercise uses explicit SYNTHETIC account/policy/claim identifiers. It creates a
 policy in a temporary local workspace, previews original file bytes, rejects an unmatched USDOT,
 requires approval, imports privately, checks valuation totals and downloads a summary. It does
-not run a real-carrier search or turn a mock claim into a real underwriting conclusion. The full
+not run a real-carrier search or turn a mock claim into a real underwriting conclusion. Run 42630237433 executed this workflow on initial PR head eb01c486. The full
 search-to-carrier-to-policy-to-alert-to-report client journey remains an acceptance scenario to
 execute on the approved installed environment.

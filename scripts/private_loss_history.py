@@ -155,9 +155,13 @@ def _ensure(db):
     if paths and paths[0]:
         path=private_path(paths[0])
         if os.name=='posix' and path.stat().st_mode & 0o077:raise ValueError('PRIVATE_DATABASE_PERMISSIONS_REQUIRED')
-    db.executescript(DDL)
+    # executescript commits before running DDL, so it cannot protect a rejected
+    # legacy ledger. Execute each constant statement inside one transaction.
     db.execute('BEGIN IMMEDIATE')
     try:
+        for statement in DDL.split(';'):
+            if statement.strip():
+                db.execute(statement)
         versions=db.execute('SELECT schema FROM loss_ledger_schema').fetchall()
         if not versions:
             if any(db.execute('SELECT 1 FROM '+name+' LIMIT 1').fetchone() for name in
