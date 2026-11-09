@@ -89,6 +89,15 @@ export function sourceHealthSummary(health: SourceHealthPayload | null) {
     failed: available ? failed : null, unknown: available ? sourceCatalog.length - healthy - degraded - failed : sourceCatalog.length };
 }
 
+/** A saved successful source probe is not live health and expires after 48 hours. */
+export function sourceSnapshotFreshness(timestamp: string | null | undefined, nowMs = Date.now()) {
+  const observedMs = timestamp ? Date.parse(timestamp) : NaN;
+  if (!Number.isFinite(observedMs) || !Number.isFinite(nowMs)) return { fresh: false, ageDays: null };
+  const ageMs = nowMs - observedMs;
+  if (ageMs < -5 * 60_000) return { fresh: false, ageDays: null };
+  return { fresh: ageMs <= 48 * 60 * 60_000, ageDays: Math.floor(Math.max(ageMs, 0) / (24 * 60 * 60_000)) };
+}
+
 // Missing, invalid and negative exposure never contribute an invented zero.
 export function exposureTotal(rows: Array<{powerUnits?: string; drivers?: string}>, field: 'powerUnits' | 'drivers') {
   const known = rows.map(row => row[field]?.trim()).filter((raw): raw is string => Boolean(raw))
@@ -419,7 +428,12 @@ function HealthPill({ health }: { health: SourceHealthPayload | null }) {
   if (!health) return <span className="t3-health neutral"><i/>Source snapshot loading</span>;
   const summary = sourceHealthSummary(health);
   if (!summary.available) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
-  return <a href="#/sources" title={`Saved probe snapshot: ${formatDateTime(health.generated_at)}. This is not a live carrier-data check.`} className={`t3-health ${summary.healthy === sourceCatalog.length ? 'good' : 'warn'}`}><i/>Snapshot: {summary.healthy}/{sourceCatalog.length} probes passed</a>;
+  const freshness = sourceSnapshotFreshness(health.generated_at);
+  const freshAndHealthy = freshness.fresh && summary.healthy === sourceCatalog.length;
+  const label = freshness.fresh
+    ? `Snapshot: ${summary.healthy}/${sourceCatalog.length} probes passed`
+    : `Snapshot stale${freshness.ageDays === null ? '' : ` (${freshness.ageDays}d)`} · ${summary.healthy}/${sourceCatalog.length} probes`;
+  return <a href="#/sources" title={`Saved probe snapshot: ${formatDateTime(health.generated_at)}. This is not a live carrier-data check. Snapshot freshness threshold: 48 hours.`} className={`t3-health ${freshAndHealthy ? 'good' : 'warn'}`}><i/>{label}</a>;
 }
 
 function Shell({ page, health, children }: { page: Page; health: SourceHealthPayload | null; children: React.ReactNode }) {
