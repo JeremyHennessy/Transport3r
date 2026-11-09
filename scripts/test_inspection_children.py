@@ -3,6 +3,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+import urllib.error
 from unittest.mock import patch
 
 import cohort_snapshot as cs
@@ -170,6 +171,53 @@ class InspectionChildTests(unittest.TestCase):
                 collect_children(sid,parents,self.root,self.parent_lineage,
                                  max_rows=3,page_size=5000)
         self.assertNotIsInstance(raised.exception,cs.SourceChangedError)
+
+    def test_mixed_per_batch_observations_sum_to_hard_cap_failure(self):
+        # The page for batch 123 grows, while postflight on disjoint batch 124
+        # grows. Neither pages-only nor postflight-only totals reveal the cap;
+        # per-batch maximum observations prove at least four rows (cap three).
+        sid='wt8s-2hbx'
+        parents={'123':'1','124':'1'}
+        counts={}
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':2,'metadata':{'columns':[
+                        {'fieldName':'inspection_id','dataTypeName':CHILDREN.get(source,'number')}]}}
+        def query(source,**params):
+            identity=params['where'].split("'")[1]
+            if params.get('select')=='count(*) as count':
+                counts[identity]=counts.get(identity,0)+1
+                return [{'count':str(2 if identity=='124' and counts[identity]>1 else 1)}]
+            rows=[{'inspection_id':identity,'source_row_id':identity+'-a'}]
+            if identity=='123':
+                rows.append({'inspection_id':identity,'source_row_id':identity+'-b'})
+            return rows[params['offset']:params['offset']+params['limit']]
+        with patch('inspection_children.BATCH_SIZE',1),patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(ValueError,'accepted row ceiling') as raised:
+                collect_children(sid,parents,self.root,self.parent_lineage,
+                                 max_rows=3,page_size=5000)
+        self.assertNotIsInstance(raised.exception,cs.SourceChangedError)
+
+    def test_permanent_http_404_outweighs_parallel_source_change(self):
+        sid='wt8s-2hbx'
+        parents={'123':'1','124':'1'}
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':2,'metadata':{'columns':[
+                        {'fieldName':'inspection_id','dataTypeName':CHILDREN.get(source,'number')}]}}
+        def query(source,**params):
+            identity=params['where'].split("'")[1]
+            if params.get('select')=='count(*) as count':
+                return [{'count':'1'}]
+            if identity=='124':
+                raise urllib.error.HTTPError('https://example.invalid/source',404,'Not Found',{},None)
+            return [{'inspection_id':identity,'source_row_id':identity+'-a'},
+                    {'inspection_id':identity,'source_row_id':identity+'-b'}]
+        with patch('inspection_children.BATCH_SIZE',1),patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                collect_children(sid,parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+        self.assertEqual(raised.exception.code,404)
 
     def test_child_final_count_mismatch_is_retryable_source_drift(self):
         sid='wt8s-2hbx'
