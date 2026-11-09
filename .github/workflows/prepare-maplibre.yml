@@ -2,7 +2,7 @@ name: Apply verified map source and browser check
 on:
   pull_request:
     branches: [main]
-    paths: ['.github/workflows/prepare-maplibre.yml']
+    paths: ['.github/workflows/prepare-maplibre.yml', 'maintenance/apply-reviewed-map-source.py']
 permissions:
   contents: write
 concurrency:
@@ -24,62 +24,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Apply only the exact hash-verified reviewed source changes
+      - name: Apply only the exact hash-verified reviewed source and worker fix
         env:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          mkdir -p /tmp/transport3r-map-source
-          python - <<'PY'
-          import base64, hashlib, json, os, pathlib, subprocess, zlib
-          root=pathlib.Path.cwd()
-          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip()==os.environ['EXPECTED_HEAD']
-          expected_parts=['3e46001e6b0bbf3a7e695f56a53eb57a64edecc7053ed1240bc1c0b67feb776b','85b5870507bc238969d1a51b719b989c6308c97beb61446c7f7da815f891891b','2eb31c0bac0386b00bf2541c7218632ddf66eb9b08335965e2840d2ed4faa114','f952a7d05010646c4b3cf132dd35a5024948edd02d36f4f11dcb3a5ed6885672']
-          chunks=[]
-          for number,expected in enumerate(expected_parts,1):
-              p=root/f'maintenance/open-map-change-set.{number}.b64'
-              assert p.is_file() and not p.is_symlink()
-              raw=p.read_bytes()
-              if number==1 and hashlib.sha256(raw).hexdigest()=='95a84a839b58490c032a92a98a90db1ae09e0684c3ac1c47b9d0c592c83eac28':
-                  assert raw.count(b'Rod9rttNNdu')==1
-                  raw=raw.replace(b'Rod9rttNNdu',b'Rod9rttNdu')
-              actual=hashlib.sha256(raw).hexdigest()
-              assert actual==expected, (number,actual,expected)
-              chunks.append(raw.strip())
-          body=zlib.decompress(base64.b64decode(b''.join(chunks),validate=True))
-          assert len(body)==71040
-          assert hashlib.sha256(body).hexdigest()=='28b2ca78f59fa5a10d93191aef5ad305817a31f7a1715b8f682c94a7059b0fd2'
-          records=json.loads(body)
-          allowed={'docs/open-carrier-maps.md','scripts/live-source-retry.mjs','scripts/open-geography.test.mjs','scripts/public-asset-policy.mjs','scripts/public-assets.test.mjs','scripts/source-http.test.mjs','scripts/source-retry-policy.test.mjs','scripts/validate-carrier-mappings.mjs','scripts/validate_open_maps_browser.py','src/CarrierMaps.tsx','src/CarrierRouteApp.tsx','src/OfficialSmsPanel.tsx','src/OpenMap.tsx','src/WorkspaceApp.tsx','src/carrierEvidence.ts','src/carrierMaps.css','src/datahub.ts','src/main.tsx','src/mapRuntime.ts','src/openGeography.ts','src/sourceHttp.ts','vite.config.ts'}
-          assert len(records)==len(allowed) and {r['path'] for r in records}==allowed
-          vite=next(r for r in records if r['path']=='vite.config.ts')
-          existing_hash=hashlib.sha256((root/'vite.config.ts').read_bytes()).hexdigest()
-          assert existing_hash=='99f5db2a7d2620eeb0484c255910c1606c53af4d2881482f27f4379a719821ab'
-          vite.update(before=existing_hash,after=existing_hash,edits=[])
-          staged=[]
-          for r in records:
-              path=root/r['path']
-              assert path.resolve().is_relative_to(root) and not path.is_symlink()
-              if r['before'] is None:
-                  assert not path.exists(),r['path']
-                  original=b''
-              else:
-                  original=path.read_bytes()
-                  assert hashlib.sha256(original).hexdigest()==r['before'],r['path']
-              updated=original
-              end=len(original)
-              for edit in reversed(r['edits']):
-                  offset,remove=edit['offset'],edit['remove']
-                  assert type(offset) is int and type(remove) is int and 0<=offset<=offset+remove<=end
-                  updated=updated[:offset]+edit['text'].encode('utf-8')+updated[offset+remove:]
-                  end=offset
-              assert hashlib.sha256(updated).hexdigest()==r['after'],r['path']
-              staged.append((path,updated))
-          for path,updated in staged:
-              path.parent.mkdir(parents=True,exist_ok=True)
-              path.write_bytes(updated)
-          pathlib.Path('/tmp/transport3r-map-source/verified-paths.json').write_text(json.dumps(sorted(allowed-{'vite.config.ts'})))
-          pathlib.Path('/tmp/transport3r-map-source/source-change-receipt.json').write_text(json.dumps({'input_head':os.environ['EXPECTED_HEAD'],'event_merge_sha':os.environ['GITHUB_SHA'],'change_set_sha256':hashlib.sha256(body).hexdigest(),'preserved_compatible_vite_sha256':existing_hash,'files':[{'path':r['path'],'before':r['before'],'after':r['after']} for r in records],'deployed':False},indent=2))
-          PY
+          python maintenance/apply-reviewed-map-source.py
           git diff --check
       - name: Validate source without mislabelling an uncommitted production build
         run: |
@@ -97,12 +46,10 @@ jobs:
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Implement filtered MapLibre maps, responsive carrier table and bounded source retries'
+          git commit -m 'Implement filtered MapLibre maps, bundled worker, responsive table and bounded source retries'
           test -z "$(git status --porcelain)"
           candidate="$(git rev-parse HEAD)"
           printf '%s\n' "$candidate" > /tmp/transport3r-map-source/commit.txt
-          # This is a clean local candidate, not the original PR merge commit.
-          # The original event SHA remains in source-change-receipt.json.
           GITHUB_SHA="$candidate" npm run build
       - name: Exercise committed map interactions and responsive table in Chromium
         run: |
