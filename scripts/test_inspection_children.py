@@ -219,6 +219,57 @@ class InspectionChildTests(unittest.TestCase):
                                  max_rows=10,page_size=5000)
         self.assertEqual(raised.exception.code,404)
 
+    def test_growing_child_page_rejects_wrong_parent_before_source_drift(self):
+        sid='wt8s-2hbx'
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':2,'metadata':{'columns':[
+                        {'fieldName':'inspection_id','dataTypeName':CHILDREN.get(source,'number')}]}}
+        def query(source,**params):
+            if params.get('select')=='count(*) as count':
+                return [{'count':'1'}]
+            return [{'inspection_id':'123','source_row_id':'first'},
+                    {'inspection_id':'999','source_row_id':'unrelated'}]
+        with patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(ValueError,'wrong parent batch') as raised:
+                collect_children(sid,self.parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+        self.assertNotIsInstance(raised.exception,cs.SourceChangedError)
+
+    def test_growing_child_page_rejects_duplicate_id_before_source_drift(self):
+        sid='wt8s-2hbx'
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':2,'metadata':{'columns':[
+                        {'fieldName':'inspection_id','dataTypeName':CHILDREN.get(source,'number')}]}}
+        def query(source,**params):
+            if params.get('select')=='count(*) as count':
+                return [{'count':'1'}]
+            return [{'inspection_id':'123','source_row_id':'duplicate'},
+                    {'inspection_id':'123','source_row_id':'duplicate'}]
+        with patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(ValueError,'Duplicate/missing child row ID') as raised:
+                collect_children(sid,self.parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+        self.assertNotIsInstance(raised.exception,cs.SourceChangedError)
+
+    def test_parallel_preflight_http_404_overrides_http_503(self):
+        sid='wt8s-2hbx'
+        parents={'123':'1','124':'1'}
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':2,'metadata':{'columns':[
+                        {'fieldName':'inspection_id','dataTypeName':CHILDREN.get(source,'number')}]}}
+        def query(source,**params):
+            identity=params['where'].split("'")[1]
+            code=503 if identity=='123' else 404
+            raise urllib.error.HTTPError('https://example.invalid/source',code,'HTTP failure',{},None)
+        with patch('inspection_children.BATCH_SIZE',1),patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                collect_children(sid,parents,self.root,self.parent_lineage,
+                                 max_rows=10,page_size=5000)
+        self.assertEqual(raised.exception.code,404)
+
     def test_child_final_count_mismatch_is_retryable_source_drift(self):
         sid='wt8s-2hbx'
         rows=[{'inspection_id':'123','source_row_id':'child1'}]
