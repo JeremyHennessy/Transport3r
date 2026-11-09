@@ -2,6 +2,7 @@
 import hashlib
 import json
 import pathlib
+from playwright.sync_api import expect
 
 
 def exercise(page,context,base,folder,output,result):
@@ -19,7 +20,7 @@ def exercise(page,context,base,folder,output,result):
     source=page.locator('#lossHistoryFile');preview=page.locator('#lossHistoryPreview');commit=page.locator('#lossHistoryImport')
     def upload(value):
         source.set_input_files({'name':'synthetic-loss.json','mimeType':'application/json','buffer':value})
-        page.wait_for_function("!document.getElementById('lossHistoryPreview').disabled")
+        expect(preview).to_be_enabled()
     upload(raw)
     with page.expect_response(lambda r:r.url.endswith('/api/loss-history/preview') and r.request.method=='POST') as response:preview.click()
     assert response.value.status==200
