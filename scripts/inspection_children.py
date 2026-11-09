@@ -61,11 +61,35 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
     if columns.get('inspection_id') != CHILDREN[sid]:
         raise ValueError('Inspection child key schema changed')
 
+    def reconcile_failures(failures):
+        if not failures:
+            return
+        # Match the bounded acquisition policy. Permanent HTTP responses,
+        # malformed payloads and identity errors take priority over a parallel
+        # worker's transient data change, including during preflight.
+        def retryable(error):
+            if isinstance(error, SourceChangedError):
+                return True
+            if isinstance(error, urllib.error.HTTPError):
+                return error.code in (403, 429) or 500 <= error.code <= 599
+            return isinstance(error, (urllib.error.URLError, TimeoutError,
+                                      ConnectionError, http.client.RemoteDisconnected,
+                                      http.client.IncompleteRead, json.JSONDecodeError))
+        permanent = next((error for error in failures if not retryable(error)), None)
+        raise permanent if permanent is not None else failures[0]
+
     selected_batches = batches(parents)
     def preflight(ids):
         return int(query(sid,select='count(*) as count',where=child_where(sid,ids))[0]['count'])
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        counts = list(pool.map(preflight,selected_batches))
+        futures = [pool.submit(preflight, ids) for ids in selected_batches]
+        counts, failures = [], []
+        for future in futures:
+            try:
+                counts.append(future.result())
+            except Exception as error:
+                failures.append(error)
+    reconcile_failures(failures)
     if any(count<0 for count in counts) or sum(counts)>max_rows:
         raise ValueError('Complete child source exceeds accepted row ceiling')
 
@@ -103,17 +127,17 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
             # Hard safety ceilings take precedence over source-drift retries:
             # a page may grow beyond both its earlier count and the cap.
             observe_count(index, len(rows) + len(batch))
-            # A preflight count is a source observation, not a row ceiling.
-            # More rows than preflight means the source changed, and the entire
-            # current cut must fail closed so bounded acquisition can retry.
-            if len(rows)+len(batch)>count_before:
-                raise SourceChangedError('Inspection child page exceeded preflight count; source changed during acquisition')
+            # Validate every returned business/row identity BEFORE treating
+            # otherwise valid growth beyond preflight as transient drift.
+            # A malformed extra row is a permanent integrity failure.
             for row in batch:
                 key = row.get('source_row_id')
                 if not key or key in seen or row.get('inspection_id') not in ids:
                     raise ValueError('Duplicate/missing child row ID or wrong parent batch')
                 child_dot(row,parents)
                 seen.add(key)
+            if len(rows)+len(batch)>count_before:
+                raise SourceChangedError('Inspection child page exceeded preflight count; source changed during acquisition')
             rows.extend(batch)
             if len(batch)<page_size:
                 break
@@ -133,20 +157,7 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
                 results.append(future.result())
             except Exception as error:
                 failures.append(error)
-    if failures:
-        # Mirror the bounded acquisition retry policy. A permanent HTTP 404,
-        # invalid schema/identity or unexpected error must take priority over a
-        # parallel batch's transient source-change exception.
-        def retryable(error):
-            if isinstance(error, SourceChangedError):
-                return True
-            if isinstance(error, urllib.error.HTTPError):
-                return error.code in (403, 429) or 500 <= error.code <= 599
-            return isinstance(error, (urllib.error.URLError, TimeoutError,
-                                      ConnectionError, http.client.RemoteDisconnected,
-                                      http.client.IncompleteRead, json.JSONDecodeError))
-        permanent = next((error for error in failures if not retryable(error)), None)
-        raise permanent if permanent is not None else failures[0]
+    reconcile_failures(failures)
     after = state(sid,'inspection_id is not null')
     stable(before,after)
     parent_after = state(PARENT,parent_lineage['where'])
