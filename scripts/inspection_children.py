@@ -1,5 +1,6 @@
 """Complete child extracts; raw payloads retain their original fields and parent IDs."""
 import concurrent.futures
+import threading
 import re
 
 from snapshot_store import digest, now, write_once
@@ -66,7 +67,15 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
     if any(count<0 for count in counts) or sum(counts)>max_rows:
         raise ValueError('Complete child source exceeds accepted row ceiling')
 
+    # Parallel batches share source-wide observed and final-count budgets.
+    # A sum exceeding max_rows must remain a fatal safety limit even if
+    # another concurrent batch saw only a retryable publisher-count drift.
+    accounting_lock = threading.Lock()
+    observed_total = 0
+    final_reported_total = 0
+
     def collect_batch(index, ids, count_before):
+        nonlocal observed_total, final_reported_total
         where = child_where(sid,ids)
         if count_before > max_rows:
             raise ValueError('Child batch exceeds accepted row ceiling')
@@ -80,8 +89,10 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
                 raise ValueError('Child response exceeds requested page size')
             # Hard safety ceilings take precedence over source-drift retries:
             # a page may grow beyond both its earlier count and the cap.
-            if len(rows)+len(batch)>max_rows:
-                raise ValueError('Complete child source exceeds accepted row ceiling')
+            with accounting_lock:
+                observed_total += len(batch)
+                if observed_total > max_rows:
+                    raise ValueError('Complete child source exceeds accepted row ceiling')
             # A preflight count is a source observation, not a row ceiling.
             # More rows than preflight means the source changed, and the entire
             # current cut must fail closed so bounded acquisition can retry.
@@ -98,6 +109,12 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
                 break
             offset += len(batch)
         count_after = int(query(sid,select='count(*) as count',where=where)[0]['count'])
+        with accounting_lock:
+            if count_after < 0:
+                raise ValueError('Invalid negative inspection child count')
+            final_reported_total += count_after
+            if final_reported_total > max_rows:
+                raise ValueError('Complete child source exceeds accepted row ceiling')
         if count_before != count_after or len(rows)!=count_after:
             raise SourceChangedError('Inspection child preflight, page and final counts differ; source changed or pagination was inconsistent')
         return {'where':where,'parent_ids':ids,'row_count':len(rows),'count_before':count_before,
@@ -105,7 +122,18 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         futures = [pool.submit(collect_batch,i,ids,counts[i]) for i,ids in enumerate(selected_batches)]
-        results = [future.result() for future in futures]
+        results, failures = [], []
+        for future in futures:
+            try:
+                results.append(future.result())
+            except Exception as error:
+                failures.append(error)
+    if failures:
+        # Prefer a permanent identity or safety-limit failure when another
+        # parallel batch independently raises a transient SourceChangedError.
+        permanent = next((error for error in failures
+                          if isinstance(error, ValueError) and not isinstance(error, SourceChangedError)), None)
+        raise permanent if permanent is not None else failures[0]
     after = state(sid,'inspection_id is not null')
     stable(before,after)
     parent_after = state(PARENT,parent_lineage['where'])
