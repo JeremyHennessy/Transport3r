@@ -209,3 +209,15 @@ test('Census already-aborted signal cannot issue a retry even if first operation
   await assert.rejects(app.retryTransientCensusTimeout(async()=>{calls++;controller.abort();throw new Error('FMCSA request timed out');},controller.signal,0),/FMCSA request timed out/);
   assert.equal(calls,1);
 });
+
+
+test('source health badge freshness expires after 48 hours despite 36 healthy probes', () => {
+  const observed = '2026-11-08T00:00:00Z';
+  const at = Date.parse(observed);
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+24*3600000), {fresh:true,ageDays:1});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+48*3600000), {fresh:true,ageDays:2});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+48*3600000+1), {fresh:false,ageDays:2});
+  assert.deepEqual(app.sourceSnapshotFreshness('2026-10-23T00:00:00Z',Date.parse('2026-11-09T00:00:00Z')), {fresh:false,ageDays:17});
+  assert.deepEqual(app.sourceSnapshotFreshness(null,at), {fresh:false,ageDays:null});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at-6*60000), {fresh:false,ageDays:null});
+});
