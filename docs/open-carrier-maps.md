@@ -60,3 +60,22 @@ restriction was not bypassed; the repository's existing browser-review workflow 
 rendered checks and retains screenshots. Until its exact-head result is inspected, browser
 acceptance remains NOT VERIFIED. The initial local Python full-suite rerun also exceeded its
 tool execution deadline; no all-Python-pass result is inferred from that incomplete run.
+
+
+## Permanent release gate
+
+The one-time source-application workflow and encoded change-set files are removed after
+the map implementation was committed. That setup workflow correctly refused to create
+files a second time, but continued triggering a misleading failure on subsequent PR runs.
+The existing read-only application-review workflow now executes the production-bundle
+map/table scenarios on every reviewed candidate. It does not write or push application code.
+
+Acceptance covers a full filtered population (201 synthetic source rows versus a 100-row
+table page), state selection/URL filtering, pagination independence, source failure/retry,
+layer/date controls, explicit unlocated records, and all 11 table fields without horizontal
+scroll at 1712, 1280, 1024, 768 and 390 pixels. Source fixtures do not certify real geocodes
+or nationwide source acceptance. Regional aggregate symbols remain labelled as such.
+
+A successful source-application run does not imply production deployment. The current
+commit must pass normal checks, independent review and protected merge before Pages
+release verification. No local/private records or downloaded warehouse files are included.
