@@ -4,6 +4,7 @@ Every CSV row and column is retained as text. Unresolved identities remain in th
 raw tables and mapping audit; they are never silently dropped or assigned.
 """
 import argparse,json,pathlib,re,sys,os
+import datetime as dt
 from verify_snapshot import verify
 from source_contract import source_contracts
 ROOT=pathlib.Path(__file__).resolve().parents[1]
@@ -116,21 +117,46 @@ def duplicate_rows(db,raw):
     value = db.execute(f'SELECT coalesce(sum(n-1),0) FROM (SELECT count(*) n FROM {raw} GROUP BY {grouped} HAVING count(*)>1)').fetchone()[0]
     return int(value)
 
-def date_quality(db,raw,columns,fields):
+def date_quality(db,raw,columns,fields,cut_available_at=None):
+    """Retain parseability and add pinned-cut review flags, never source corrections.
+
+    A post-cut effective date can be legitimate. These are review categories,
+    not record rejection, coverage determinations or evidence of source fraud.
+    """
     if not fields:return []
+    cutoff=None
+    if cut_available_at is not None:
+        if not isinstance(cut_available_at,str) or not re.fullmatch(
+                r'[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]+)?(?:Z|[+-][0-9]{2}:[0-9]{2})',cut_available_at):
+            raise ValueError('Timezone-aware immutable cut timestamp required')
+        cutoff=dt.datetime.fromisoformat(cut_available_at.replace('Z','+00:00')).astimezone(dt.timezone.utc).date()
+        if cutoff<dt.date(1900,1,1):raise ValueError('Cut precedes the date-review floor')
     expressions=[]
     for field in fields:
         if field not in columns:raise ValueError('Contracted date field unavailable: '+field)
         value=text(ident(field));parsed=parsed_date(ident(field))
         expressions.extend([f'count(*)',f'count(*) FILTER(WHERE {value} IS NULL)',f'count(*) FILTER(WHERE {parsed} IS NOT NULL)',f'min({parsed})',f'max({parsed})'])
+        if cutoff is not None:
+            expressions.extend([f"count(*) FILTER(WHERE {parsed}<DATE '1900-01-01')",
+                                f'count(*) FILTER(WHERE {parsed}>DATE {literal(cutoff.isoformat())})'])
     values=db.execute(f"SELECT {','.join(expressions)} FROM {raw}").fetchone();result=[]
+    width=7 if cutoff is not None else 5
     for index,field in enumerate(fields):
-        total,missing,valid,earliest,latest=values[index*5:index*5+5]
+        total,missing,valid,earliest,latest=values[index*width:index*width+5]
+        plausibility={'status':'NOT_CHECKED','reason':'No pinned cut timestamp supplied','source_values_modified':False}
+        if cutoff is not None:
+            early,future=values[index*width+5:index*width+7]
+            plausibility={'status':'REVIEW_FLAGS_ONLY','rule':'PINNED_CUT_DATE_PLAUSIBILITY_1',
+                          'review_floor':'1900-01-01','cut_date_utc':cutoff.isoformat(),
+                          'before_review_floor':early,'after_cut_date':future,
+                          'within_review_window':valid-early-future,'source_values_modified':False,
+                          'limitation':'Future effective dates can be legitimate. Categories flag review; no rows are rewritten or rejected.'}
         result.append({'field':field,'rows':total,'missing':missing,'valid':valid,'invalid':total-missing-valid,
-                       'earliest':str(earliest) if earliest else None,'latest':str(latest) if latest else None})
+                       'earliest':str(earliest) if earliest else None,'latest':str(latest) if latest else None,
+                       'plausibility':plausibility})
     return result
 
-def map_sources(db,schemas,contracts=None):
+def map_sources(db,schemas,contracts=None,cut_available_at=None):
     contracts=contracts or source_contracts();inspections=table('fx4q-ay7w');legacy=table('6eyk-hxee');census=table('az4n-8mr2')
     census_dot=canonical('dot_number')
     db.execute(f'CREATE TABLE census_identity AS SELECT {census_dot} AS dot,count(*) AS census_rows FROM {census} WHERE {census_dot} IS NOT NULL GROUP BY 1')
@@ -153,7 +179,7 @@ def map_sources(db,schemas,contracts=None):
         distinct=db.execute(f'SELECT count(DISTINCT _dot_number) FROM {mapping} WHERE _dot_number IS NOT NULL').fetchone()[0]
         audit.append({'source':source,'rows':raw_count,'mapping_status':statuses,'mapping_reasons':reasons,
                       'distinct_identified_carriers':distinct,'exact_duplicate_rows':duplicate_rows(db,raw),
-                      'date_quality':date_quality(db,raw,columns,contracts[source]['event_date_fields'])})
+                      'date_quality':date_quality(db,raw,columns,contracts[source]['event_date_fields'],cut_available_at)})
     return audit
 
 def build(folder,output):
@@ -174,7 +200,7 @@ def build(folder,output):
             schemas[item['id']]=load_source(db,cut,item);print(f"Imported {item['id']}: {item['row_count']:,} rows",flush=True)
         contracts=source_contracts()
         if set(contracts)!=set(schemas):raise ValueError('Source contract coverage mismatch')
-        audit=map_sources(db,schemas,contracts)
+        audit=map_sources(db,schemas,contracts,collection['completed_at'])
         rows=db.execute('SELECT sum(warehouse_rows) FROM source_lineage').fetchone()[0]
         carriers=db.execute("SELECT count(DISTINCT _dot_number) FROM mapping_az4n_8mr2 WHERE _mapping_status='RESOLVED'").fetchone()[0]
         lineage=[dict(zip(('source','cut','sha256','available_at','rows_updated_at','published_rows','acquired_rows','warehouse_rows'),row))

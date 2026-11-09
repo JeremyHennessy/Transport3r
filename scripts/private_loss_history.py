@@ -17,6 +17,7 @@ import sqlite3
 from insurance_reviews import LINES
 from private_workspace_store import portfolio
 from snapshot_store import now, digest
+from private_operations import private_write_lock
 
 SCHEMA = 'PRIVATE_LOSS_HISTORY_1'
 LEDGER_SCHEMA = 'SOURCE_CLAIM_IDENTITY_1'
@@ -220,10 +221,14 @@ def import_loss_history(db, raw, policies, reviewer, expected_preview):
         db.rollback();raise
 
 
-def summarize_batch(db,batch_id):
+def summarize_batch(db,batch_id,read_only=False):
     """Summarize one explicit valuation batch; never sum repeated historical snapshots."""
-    _ensure(db)
-    batch=db.execute('SELECT valuation_date FROM loss_batches WHERE id=?',(batch_id,)).fetchone()
+    if read_only:
+        if db.execute('SELECT schema FROM loss_ledger_schema').fetchall()!=[(LEDGER_SCHEMA,)]:
+            raise ValueError('UNSUPPORTED_LEDGER_IDENTITY_SCHEMA')
+    else:
+        _ensure(db)
+    batch=db.execute('SELECT valuation_date,source_id,source_sha256,portfolio_sha256,reviewer,created_at FROM loss_batches WHERE id=?',(batch_id,)).fetchone()
     if not batch:raise ValueError('BATCH_NOT_FOUND')
     rows=db.execute('SELECT o.record_json FROM loss_batch_records b JOIN loss_observations o USING(claim_key,valuation_date) WHERE b.batch_id=?',(batch_id,)).fetchall()
     grouped={}
@@ -238,7 +243,11 @@ def summarize_batch(db,batch_id):
     # Exact decimal strings avoid silent JavaScript rounding on large aggregates.
     for group in grouped.values():
         for field in MONEY:group[field]['known_sum']=str(group[field]['known_sum'])
-    return {'scope':'SUPPLIED_ROWS_AT_ONE_VALUATION','valuation_date':batch[0],
+    return {'schema':'PRIVATE_LOSS_VALUATION_SUMMARY_1','batch_id':batch_id,
+            'scope':'SUPPLIED_ROWS_AT_ONE_VALUATION','valuation_date':batch[0],
+            'provenance':{'source_id':batch[1],'source_sha256':batch[2],'portfolio_sha256':batch[3],
+                          'reviewer':batch[4],'imported_at':batch[5],
+                          'verification_scope':'NORMALIZED_FILE_NOT_UPSTREAM_INSURER_DOCUMENT'},
             'observations':len(rows),'groups':[grouped[k] for k in sorted(grouped)],
             'population_complete':False,'actuarial_score':None,'coverage_determined':False}
 
@@ -254,16 +263,17 @@ def main():
     try:
         folder=private_path(args.workspace);source=private_path(args.input)
         with source.open('rb') as handle:raw=handle.read(MAX_BYTES+1)
-        policies=portfolio(folder)
         if not args.commit:
-            result=preview(raw,policies)
+            result=preview(raw,portfolio(folder))
         else:
             if not args.expected_preview or not args.reviewer:raise ValueError('PREVIEW_AND_REVIEWER_REQUIRED')
-            path=private_path(folder/'loss-history.sqlite')
-            if not path.exists():
-                fd=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600);os.close(fd)
-            with closing(sqlite3.connect(path,timeout=30)) as db:
-                result=import_loss_history(db,raw,policies,args.reviewer,args.expected_preview)
+            with private_write_lock(folder):
+                policies=portfolio(folder)
+                path=private_path(folder/'loss-history.sqlite')
+                if not path.exists():
+                    fd=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600);os.close(fd)
+                with closing(sqlite3.connect(path,timeout=30)) as db:
+                    result=import_loss_history(db,raw,policies,args.reviewer,args.expected_preview)
         print(json.dumps(result,indent=2,allow_nan=False))
         return 0 if result['status'] in ('READY_FOR_PRIVATE_IMPORT','IMPORTED_PRIVATELY') else 1
     except (ValueError,OSError,sqlite3.Error) as error:

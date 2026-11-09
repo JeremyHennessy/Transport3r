@@ -158,11 +158,16 @@ def run(output):
                     finally:
                         templates.VERSION=old_version
                         templates.TEMPLATES['motor-truck-cargo']=old_prompts
+                    from private_loss_browser_scenarios import exercise
+                    exercise(page,context,base,temp,output,result)
                     bad=context.request.post(base+'/api/insurance-review',headers={'Origin':'https://unrelated.example','Content-Type':'application/json'},data={})
                     assert bad.status==403
                     page.get_by_role('button',name='Sign out',exact=True).click()
                     page.get_by_role('heading',name='Sign in',exact=True).wait_for()
                     assert context.request.get(base+'/api/state').status==401
+                    assert page.locator('#lossHistoryFile').input_value()==''
+                    assert page.locator('#lossHistoryImportResult').inner_text()==''
+                    assert context.request.get(base+'/api/loss-history/batches').status==401
                     result['checks'].append('HttpOnly/SameSite session, cross-origin write rejection and logout access revocation pass')
                     result['checks'].append('Desktop/mobile review screenshots have no document overflow; all records are synthetic')
                     result['status']='PASS'

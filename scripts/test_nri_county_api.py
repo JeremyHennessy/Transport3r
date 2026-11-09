@@ -52,8 +52,11 @@ class NriApiTests(unittest.TestCase):
                 urllib.request.urlopen(base+route,timeout=10)
             self.assertEqual(err.exception.code,503)
             self.assertEqual(json.load(err.exception)['status'],'NOT_INSTALLED')
-        _,carrier,_=self.fetch(base+'/v1/carriers/3706/evidence')
-        self.assertEqual(carrier['carrier_rows'],2)
+        # NRI acceptance does not bypass the independently audited FMCSA gate.
+        with self.assertRaises(urllib.error.HTTPError) as err:
+            self.fetch(base+'/v1/carriers/3706/evidence')
+        self.assertEqual(err.exception.code,503)
+        self.assertEqual(json.load(err.exception)['status'],'NOT_AUDITED')
 
     def test_validated_index_serves_county_only_without_carrier_score(self):
         release=self.root/'release'

@@ -1,6 +1,7 @@
 """Private local portfolio foundation. This database is never served by GitHub Pages."""
 import argparse,datetime as dt,json,pathlib,re,sqlite3
 from snapshot_store import now,digest
+from private_operations import private_write_lock
 VERSION='INSURER_PORTFOLIO_1'
 FIELDS={'account_id','policy_id','dot_number','policy_start','policy_end','status','currency','limit_minor','premium_minor','class_code','territory','broker','scheduled_units','insured_vmt','notes','review_status'}
 def validate(record):
@@ -25,6 +26,14 @@ def validate(record):
     return {field:record.get(field) for field in sorted(FIELDS)}
 
 def import_records(path,records):
+    # Lock both this CLI and the local HTTP service against concurrent loss imports.
+    from private_loss_service import guard_policy_changes
+    rows=[validate(record) for record in records]
+    with private_write_lock(pathlib.Path(path).resolve().parent):
+        guard_policy_changes(pathlib.Path(path).resolve().parent,rows)
+        return _import_records(path,rows)
+
+def _import_records(path,records):
     rows=[validate(record) for record in records]
     keys=[(row['account_id'],row['policy_id']) for row in rows]
     if len(keys)!=len(set(keys)):raise ValueError('Duplicate account/policy in import')

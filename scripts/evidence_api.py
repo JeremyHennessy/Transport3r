@@ -55,12 +55,20 @@ class Handler(BaseHTTPRequestHandler):
         path=urllib.parse.urlparse(self.path).path
         if not self.server.warehouse_unchanged():
             return self.payload(503,{'status':'WAREHOUSE_CHANGED','detail':'Restart with a newly verified immutable warehouse and matching audit'},head)
+        if path=='/readyz':
+            ready=self.server.integrity is not None
+            return self.payload(200 if ready else 503,{'status':'READY' if ready else 'NOT_AUDITED',
+                'release_ready':ready,'cut_id':self.server.receipt['cut_id'],
+                'warehouse_sha256':self.server.warehouse_sha256,
+                'independent_audit':'PASS' if ready else 'NOT_INSTALLED',
+                'private_insurer_hosting':False},head)
         if path=='/v1/integrity':
             if self.server.integrity is None:
                 return self.payload(503,{'status':'NOT_AUDITED','detail':'No independent deep audit is installed; counts are withheld'},head)
             return self.payload(200,self.server.integrity,head)
         if path=='/healthz':
             return self.payload(200,{'status':'ok','identity_contract':self.server.receipt['identity_contract'],'sources':self.server.receipt['sources'],'warehouse_sha256':self.server.warehouse_sha256,'cut_id':self.server.receipt['cut_id'],'cut_available_at':self.server.receipt['cut_available_at'],
+                                     'release_ready':self.server.integrity is not None,
                                      'independent_audit':'PASS' if self.server.integrity else 'NOT_INSTALLED',
                                      'nri_county_source':self.server.nri_status['status'] if self.server.nri_status else 'NOT_INSTALLED'},head)
         if path.startswith('/v1/geography/nri/') and not self.server.nri_unchanged():
@@ -82,6 +90,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.payload(503,{'status':'SOURCE_UNAVAILABLE','source':'FEMA_NRI_COUNTIES_V120','carrier_route_attribution':'NOT_ESTABLISHED'},head)
         prefix='/v1/carriers/';suffix='/evidence'
         if path.startswith(prefix) and path.endswith(suffix):
+            if self.server.integrity is None:
+                return self.payload(503,{'status':'NOT_AUDITED','detail':'Carrier evidence requires the matching independent deep audit'},head)
             dot=path[len(prefix):-len(suffix)].strip('/')
             try:
                 db=connect(self.server.warehouse)
