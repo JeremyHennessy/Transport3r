@@ -359,6 +359,42 @@ export async function loadCarriers(filters: CarrierFilters, signal?: AbortSignal
   return (payload as DataRow[]).map(carrierFromRow);
 }
 
+/**
+ * Give an explicitly timed-out Census request exactly one additional attempt.
+ * Abort/HTTP/schema errors are never retried, and a route change cancels the backoff.
+ * The caller controls the actual request; no cached or synthetic Census rows appear.
+ */
+export async function retryTransientCensusTimeout<T>(
+  load: () => Promise<T>,
+  signal: AbortSignal,
+  delayMs = 350,
+  onRetry?: () => void,
+): Promise<T> {
+  try {
+    return await load();
+  } catch (cause) {
+    if (signal.aborted || !(cause instanceof Error) || cause.message !== 'FMCSA request timed out') throw cause;
+    onRetry?.();
+    await new Promise<void>((resolve, reject) => {
+      const cancelled = () => new DOMException('Request cancelled', 'AbortError');
+      if (signal.aborted) { reject(cancelled()); return; }
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', onAbort);
+        reject(cancelled());
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, delayMs);
+      signal.addEventListener('abort', onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    });
+    if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    return load();
+  }
+}
+
 export async function loadCarrierPage(filters: CarrierFilters, signal?: AbortSignal) {
   const params = buildCarrierQuery(filters);
   if (filters.risk === 'available') return { rows: [], hasNext: false };
@@ -473,6 +509,7 @@ function CarriersPage() {
   const [draft, setDraft] = useState<CarrierFilters>(() => parseCarrierFilters());
   const [rows, setRows] = useState<Carrier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
@@ -506,30 +543,19 @@ function CarriersPage() {
     let current = true;
     const controller = new AbortController();
     setLoading(true);
+    setRetrying(false);
     setError(null);
     setRows([]);
     setHasNext(false);
-    // Retry a single transient Census timeout without changing filters or claiming cached data.
-    // Never retry invalid queries, HTTP errors, or requests cancelled by navigation.
-    const loadWithTimeoutRecovery = async () => {
-      try {
-        return await loadCarrierPage(applied, controller.signal);
-      } catch (cause) {
-        if (controller.signal.aborted || !(cause instanceof Error) || cause.message !== 'FMCSA request timed out') throw cause;
-        // Give the upstream source one fresh opportunity; still fail visibly if unavailable.
-        await new Promise<void>((resolve, reject) => {
-          const timer = window.setTimeout(() => { controller.signal.removeEventListener('abort', cancel); resolve(); }, 350);
-          const cancel = () => { window.clearTimeout(timer); reject(new DOMException('Request cancelled', 'AbortError')); };
-          controller.signal.addEventListener('abort', cancel, { once: true });
-          if (controller.signal.aborted) cancel();
-        });
-        return loadCarrierPage(applied, controller.signal);
-      }
-    };
-    loadWithTimeoutRecovery()
+    retryTransientCensusTimeout(
+      () => loadCarrierPage(applied, controller.signal),
+      controller.signal,
+      350,
+      () => { if (current) setRetrying(true); },
+    )
       .then((loaded) => { if (current) { setRows(loaded.rows); setHasNext(loaded.hasNext); } })
       .catch((cause) => { if (current) { setRows([]); setError(cause instanceof Error ? cause.message : String(cause)); } })
-      .finally(() => { if (current) setLoading(false); });
+      .finally(() => { if (current) { setLoading(false); setRetrying(false); } });
     return () => { current = false; controller.abort(); };
   }, [appliedKey, reloadVersion]);
 
@@ -604,7 +630,7 @@ function CarriersPage() {
     {error && <div className="t3-error"><strong>FMCSA carrier table unavailable.</strong><span>{error}</span><button onClick={() => setReloadVersion(version => version + 1)}>Retry</button></div>}
 
     <section className="t3-panel t3-table-panel">
-      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
+      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? retrying ? 'FMCSA timed out; retrying once…' : 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
       <nav className="t3-directory-paging t3-actions" aria-label="Directory pages"><button className="t3-button secondary" disabled={loading || applied.page <= 1} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page - 1 }); }}>Previous page</button><span role="status">Page {Number.isSafeInteger(applied.page) ? applied.page : 'invalid'}</span><button className="t3-button secondary" disabled={loading || Boolean(error) || !hasNext} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page + 1 }); }}>Next page</button></nav>
       <p className="t3-table-scroll-note">Pages use a stable USDOT tie-breaker. The live source can change between requests; page totals describe only the displayed records.</p>
       <p className="t3-table-scroll-note" id="carrier-scroll-help">Scroll horizontally for all columns and evidence links. Counts may come from different MCS-150 report dates.</p>
