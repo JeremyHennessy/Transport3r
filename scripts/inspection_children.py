@@ -89,9 +89,11 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
                 counts.append(future.result())
             except Exception as error:
                 failures.append(error)
-    reconcile_failures(failures)
+    # Successful preflight results can already prove a permanent violation.
+    # A concurrent timeout/503 must not turn that evidence into a retry.
     if any(count<0 for count in counts) or sum(counts)>max_rows:
         raise ValueError('Complete child source exceeds accepted row ceiling')
+    reconcile_failures(failures)
 
     # Parent batches have disjoint inspection IDs. Retain the strongest observed
     # count for EACH batch across preflight, fetched pages, and postflight.
