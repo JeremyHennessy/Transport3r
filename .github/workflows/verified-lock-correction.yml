@@ -1,0 +1,52 @@
+name: Apply verified optional-package URL correction
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_head:
+        description: Exact reviewed head of the security branch
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  exact-correction:
+    if: github.ref == 'refs/heads/security/pinned-build-dependencies-20261109'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: security/pinned-build-dependencies-20261109
+          fetch-depth: 1
+      - name: Verify exact input and apply the single authorized URL correction
+        env:
+          EXPECTED_HEAD: ${{ inputs.expected_head }}
+        run: |
+          python - <<'PY'
+          import os, pathlib, re, subprocess
+          expected = os.environ['EXPECTED_HEAD']
+          assert re.fullmatch('[0-9a-f]{40}', expected)
+          assert subprocess.check_output(['git','rev-parse','HEAD'],text=True).strip() == expected
+          path = pathlib.Path('package-lock.json')
+          before = subprocess.check_output(['git','hash-object',str(path)],text=True).strip()
+          assert before == '19e99a0edfc8378c2ba551ca1298d1bb79c9a2ba', before
+          raw = path.read_bytes()
+          old = b'https://registry.npmjs.org/@rollup/rollup-openharmony-arm64/-/openharmony-arm64-4.68.2.tgz'
+          new = b'https://registry.npmjs.org/@rollup/rollup-openharmony-arm64/-/rollup-openharmony-arm64-4.68.2.tgz'
+          assert raw.count(old) == 1
+          path.write_bytes(raw.replace(old,new))
+          after = subprocess.check_output(['git','hash-object',str(path)],text=True).strip()
+          assert after == 'eecb9c9fd2b6d8e5e0cc48964cfc2c638d7f6c5b', after
+          PY
+          node --test scripts/dependency-security.test.mjs scripts/optional-package-urls.test.mjs
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- package-lock.json
+          git commit -m 'Correct exact optional Rollup tarball URL without changing dependency versions'
+          git push origin HEAD:refs/heads/security/pinned-build-dependencies-20261109
+          git rev-parse HEAD
+          # This updates only the feature branch. Fresh exact-head CI/review is required.

@@ -20,6 +20,17 @@ export function classifyAudit(text,status){
      (status===0)!==(counts.total===0)||![0,1].includes(status)){
     return {status:'UNAVAILABLE',reason:'INCONSISTENT_AUDIT_RESULT',accepted:false};
   }
+  const entries=Object.entries(value.vulnerabilities);
+  const observed=Object.fromEntries(severities.map(key=>[key,0]));
+  for(const [name,entry] of entries){
+    if(!entry||typeof entry!=='object'||Array.isArray(entry)||entry.name!==name||!severities.includes(entry.severity)){
+      return {status:'UNAVAILABLE',reason:'INVALID_VULNERABILITY_ENTRY',accepted:false};
+    }
+    observed[entry.severity]++;
+  }
+  if(entries.length!==counts.total||severities.some(key=>observed[key]!==counts[key])){
+    return {status:'UNAVAILABLE',reason:'VULNERABILITY_MAP_TOTALS_DIFFER',accepted:false};
+  }
   return {status:counts.total?'VULNERABILITIES_FOUND':'PASS',accepted:counts.total===0,
     vulnerabilities:Object.fromEntries([...severities,'total'].map(key=>[key,counts[key]])),
     scope:'LOCKFILE_PRODUCTION_AND_DEVELOPMENT_DEPENDENCIES'};
