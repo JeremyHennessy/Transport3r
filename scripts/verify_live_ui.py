@@ -73,7 +73,9 @@ def chrome():
 def capture_route(page, base, route, output, viewport):
     label, fragment, expected = route
     name = f'{label}-{viewport["width"]}'
-    result = {'route': fragment, 'viewport': viewport, 'status': 'FAIL', 'checks': [], 'errors': []}
+    result = {'route': fragment, 'viewport': viewport, 'status': 'FAIL', 'checks': [], 'errors': [],
+              'acceptance_scope': 'ROUTE_SHELL_AND_VISIBLE_PREVIEW_ONLY',
+              'full_source_reconciliation': 'NOT_TESTED'}
     page_errors = []
     page.on('pageerror', lambda error: page_errors.append(str(error)))
     page.set_viewport_size(viewport)
@@ -84,6 +86,26 @@ def capture_route(page, base, route, output, viewport):
         if outcome.get('error'):
             raise AssertionError(outcome['error'])
         result['checks'].append('Every required route assertion passed in the captured page')
+        # Keep live-data acquisition separate from render readiness. The page can
+        # render a valid preview while its independent 36-source sweep is pending.
+        # None of the screenshots or heading checks certify a nationwide source cut.
+        source_status = page.locator('[data-testid="complete-data-status"]')
+        if source_status.count():
+            status_text = source_status.first.inner_text(timeout=5000)
+            if 'Loading complete carrier evidence' in status_text:
+                sweep_state = 'LOADING_NOT_ACCEPTED'
+            elif 'Complete loading needs attention' in status_text:
+                sweep_state = 'INCOMPLETE_NOT_ACCEPTED'
+            elif 'Complete carrier evidence loaded' in status_text:
+                sweep_state = 'UI_REPORTED_COMPLETE_NOT_INDEPENDENTLY_AUDITED'
+            else:
+                sweep_state = 'UNKNOWN_NOT_ACCEPTED'
+            result['carrier_sweep'] = {
+                'state': sweep_state,
+                'visible_progress': status_text[:280],
+                'independent_acceptance': False,
+            }
+            result['checks'].append('Carrier sweep state retained separately; UI route pass does not certify source completeness')
         if label == 'insurance':
             assert page.locator('.t3-insurance-line').count() == 8
             result['checks'].append('Eight insurance lines rendered without a numerical risk model')
@@ -174,7 +196,8 @@ def run(base, expected_sha, output, labels=None):
     result = {'status': 'FAIL', 'expected_commit': expected_sha,
               'checked_at': datetime.now(timezone.utc).isoformat(),
               'scope': 'ALL_RELEASE_ROUTES' if labels is None else 'EXPLICIT_ROUTE_SUBSET',
-              'base_url': base, 'routes': [], 'errors': []}
+              'base_url': base, 'routes': [], 'errors': [],
+              'data_acceptance_scope': 'UI_ONLY_NO_NATIONWIDE_SOURCE_OR_INSURER_RECONCILIATION'}
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path=chrome(), args=['--no-sandbox', '--disable-dev-shm-usage'])
