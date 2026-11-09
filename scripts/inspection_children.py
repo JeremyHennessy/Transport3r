@@ -1,6 +1,9 @@
 """Complete child extracts; raw payloads retain their original fields and parent IDs."""
 import concurrent.futures
+import threading
 import re
+import urllib.error
+import http.client
 
 from snapshot_store import digest, now, write_once
 from verify_snapshot import timestamp
@@ -49,7 +52,7 @@ def child_where(sid, ids):
 
 
 def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page_size=5000):
-    from cohort_snapshot import query, state, stable, hash_file
+    from cohort_snapshot import query, state, stable, hash_file, SourceChangedError
     if sid not in CHILDREN or not 1 <= max_rows <= 1000000 or not 1 <= page_size <= 10000:
         raise ValueError('Invalid child acquisition bounds or source')
     started = now()
@@ -58,13 +61,58 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
     if columns.get('inspection_id') != CHILDREN[sid]:
         raise ValueError('Inspection child key schema changed')
 
+    def reconcile_failures(failures):
+        if not failures:
+            return
+        # Match the bounded acquisition policy. Permanent HTTP responses,
+        # malformed payloads and identity errors take priority over a parallel
+        # worker's transient data change, including during preflight.
+        def retryable(error):
+            if isinstance(error, SourceChangedError):
+                return True
+            if isinstance(error, urllib.error.HTTPError):
+                return error.code in (403, 429) or 500 <= error.code <= 599
+            return isinstance(error, (urllib.error.URLError, TimeoutError,
+                                      ConnectionError, http.client.RemoteDisconnected,
+                                      http.client.IncompleteRead, json.JSONDecodeError))
+        permanent = next((error for error in failures if not retryable(error)), None)
+        raise permanent if permanent is not None else failures[0]
+
     selected_batches = batches(parents)
     def preflight(ids):
         return int(query(sid,select='count(*) as count',where=child_where(sid,ids))[0]['count'])
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
-        counts = list(pool.map(preflight,selected_batches))
+        futures = [pool.submit(preflight, ids) for ids in selected_batches]
+        counts, failures = [], []
+        for future in futures:
+            try:
+                counts.append(future.result())
+            except Exception as error:
+                failures.append(error)
+    # Successful preflight results can already prove a permanent violation.
+    # A concurrent timeout/503 must not turn that evidence into a retry.
     if any(count<0 for count in counts) or sum(counts)>max_rows:
         raise ValueError('Complete child source exceeds accepted row ceiling')
+    reconcile_failures(failures)
+
+    # Parent batches have disjoint inspection IDs. Retain the strongest observed
+    # count for EACH batch across preflight, fetched pages, and postflight.
+    # Independent totals of fetched pages vs postflight counts can miss mixed
+    # growth when different batches drift at different points in acquisition.
+    accounting_lock = threading.Lock()
+    strongest_batch_counts = list(counts)
+    strongest_source_total = sum(counts)
+
+    def observe_count(index, count):
+        nonlocal strongest_source_total
+        if not isinstance(count, int) or count < 0:
+            raise ValueError('Invalid negative inspection child count')
+        with accounting_lock:
+            if count > strongest_batch_counts[index]:
+                strongest_source_total += count - strongest_batch_counts[index]
+                strongest_batch_counts[index] = count
+            if strongest_source_total > max_rows:
+                raise ValueError('Complete child source exceeds accepted row ceiling')
 
     def collect_batch(index, ids, count_before):
         where = child_where(sid,ids)
@@ -76,27 +124,42 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
             name = f'{sid}.batch-{index:05d}.page-{offset:08d}.json'
             write_once(folder/name,batch)
             pages.append({'path':name,'sha256':hash_file(folder/name),'rows':len(batch),'offset':offset})
-            if len(batch)>page_size or len(rows)+len(batch)>count_before:
-                raise ValueError('Child response exceeds accepted row ceiling')
+            if len(batch)>page_size:
+                raise ValueError('Child response exceeds requested page size')
+            # Hard safety ceilings take precedence over source-drift retries:
+            # a page may grow beyond both its earlier count and the cap.
+            observe_count(index, len(rows) + len(batch))
+            # Validate every returned business/row identity BEFORE treating
+            # otherwise valid growth beyond preflight as transient drift.
+            # A malformed extra row is a permanent integrity failure.
             for row in batch:
                 key = row.get('source_row_id')
                 if not key or key in seen or row.get('inspection_id') not in ids:
                     raise ValueError('Duplicate/missing child row ID or wrong parent batch')
                 child_dot(row,parents)
                 seen.add(key)
+            if len(rows)+len(batch)>count_before:
+                raise SourceChangedError('Inspection child page exceeded preflight count; source changed during acquisition')
             rows.extend(batch)
             if len(batch)<page_size:
                 break
             offset += len(batch)
         count_after = int(query(sid,select='count(*) as count',where=where)[0]['count'])
+        observe_count(index, count_after)
         if count_before != count_after or len(rows)!=count_after:
-            raise ValueError('Child query count changed or pages incomplete')
+            raise SourceChangedError('Inspection child preflight, page and final counts differ; source changed or pagination was inconsistent')
         return {'where':where,'parent_ids':ids,'row_count':len(rows),'count_before':count_before,
                 'count_after':count_after,'pages':pages}
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         futures = [pool.submit(collect_batch,i,ids,counts[i]) for i,ids in enumerate(selected_batches)]
-        results = [future.result() for future in futures]
+        results, failures = [], []
+        for future in futures:
+            try:
+                results.append(future.result())
+            except Exception as error:
+                failures.append(error)
+    reconcile_failures(failures)
     after = state(sid,'inspection_id is not null')
     stable(before,after)
     parent_after = state(PARENT,parent_lineage['where'])
