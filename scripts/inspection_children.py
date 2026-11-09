@@ -49,7 +49,7 @@ def child_where(sid, ids):
 
 
 def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page_size=5000):
-    from cohort_snapshot import query, state, stable, hash_file
+    from cohort_snapshot import query, state, stable, hash_file, SourceChangedError
     if sid not in CHILDREN or not 1 <= max_rows <= 1000000 or not 1 <= page_size <= 10000:
         raise ValueError('Invalid child acquisition bounds or source')
     started = now()
@@ -76,8 +76,13 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
             name = f'{sid}.batch-{index:05d}.page-{offset:08d}.json'
             write_once(folder/name,batch)
             pages.append({'path':name,'sha256':hash_file(folder/name),'rows':len(batch),'offset':offset})
-            if len(batch)>page_size or len(rows)+len(batch)>count_before:
-                raise ValueError('Child response exceeds accepted row ceiling')
+            if len(batch)>page_size:
+                raise ValueError('Child response exceeds requested page size')
+            # A preflight count is a source observation, not a row ceiling.
+            # More rows than preflight means the source changed, and the entire
+            # current cut must fail closed so bounded acquisition can retry.
+            if len(rows)+len(batch)>count_before:
+                raise SourceChangedError('Inspection child page exceeded preflight count; source changed during acquisition')
             for row in batch:
                 key = row.get('source_row_id')
                 if not key or key in seen or row.get('inspection_id') not in ids:
@@ -90,7 +95,7 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
             offset += len(batch)
         count_after = int(query(sid,select='count(*) as count',where=where)[0]['count'])
         if count_before != count_after or len(rows)!=count_after:
-            raise ValueError('Child query count changed or pages incomplete')
+            raise SourceChangedError('Inspection child preflight, page and final counts differ; source changed or pagination was inconsistent')
         return {'where':where,'parent_ids':ids,'row_count':len(rows),'count_before':count_before,
                 'count_after':count_after,'pages':pages}
 
