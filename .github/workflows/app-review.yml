@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR revisions must not keep acquiring the same live sources.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -54,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: app-review-${{ github.sha }}
+          name: app-review-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: /tmp/transport3r-review/
           retention-days: 7
           if-no-files-found: error

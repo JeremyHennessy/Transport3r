@@ -12,8 +12,15 @@ export function dailyCalendarDate(value: unknown): string | null {
 }
 
 export function dailyCarrierMatches(row: DataRow, dot: string): boolean {
-  const raw = readValue(row, ['DOT_NUMBER', 'USDOT_NUMBER'])?.trim();
-  return !!raw && /^\d+$/.test(raw) && raw.replace(/^0+/, '') === dot;
+  if (!/^[1-9]\d*$/.test(dot) || !row || typeof row !== 'object' || Array.isArray(row)) return false;
+  const supplied = Object.entries(row).flatMap(([key, value]) => {
+    const raw = readValue({[key]:value}, ['DOT_NUMBER', 'USDOT_NUMBER']);
+    if (raw === undefined) return [];
+    // Do not coerce objects/arrays or unsafe numeric identifiers into valid IDs.
+    if (typeof value !== 'string' && !(typeof value === 'number' && Number.isSafeInteger(value))) return [''];
+    return [raw.trim()];
+  });
+  return supplied.length > 0 && supplied.every(raw => /^\d+$/.test(raw) && raw.replace(/^0+/, '') === dot);
 }
 
 function snapshotIdentity(evidence: CarrierEvidence): NonNullable<SafetyWindowResult['provenance']> {

@@ -45,9 +45,9 @@ def run(output):
                     key=(row['phy_country'],row['phy_state']);groups[key]=groups.get(key,0)+1
                 route.fulfill(json=[{'phy_country':country,'phy_state':state,'count':str(n)} for (country,state),n in sorted(groups.items())]);return
         if sid=='fx4q-ay7w':rows=[{'dot_number':'3938496','inspection_id':'1000','insp_date':'20260115','county_code_state':'TX','report_state':'TX','location_desc':'SYNTHETIC EVENT STATE','insp_carrier_state':'CA'},
-            {'dot_number':'3938496','inspection_id':'1001','insp_date':'20260215','report_state':'NY','location_desc':'SYNTHETIC REPORTING JURISDICTION','insp_carrier_state':'CA'}]
+            {'dot_number':'3938496','inspection_id':'1001','insp_date':'20260215','county_code_state':'ZZ','report_state':'NY','location_desc':'SYNTHETIC REPORTING JURISDICTION','insp_carrier_state':'CA'}]
         if sid=='aayw-vxb3':rows=[{'dot_number':'3938496','crash_id':'800','report_date':'20260315','state':'VA','fatalities':'0','crash_carrier_state':'CA'},
-            {'dot_number':'3938496','crash_id':'801','report_date':'20260415','crash_carrier_state':'CA'}]
+            {'dot_number':'3938496','crash_id':'801','report_date':'01022026','crash_carrier_state':'CA'}]
         select=params.get('$select',[''])[0]
         if 'count(' in select:route.fulfill(json=[{'count':str(len(rows))}]);return
         offset=int(params.get('$offset',['0'])[0]);limit=int(params.get('$limit',['5000'])[0]);rows=rows[offset:offset+limit]
@@ -104,7 +104,7 @@ def run(output):
                 result['checks'].append('Map source failure clears stale counts; explicit retry restores filtered evidence')
                 page.goto(base+'#/carrier/3938496/summary',wait_until='domcontentloaded');panel=page.get_by_test_id('carrier-safety-map');panel.wait_for()
                 panel.locator('[data-map-ready=true]').wait_for();panel.get_by_text('3 mapped records',exact=True).wait_for()
-                assert '1 unlocated' in panel.inner_text();assert panel.locator('.t3-map-marker').count()==3
+                assert '1 unlocated' in panel.inner_text();assert '1 unknown/invalid dates' in panel.inner_text();assert panel.locator('.t3-map-marker').count()==3
                 assert not panel.locator('.t3-map-marker').filter(has_text='CA').count()
                 panel.get_by_label('Include reporting jurisdictions',exact=True).uncheck();panel.get_by_text('2 mapped records',exact=True).wait_for()
                 panel.get_by_label('Crashes',exact=True).uncheck();panel.get_by_text('1 mapped records',exact=True).wait_for()
@@ -112,7 +112,7 @@ def run(output):
                 panel.get_by_role('button',name='Reset map filters',exact=True).click();panel.get_by_text('3 mapped records',exact=True).wait_for()
                 for width in (1440,390):
                     page.set_viewport_size({'width':width,'height':1000});panel.scroll_into_view_if_needed();assert page.evaluate('document.documentElement.scrollWidth <= innerWidth+2');capture(page,'summary-map-'+str(width))
-                result['checks'].append('Summary maps event states separately from reporting jurisdictions; date/layer filters, missing locations and reset work')
+                result['checks'].append('Summary maps unknown event states only as labelled reporting jurisdictions, rejects non-YYYYMMDD daily dates, and preserves layer/date/reset controls')
                 assert not errors,errors;assert all(urlsplit(url).hostname=='data.transportation.gov' for url in external),external
                 result['checks'].append('No runtime errors or external tile/geocoder requests; all source records synthetic');result['status']='PASS'
             except Exception as error:

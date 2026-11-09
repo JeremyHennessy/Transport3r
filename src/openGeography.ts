@@ -1,7 +1,8 @@
 /** Display-only regional geography. No registered address is used as an event location. */
 import boundaries from './stateBoundaries.json';
 import {fetchSourceJson, readValue, parseDateValue, type DataRow} from './datahub';
-import type {CarrierEvidence} from './carrierEvidence';
+import {SOURCE_IDS, type CarrierEvidence} from './carrierEvidence';
+import {dailyCalendarDate, dailyCarrierMatches} from './snapshotSafety';
 import type {FeatureCollection, MultiPolygon} from 'geojson';
 
 function unproject(code: string, x: number, y: number): [number, number] {
@@ -97,21 +98,20 @@ export function safetyGeography(evidence: CarrierEvidence, options: SafetyMapOpt
   for (const [key,kind,enabled] of [['inspections','inspection',options.inspections],['crash','crash',options.crashes]] as const) {
     if (!enabled) continue;
     const slice = evidence.slices[key];
-    if (!slice || evidence.errors[key]) {unavailable.push(key); continue;}
+    if (!slice || evidence.errors[key] || slice.sourceId !== SOURCE_IDS[key]) {unavailable.push(key); continue;}
     for (const row of slice.rows) {
-      const dot = readValue(row,['DOT_NUMBER','USDOT_NUMBER']);
-      if (dot && (!/^0*[1-9][0-9]*$/.test(dot.trim()) || dot.trim().replace(/^0+/,'') !== evidence.dotNumber)) {rejected++; continue;}
-      const parsed = parseDateValue(readValue(row,kind === 'inspection' ? ['INSP_DATE'] : ['REPORT_DATE']));
-      const date = parsed?.toISOString().slice(0,10) ?? '';
+      if (!dailyCarrierMatches(row, evidence.dotNumber)) {rejected++; continue;}
+      const date = dailyCalendarDate(readValue(row,kind === 'inspection' ? ['INSP_DATE'] : ['REPORT_DATE'])) ?? '';
       if (!date) {invalidDates++; if (options.start || options.end) continue;}
       if (date && (options.start && date < options.start || options.end && date > options.end)) {outsideWindow++; continue;}
       considered++;
       const eventState = readValue(row,kind === 'inspection' ? ['COUNTY_CODE_STATE'] : ['STATE'])?.trim().toUpperCase();
-      const reportState = readValue(row,['REPORT_STATE'])?.trim().toUpperCase();
-      // A missing/unknown event state may be shown only as an explicitly labelled jurisdiction.
-      const reporting = !eventState && !!reportState;
+      // Only inspections have the documented REPORT_STATE jurisdiction fallback.
+      const reportState = kind === 'inspection' ? readValue(row,['REPORT_STATE'])?.trim().toUpperCase() : undefined;
+      const eventKnown = REGIONS.has(eventState ?? '');
+      const reporting = !eventKnown && REGIONS.has(reportState ?? '');
       if (reporting && !options.includeReporting) {reportingExcluded++; continue;}
-      const state = eventState || reportState || '';
+      const state = eventKnown ? eventState! : reporting ? reportState! : '';
       if (!REGIONS.has(state)) {unlocated++; continue;}
       const region = regions.get(state) ?? {code:state,count:0,inspections:0,crashes:0,reporting:0};
       region.count++; if (kind === 'inspection') region.inspections!++; else region.crashes!++;
