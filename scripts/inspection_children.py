@@ -78,6 +78,10 @@ def collect_children(sid, parents, folder, parent_lineage, max_rows=100000, page
             pages.append({'path':name,'sha256':hash_file(folder/name),'rows':len(batch),'offset':offset})
             if len(batch)>page_size:
                 raise ValueError('Child response exceeds requested page size')
+            # Hard safety ceilings take precedence over source-drift retries:
+            # a page may grow beyond both its earlier count and the cap.
+            if len(rows)+len(batch)>max_rows:
+                raise ValueError('Complete child source exceeds accepted row ceiling')
             # A preflight count is a source observation, not a row ceiling.
             # More rows than preflight means the source changed, and the entire
             # current cut must fail closed so bounded acquisition can retry.
