@@ -100,6 +100,9 @@ export function assertReportSnapshot(evidence: CarrierEvidence, actual: SafetyWi
         JSON.stringify(source.accounting) !== JSON.stringify(match.accounting) ||
         source.slice?.total !== match.slice?.total || source.slice?.truncated !== match.slice?.truncated ||
         source.slice?.sourceId !== match.slice?.sourceId ||
+        source.slice?.sourcePublication !== match.slice?.sourcePublication ||
+        source.slice?.acquiredAt !== match.slice?.acquiredAt ||
+        source.slice?.scope !== match.slice?.scope ||
         JSON.stringify(source.slice?.eventWindow) !== JSON.stringify(match.slice?.eventWindow) ||
         source.slice?.rows.length !== match.slice?.rows.length ||
         (match.slice && !match.slice.rows.every((row,index) => row === source.slice?.rows[index] ||

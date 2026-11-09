@@ -75,6 +75,9 @@ for(const [label,mutate] of [
  ['cut',w=>w.provenance.cutId='different'],['rows',w=>w.sources[0].slice.rows[0].insp_date='20260102'],
  ['totals',w=>w.sources[0].slice.total=999],['duplicate source',w=>w.sources[1]=structuredClone(w.sources[0])],
  ['accounting',w=>w.sources[0].accounting.selectedRows=100],['date window',w=>w.sources[0].slice.eventWindow.end='2026-10-01'],
+ ['nested publication',w=>w.sources[0].slice.sourcePublication='another acquisition'],
+ ['nested retrieval time',w=>w.sources[0].slice.acquiredAt='2026-11-09T05:00:00Z'],
+ ['nested query scope',w=>w.sources[0].slice.scope='carrier'],
 ])test(`report and export both reject tampered ${label}`,()=>{
  const e=fixture(),w=structuredClone(app.safetyWindowFromEvidence(e,selected));mutate(w);
  assert.throws(()=>app.reportModel(e,w));assert.throws(()=>app.reportArchive(e,w));
