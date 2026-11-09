@@ -107,6 +107,27 @@ class InspectionChildTests(unittest.TestCase):
         # The failed partial pages remain audit evidence, not a complete manifest.
         self.assertTrue(list(self.root.glob('*.page-*.json')))
 
+    def test_child_growth_past_actual_hard_cap_stays_fatal(self):
+        # Distinguish a changed source from an ACTUAL configured safety breach:
+        # if count_before=1, page has 2, and max_rows=1, never auto-retry.
+        sid='wt8s-2hbx'
+        changed_rows=[{'inspection_id':'123','source_row_id':'child1'},
+                      {'inspection_id':'123','source_row_id':'child2'}]
+        def state(source,where):
+            return {**self.parent_lineage['after'],'observed_at':now(),
+                    'row_count':1 if source==PARENT else 2,
+                    'metadata':{'columns':[{'fieldName':'inspection_id',
+                                            'dataTypeName':CHILDREN.get(source,'number')} ]}}
+        def query(source,**params):
+            if params.get('select')=='count(*) as count':
+                return [{'count':'1'}]
+            return changed_rows[params['offset']:params['offset']+params['limit']]
+        with patch.object(cs,'state',side_effect=state),patch.object(cs,'query',side_effect=query):
+            with self.assertRaisesRegex(ValueError,'accepted row ceiling') as raised:
+                collect_children(sid,self.parents,self.root,self.parent_lineage,
+                                 max_rows=1,page_size=5000)
+        self.assertNotIsInstance(raised.exception,cs.SourceChangedError)
+
     def test_child_final_count_mismatch_is_retryable_source_drift(self):
         sid='wt8s-2hbx'
         rows=[{'inspection_id':'123','source_row_id':'child1'}]
