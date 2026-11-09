@@ -41,6 +41,8 @@ jobs:
         run: python scripts/validate_private_browser.py /tmp/transport3r-review/private-browser
       - name: Verify filtered open maps and responsive carrier table (synthetic data only)
         run: python scripts/validate_open_maps_browser.py /tmp/transport3r-review/open-maps-browser
+      - name: Verify same-snapshot reports and VIN-specific findings (synthetic data only)
+        run: python scripts/validate_snapshot_vin_browser.py /tmp/transport3r-review/snapshot-vin-browser
       - name: Retain reproducible public-code review package
         if: always()
         run: |

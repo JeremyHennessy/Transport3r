@@ -3,12 +3,25 @@ import { DAILY_DATE_FIELDS, validateEventWindow, type EventWindow } from './even
 import {completeQuery} from './completeEvidence';
 
 export const WINDOW_SOURCES = [{id:'fx4q-ay7w',label:'Daily inspections'}, {id:'aayw-vxb3',label:'Daily crash involvement'}] as const;
+export type SafetyWindowSource = {
+  id: string; label: string; slice?: DataSlice; error?: string;
+  before?: {rowsUpdatedAt:number; viewLastModified:number};
+  after?: {rowsUpdatedAt:number; viewLastModified:number};
+  sourcePublication?: string; sourceAcquiredAt?: string;
+  accounting?: {inputRows:number; selectedRows:number; outsideWindow:number;
+    missingDates:number; invalidDates:number; afterCutDates:number; rejectedIdentities:number};
+};
+export type SafetyWindowResult = {
+  dot:string; window:EventWindow; acquiredAt:string; sources:SafetyWindowSource[];
+  provenance?: {kind:'accepted_warehouse'|'retained_evidence'; cutId:string|null;
+    cutAvailableAt:string|null; warehouseSha256:string|null; windowExtendsBeyondCut:boolean};
+};
 async function watermark(id: string) {
   const value = await fetchSourceJson(`https://data.transportation.gov/api/views/${id}`) as Record<string,unknown>;
   if (!value || value.id !== id || !Number.isSafeInteger(value.rowsUpdatedAt) || !Number.isSafeInteger(value.viewLastModified)) throw new Error('Source publication metadata unavailable.');
   return { rowsUpdatedAt:value.rowsUpdatedAt as number, viewLastModified:value.viewLastModified as number };
 }
-export async function loadSafetyWindow(registry: SchemaRegistry, dot: string, selected: EventWindow, complete = false) {
+export async function loadSafetyWindow(registry: SchemaRegistry, dot: string, selected: EventWindow, complete = false): Promise<SafetyWindowResult> {
   if (!/^[1-9]\d*$/.test(dot)) throw new Error('Invalid USDOT.');
   const window = validateEventWindow(selected);
   const sources = await Promise.all(WINDOW_SOURCES.map(async source => {
@@ -26,7 +39,6 @@ export async function loadSafetyWindow(registry: SchemaRegistry, dot: string, se
   }));
   return { dot, window, acquiredAt:new Date().toISOString(), sources };
 }
-export type SafetyWindowResult = Awaited<ReturnType<typeof loadSafetyWindow>>;
 export function windowMonths(slice: DataSlice) {
   const window = validateEventWindow(slice.eventWindow!);
   const counts = new Map<string,number>();

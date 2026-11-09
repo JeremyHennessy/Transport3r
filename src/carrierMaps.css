@@ -53,3 +53,5 @@
  .t3-carrier-table [data-testid=directory-sms]{grid-column:1/-1}.t3-map-marker{font-size:10px;padding:4px 6px}
  .t3-map-summary{align-items:start;flex-direction:column}.t3-map-credit{font-size:10px}
 }
+
+.t3-vin-defects{margin-top:24px;overflow-wrap:anywhere}.t3-vin-finding{padding:16px 0;border-top:1px solid #dce6ed}.t3-vin-finding h4{margin:0 0 8px}.t3-vin-finding p{margin:8px 0}.t3-vin-finding pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}
