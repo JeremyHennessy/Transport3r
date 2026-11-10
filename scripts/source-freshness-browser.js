@@ -49,6 +49,17 @@
     location.hash='#/overview';
     await waitFor(() => document.querySelector('.t3-health.good')?.textContent.includes('Snapshot: 36/36'),'fresh badge rerender');
     check(document.querySelector('.t3-health.good')!==null,'Returning the synthetic clock to the observation window updates the header and Overview');
+    now = start - (48*60+10)*60_000;
+    window.dispatchEvent(new Event('focus'));
+    await waitFor(() => document.querySelector('.t3-health.warn')?.textContent.includes('Source snapshot unavailable'),'future-skew header unavailable');
+    check(document.querySelector('.t3-status-head')?.textContent.includes('Unavailable'),'Overview treats invalid/future snapshot time as unavailable rather than stale');
+    location.hash='#/alerts';
+    await waitFor(() => document.querySelector('.t3-alert-table')?.textContent.includes('source snapshot unavailable'),'future-skew Alerts unavailable');
+    check(document.querySelectorAll('.t3-alert-table .t3-source-dot.stale').length===0,'Alerts does not fabricate a stale saved result when snapshot time is unavailable');
+    location.hash='#/sources';
+    await waitFor(() => document.querySelectorAll('.t3-source-row .t3-source-dot.unavailable').length===36,'future-skew Data Sources unavailable');
+    check(document.querySelectorAll('.t3-source-row .t3-source-dot.stale').length===0,'Data Sources distinguishes unavailable snapshot timing from expired evidence');
+    check(document.querySelector('.t3-mini-stats')?.textContent.includes('No valid saved observation time'),'Data Sources summary explains unavailable snapshot timing');
     result.status='PASS';
   } catch (error) {result.status='FAIL';result.error=String(error);}
   finally {
