@@ -133,10 +133,10 @@ export async function loadPeerBenchmark(carrier:DataRow,signal?:AbortSignal):Pro
     limitation:'Descriptive current-publication benchmark only. Peers are active registrations with the same country, operation and fleet-size band, positive reported power units/drivers and an MCS-150 date within the preceding 730 days. It is not an SMS percentile, claims benchmark or predictive risk score.'};
 }
 
-function clean(value:string|undefined){const v=value?.trim();return v&&v.length<=160&&!['NONE','UNKNOWN','N/A','NA','NULL'].includes(v.toUpperCase())?v:null;}
-function normText(value:string|undefined){return clean(value)?.replace(/\s+/g,' ').toUpperCase()??null;}
-function normDigits(value:string|undefined){const d=(value??'').replace(/\D/g,'');return d||null;}
-function normEmail(value:string|undefined){return clean(value)?.toLowerCase()??null;}
+function clean(value:string|null|undefined){const v=value?.trim();return v&&v.length<=160&&!['NONE','UNKNOWN','N/A','NA','NULL'].includes(v.toUpperCase())?v:null;}
+function normText(value:string|null|undefined){return clean(value)?.replace(/\s+/g,' ').toUpperCase()??null;}
+function normDigits(value:string|null|undefined){const d=(value??'').replace(/\D/g,'');return d||null;}
+function normEmail(value:string|null|undefined){return clean(value)?.toLowerCase()??null;}
 function exactAddress(row:DataRow){const fields=['PHY_STREET','PHY_CITY','PHY_STATE','PHY_COUNTRY','PHY_ZIP'];const values=fields.map(f=>normText(readValue(row,[f])));return values.every(Boolean)?values.join(' | '):null;}
 function matchingCategories(seed:DataRow,row:DataRow){
   const result:string[]=[];

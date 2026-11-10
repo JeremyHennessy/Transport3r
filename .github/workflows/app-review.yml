@@ -87,7 +87,7 @@ jobs:
           PAGE_URL: https://jeremyhennessy.github.io/Transport3r/
         run: |
           node scripts/verify-hosted.mjs
-          python scripts/verify_live_ui.py --output /tmp/current-release-ui --routes overview carriers atlas atlas-carrier summary safety authority evidence portfolio alerts methodology fleet insurance sms intelligence sources inspection vin integrity
+          python scripts/verify_live_ui.py --output /tmp/current-release-ui --routes overview carriers atlas atlas-carrier summary safety authority evidence portfolio alerts methodology fleet insurance sms sources inspection vin integrity
       - uses: actions/upload-artifact@v4
         if: always()
         with:
