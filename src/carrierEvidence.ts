@@ -68,7 +68,7 @@ export const VIOLATION_FIELD_ALIASES = {
 } as const;
 
 export type EvidenceKey = keyof typeof SOURCE_IDS;
-export type CarrierEvidenceMode = 'summary' | 'safety' | 'atlas' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence' | 'inspection';
+export type CarrierEvidenceMode = 'summary' | 'safety' | 'atlas' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'intelligence' | 'evidence' | 'inspection';
 export type CompletenessReceipt = {
   backend: 'verified_nationwide_warehouse' | 'live_public_sources';
   status: 'VERIFIED' | 'LIVE_SOURCE_WINDOW' | 'PARTIAL' | 'UNAVAILABLE';
@@ -121,6 +121,7 @@ const MODE_KEYS: Record<CarrierEvidenceMode, EvidenceKey[]> = {
   insurance: ['inspections', 'crash', 'violations', 'units', 'motusCarrier', 'motusBoc3',
     'motusInsurance', 'motusInsuranceHistory', 'motusInsuranceDelta', 'motusInsuranceHistoryDelta'],
   sms: ['smsCensus', 'smsInspection', 'smsCrash', 'smsViolation', 'smsABPass', 'smsCPass', 'smsABProperty', 'smsCProperty'],
+  intelligence: ['inspections', 'crash', 'motusCarrier', 'motusAuthHistory', 'motusInsurance', 'motusInsuranceHistory', 'motusRevokeSuspend', 'newEntrantOos'],
   inspection: ['inspections', 'units', 'violations', 'citations', 'specialStudies'],
   evidence: Object.keys(SOURCE_IDS) as EvidenceKey[],
 };

@@ -3,6 +3,7 @@ import {CompleteLoadStatus,AllSourceRecords,mergeComplete} from './CompleteData'
 import {CarrierInsight} from './CarrierInsight';
 import {InsuranceLineReview} from './InsuranceLineReview';
 import {OfficialSmsPanel} from './OfficialSmsPanel';
+import {PublicIntelligencePanel} from './PublicIntelligencePanel';
 import { InspectionDetail, ObservedVinDetail } from './InspectionDrilldowns';
 import { loadInspectionEvidence } from './inspectionEvidence';
 import { SafetyWindowPanel } from './SafetyWindowPanel';
@@ -37,7 +38,7 @@ import { EvidenceStatus, ExposureContext } from './EvidenceStatus';
 import { orderSummary, filingChangeSummary, motusMaximumCoverageLabel, MOTUS_COVERAGE_UNIT_NOTE } from './evidenceLifecycle';
 import { replayCarrierInspectionMeasures, replaySummary, smsReplayMessages } from './smsReplay';
 
-type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence';
+type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'intelligence' | 'evidence';
 
 type ParsedRoute =
   | { kind: 'section'; dotNumber: string; section: CarrierSection }
@@ -69,6 +70,7 @@ const SECTIONS: Array<{ id: CarrierSection; label: string; description: string }
   { id: 'authority', label: 'Authority', description: 'MOTUS & OOS' },
   { id: 'insurance', label: 'Insurance', description: 'Filings & history' },
   { id: 'sms', label: 'SMS', description: 'Official + replay' },
+  { id: 'intelligence', label: 'Intelligence', description: 'Compliance, peers & links' },
   { id: 'evidence', label: 'Evidence', description: 'All source lineage' },
 ];
 
@@ -343,6 +345,7 @@ export default function CarrierRouteApp() {
     if (route.section === 'authority') return wrap(<Authority evidence={displayEvidence}/>);
     if (route.section === 'insurance') return wrap(<><InsuranceLineReview evidence={displayEvidence}/><Insurance evidence={displayEvidence}/></>);
     if (route.section === 'sms') return wrap(<Sms evidence={displayEvidence}/>);
+    if (route.section === 'intelligence') return <PublicIntelligencePanel carrier={carrier.raw} evidence={displayEvidence}/>;
     return wrap(<><Evidence carrier={carrier} evidence={displayEvidence}/><AllSourceRecords key={route.dotNumber} evidence={displayEvidence}/></>);
   }, [route, carrier, evidence, mode, selectedInspection]);
 

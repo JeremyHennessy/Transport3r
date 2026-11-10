@@ -2,13 +2,14 @@
  const result={status:'RUNNING',checks:[],simulation:true},original=fetch.bind(window),sleep=ms=>new Promise(r=>setTimeout(r,ms));
  const wait=async fn=>{for(let i=0;i<700;i++){if(fn())return;await sleep(20);}throw Error('Date/enrichment browser timeout');};
  const check=(value,label)=>{if(!value)throw Error(label);result.checks.push(label);};
- const vin='3C63RRGLXPG628183';let decoded=0,failDecode=false,changing=false,stamp=1,delay=false;const ranges=[];
+ const vin='3C63RRGLXPG628183';let decoded=0,recallCalls=0,failDecode=false,changing=false,stamp=1,delay=false;const ranges=[];
  const panel=()=>document.querySelector('[data-testid="safety-window"]');
  const setDate=(index,value)=>{const input=panel().querySelectorAll('input')[index];Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));};
  const apply=()=>panel().querySelector('button').click();
  window.fetch=async(input,options)=>{
   const text=String(input);
-  if(text.includes('vpic.nhtsa.dot.gov')){decoded++;return failDecode?new Response('{}',{status:503}):Response.json({Results:[{VIN:vin,ErrorCode:'1',ErrorText:'Check digit warning',Make:'RAM',ModelYear:'2023',GVWR:'Class 3'}]});}
+  if(text.includes('vpic.nhtsa.dot.gov')){decoded++;return failDecode?new Response('{}',{status:503}):Response.json({Results:[{VIN:vin,ErrorCode:'1',ErrorText:'Check digit warning',Make:'RAM',Model:'3500',ModelYear:'2023',GVWR:'Class 3'}]});}
+  if(text.includes('api.nhtsa.gov/recalls/recallsByVehicle')){recallCalls++;return Response.json({results:[{NHTSACampaignNumber:'26V001000',Subject:'SYNTHETIC CAMPAIGN',Component:'EQUIPMENT',Manufacturer:'SYNTHETIC',ReportReceivedDate:'01/01/2026',Summary:'Synthetic recall fixture',Consequence:'Synthetic consequence',Remedy:'Synthetic remedy'}]});}
   if(text.includes('data.transportation.gov/api/views/')){const id=text.split('/').at(-1).replace('.json','');return Response.json({id,rowsUpdatedAt:changing?stamp++:1,viewLastModified:1,tableId:1,columns:[]});}
   if(!text.includes('data.transportation.gov/resource/'))return original(input,options);
   const url=new URL(text),sid=url.pathname.split('/').at(-1).replace('.json',''),where=url.searchParams.get('$where')??'';
@@ -38,7 +39,10 @@
   check(specs().textContent.includes('Check digit warning')&&specs().textContent.includes('Class 3'),'NHTSA warnings remain alongside provisional specifications');
   failDecode=true;specs().querySelector('button').click();await wait(()=>specs().textContent.includes('503'));check(!specs().textContent.includes('Class 3'),'Failed lookup clears previous specifications');
   failDecode=false;specs().querySelector('button').click();await wait(()=>specs().textContent.includes('Class 3'));check(true,'VIN specification retry recovers');
-  location.hash='#/sources';await wait(()=>document.querySelector('[data-testid="enrichment-sources"]'));check(document.querySelector('[data-testid="enrichment-sources"]').textContent.includes('NHTSA VIN specifications and Census map boundaries are integrated'),'Source catalog separates integrated enrichment from research candidates');
+  const recalls=()=>document.querySelector('[data-testid="vin-recalls"]');await wait(()=>recalls());recalls().querySelector('button').click();await wait(()=>recalls().textContent.includes('SYNTHETIC CAMPAIGN'));
+  check(recallCalls===1&&recalls().textContent.includes('1 campaign candidate'),'Recall research decodes the verified VIN and queries model-year/make/model campaigns');
+  check(recalls().textContent.includes('not a VIN-specific open-recall determination'),'Recall UI does not convert campaign context into VIN applicability or repair status');
+  location.hash='#/sources';await wait(()=>document.querySelector('[data-testid="enrichment-sources"]'));check(document.querySelector('[data-testid="enrichment-sources"]').textContent.includes('NHTSA VIN specifications, recall-campaign research and Census map boundaries are integrated'),'Source catalog identifies VIN specifications and recall-campaign research as integrated enrichments');
   result.status='PASS';
  }catch(error){result.status='FAIL';result.error=error.message;}
  finally{window.fetch=original;const pre=document.createElement('pre');pre.id='carrier-recovery-result';pre.textContent=JSON.stringify(result);document.body.append(pre);}

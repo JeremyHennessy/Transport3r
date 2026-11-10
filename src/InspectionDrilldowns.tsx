@@ -5,6 +5,7 @@ import { EvidenceStatus } from './EvidenceStatus';
 import { formatDateValue, readValue, type DataRow } from './datahub';
 import { observedVinRows } from './inspectionEvidence';
 import { VinSpecifications } from './VinSpecificationsPanel';
+import { VinRecallPanel } from './VinRecallPanel';
 
 export function VinLink({ row, dot, inspection }: { row: DataRow; dot: string; inspection?: string }) {
   const vin = readValue(row, [...UNIT_FIELD_ALIASES.vin]);
@@ -60,6 +61,7 @@ export function ObservedVinDetail({ evidence, vin }: { evidence: CarrierEvidence
     {observed.rows.length>0&&<Timeline evidence={{...evidence,slices:{...evidence.slices,inspections:{...evidence.slices.inspections!,rows:observed.rows.map(row=>row.parent)}}}} keys={['inspections']}/>} 
     <VinUnitEvidencePanel evidence={evidence} vin={vin}/>
     {observed.rows.length>0&&<VinSpecifications key={`${dot}:${vin}`} vin={vin}/>}
+    {observed.rows.length>0&&<VinRecallPanel key={`recalls:${dot}:${vin}`} vin={vin}/>}
     <EvidenceStatus evidence={evidence}/>
   </section>;
 }
