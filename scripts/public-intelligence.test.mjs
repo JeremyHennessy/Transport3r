@@ -161,6 +161,7 @@ test('related registration screening refetches the seed and retrieves normalized
  assert.match(where,/dot_number<>1209/);
  assert.match(where,/phone like '%5%5%5%1%2%3%4%5%6%7%'/);
  assert.match(where,/upper\(company_officer_1\) like '%JANE%SAMPLE%'/);
+ assert.match(where,/prior_revoke_dot_number='1209'/);
 });
 test('related registration screen discloses a source ceiling instead of claiming completeness',async t=>{
  t.mock.method(globalThis,'fetch',async input=>{

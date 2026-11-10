@@ -223,7 +223,7 @@ export async function loadRelatedCarrierLeads(carrier:DataRow,signal?:AbortSigna
   const address=addressFields.map(field=>normText(readValue(seed,[field])));
   if(address.every((value):value is string=>!!value))conditions.push(addressFields.map((field,i)=>like(field.toLowerCase(),tokenPattern(address[i]!),'upper')).join(' AND '));
   const prior=normDigits(readValue(seed,['PRIOR_REVOKE_DOT_NUMBER']));if(prior)conditions.push(`dot_number=${Number(prior)}`);
-  conditions.push(`prior_revoke_dot_number=${Number(dot)}`);
+  conditions.push(`prior_revoke_dot_number='${escapeSoql(dot)}'`);
   const params=new URLSearchParams({'$select':'dot_number,legal_name,status_code,add_date,mcs150_date,phone,cell_phone,email_address,company_officer_1,company_officer_2,dun_bradstreet_no,phy_street,phy_city,phy_state,phy_country,phy_zip,prior_revoke_dot_number',
     '$where':`dot_number<>${Number(dot)} AND (${conditions.map(c=>`(${c})`).join(' OR ')})`,'$order':'dot_number','$limit':'201'});
   const rows=await censusQuery(params,signal),after=await publication(signal);
