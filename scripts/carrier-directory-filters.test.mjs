@@ -215,6 +215,19 @@ test('Census already-aborted signal cannot issue a retry even if first operation
 });
 
 
+test('expired partial source snapshot keeps never-observed probes unavailable', () => {
+  const observed='2026-11-10T00:00:00Z', at=Date.parse(observed);
+  const health={generated_at:observed,sources:[
+    {id:'az4n-8mr2',status:'healthy'},
+    {id:'aayw-vxb3',status:'failed'},
+  ]};
+  assert.equal(app.sourceProbeDisplayStatus(health,'az4n-8mr2',at+49*3600000),'stale');
+  assert.equal(app.sourceProbeDisplayStatus(health,'aayw-vxb3',at+49*3600000),'stale');
+  assert.equal(app.sourceProbeDisplayStatus(health,'fx4q-ay7w',at+49*3600000),'unavailable');
+  assert.equal(app.sourceProbeDisplayStatus(health,'fx4q-ay7w',at+3600000),'unavailable');
+  assert.equal(app.sourceProbeDisplayStatus(health,'az4n-8mr2',at-6*60000),'unavailable');
+});
+
 test('source health badge freshness expires after 48 hours despite 36 healthy probes', () => {
   const observed = '2026-11-08T00:00:00Z';
   const at = Date.parse(observed);
