@@ -36,6 +36,11 @@ export function biennialReview(dot:string,mcs150Date:string|undefined,asOf=new D
   if(due.getTime()>asOf.getTime()){year-=2;due=lastDay(year,month);}
   const next=lastDay(year+2,month);
   const report=parseDateValue(mcs150Date);
+  if(report&&report.getTime()>asOf.getTime()){
+    return{id:'BIENNIAL',title:'Biennial registration update',state:'DATA_GAP',sourceId:CENSUS,
+      summary:`Scheduled cycle ${iso(due)}. Latest Census report ${iso(report)} is later than the evidence review time ${iso(asOf)} and cannot establish filing status at this snapshot.`,
+      action:'Verify the source date/cut and current FMCSA record before applying a filing conclusion.'};
+  }
   const transitionCycle=due>=SUSPENSION_START&&due<=asOf;
   const guidanceFresh=asOf>=SUSPENSION_GUIDANCE_OBSERVED&&asOf<=SUSPENSION_GUIDANCE_REVIEW_AFTER;
   const windowStart=new Date(due.getTime()-366*86400000);

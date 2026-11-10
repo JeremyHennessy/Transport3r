@@ -30,6 +30,12 @@ test('temporary guidance becomes a data gap after its review boundary instead of
  assert.match(value.summary,/requires re-verification after 2026-12-10/);
  assert.doesNotMatch(value.summary,/currently/i);
 });
+test('future-dated MCS-150 evidence becomes a data gap at the retained review time',()=>{
+ const value=app.biennialReview('1209','20261201',new Date('2026-09-01T00:00:00Z'));
+ assert.equal(value.state,'DATA_GAP');
+ assert.match(value.summary,/2026-12-01 is later than the evidence review time 2026-09-01/);
+ assert.doesNotMatch(value.summary,/TEMPORARY_SUSPENSION|additional time/i);
+});
 test('pre-suspension scheduled cycle can still produce a review lead without certifying a violation',()=>{
  const value=app.biennialReview('1205','20230101',new Date('2026-05-31T12:00:00Z'));
  assert.equal(value.state,'REVIEW');
