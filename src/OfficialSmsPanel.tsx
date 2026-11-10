@@ -3,7 +3,7 @@ import type {CarrierEvidence} from './carrierEvidence';
 import {loadOfficialSmsBatch,officialSmsView,type OfficialSmsView} from './officialSms';
 
 export function SmsDirectoryCell({view,dot,failed}:{view?:OfficialSmsView;dot:string;failed?:boolean}) {
-  return <span data-testid="directory-sms"><a href={`#/carrier/${dot}/sms`}>{failed?'SMS unavailable - retry':!view?'Loading SMS…':view.status==='empty'?'No public SMS row':view.status==='unavailable'?'SMS unavailable — retry':view.basics.map(basic=>`${basic.short} ${basic.measure??'—'}`).join(' · ')}</a>{view?.status==='available'&&<small>Official measures{view.passenger?' · passenger percentiles in SMS':''}</small>}</span>;
+  return <span data-testid="directory-sms" data-label="Official SMS measures"><a href={`#/carrier/${dot}/sms`}>{failed?'SMS unavailable - retry':!view?'Loading SMS…':view.status==='empty'?'No public SMS row':view.status==='unavailable'?'SMS unavailable — retry':view.basics.map(basic=>`${basic.short} ${basic.measure??'—'}`).join(' · ')}</a>{view?.status==='available'&&<small>Official measures{view.passenger?' · passenger percentiles in SMS':''}</small>}</span>;
 }
 export function OfficialSmsPanel({evidence}:{evidence:CarrierEvidence}) {
   const [fresh,setFresh]=useState<CarrierEvidence|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState('');const generation=useRef(0);

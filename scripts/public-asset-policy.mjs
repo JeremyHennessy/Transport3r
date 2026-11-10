@@ -4,7 +4,7 @@
  * Static input files must be individually reviewed here, never extension-globbed.
  */
 export const PUBLIC_METADATA = new Set(['data/source-health.json', 'data/source-schemas.json']);
-const GENERATED_APP_ASSET = /^assets\/index-[A-Za-z0-9_-]{8}\.(?:js|css)(?:\.map)?$/;
+const GENERATED_APP_ASSET = /^assets\/(?:index|maplibre-gl(?:-worker)?)-[A-Za-z0-9_-]{8}\.(?:js|css)(?:\.map)?$/;
 
 export function assertPublicAsset(path) {
   if (typeof path !== 'string' || !path || path.includes('\\') || path.split('/').some(p => !p || p === '.' || p === '..')) {

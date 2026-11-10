@@ -1,0 +1,57 @@
+/* Open-source maps and a directory layout that never requires horizontal scrolling. */
+.t3-map-panel{margin:24px 0;min-width:0;overflow-wrap:anywhere}
+.t3-map-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.t3-map-heading h2{margin:6px 0 0;font-size:24px;line-height:1.25}
+.t3-map-panel>p{color:#526c79;font-size:14px;line-height:1.65;max-width:110ch}
+.t3-map-precision{border:1px solid #bccfd2;background:#edf6f5;border-radius:30px;padding:8px 12px;font-size:12px;color:#255d63}
+.t3-map-summary{display:flex;gap:8px 24px;align-items:center;flex-wrap:wrap;margin:18px 0;font-size:13px;color:#526c79;min-height:30px}
+.t3-map-summary strong{font-size:18px;color:#183d50}
+.t3-open-map-shell{position:relative;border:1px solid #cbdce3;border-radius:16px;background:#edf3f7;overflow:hidden;min-width:0}
+.t3-open-map{height:420px;width:100%;max-width:100%}
+.t3-open-map canvas{max-width:100%}
+.t3-map-reset{position:absolute;left:14px;top:14px;border:1px solid #b4cbd0;background:#fff;border-radius:6px;padding:8px 12px;font:inherit;font-size:12px;color:#21515e;cursor:pointer;z-index:1}
+.t3-map-marker{display:flex;align-items:center;gap:5px;border:2px solid white;border-radius:24px;padding:5px 8px;background:#286e76;color:#fff;box-shadow:0 2px 7px #183d5038;cursor:pointer;max-width:160px;font:inherit;font-size:11px}
+.t3-map-marker strong{font-size:11px;font-weight:750}.t3-map-marker.selected{background:#ad6248}.t3-map-marker:hover{background:#184f5c}
+.t3-map-marker:focus-visible,.t3-region-list button:focus-visible,.t3-map-reset:focus-visible{outline:3px solid #c88150;outline-offset:3px}
+.t3-map-credit{padding:8px 12px;color:#526c79;background:#f6fafb;font-size:11px}
+.t3-map-error,.t3-map-loading{position:absolute;top:65px;left:14px;right:65px;padding:10px;border-radius:6px;background:#fff;color:#344f5b;font-size:13px}
+.t3-region-list{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0;max-height:240px;overflow-y:auto;overflow-x:clip;padding:4px}
+.t3-region-list button{display:flex;align-items:flex-start;flex-direction:column;gap:4px;border:1px solid #cbdce3;border-radius:9px;padding:9px 12px;background:#f8fbfc;cursor:pointer;color:#245362;font:inherit;font-size:12px;max-width:100%}
+.t3-region-list button[aria-pressed=true]{border-color:#397d81;background:#e9f4f2}.t3-region-list small{color:#607885;font-size:10px}
+.t3-map-note{font-size:11px!important;color:#607885!important;line-height:1.6}
+.t3-map-controls{display:flex;align-items:end;flex-wrap:wrap;gap:14px;margin:18px 0}
+.t3-map-controls label{display:flex;gap:6px;align-items:center;font-size:12px;color:#335362}
+.t3-map-controls input[type=date]{min-width:0;width:144px;max-width:100%;padding:7px;border:1px solid #c8d8de;border-radius:6px;font:inherit}
+.t3-map-warning{border-left:3px solid #b6734d;padding:10px 13px;background:#faf2e9;font-size:12px;color:#775430}
+.t3-map-records{margin:18px 0;border:1px solid #d7e3e7;border-radius:10px;padding:13px;font-size:13px}
+.t3-map-records summary{cursor:pointer;font-weight:650}.t3-map-records article{display:flex;flex-direction:column;gap:5px;padding:12px 0;border-top:1px solid #e2e9ec;margin-top:8px}.t3-map-records small{color:#607885}
+.t3-carrier-table-wrap{overflow:visible!important;max-height:none!important;min-width:0!important;width:100%!important}
+.t3-carrier-table{min-width:0!important;width:100%!important;max-width:100%!important}
+.t3-carrier-table .t3-carrier-row{display:grid!important;grid-template-columns:minmax(0,1.7fr) minmax(0,.65fr) minmax(0,1.1fr) minmax(0,.95fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,.75fr) minmax(0,1.65fr) minmax(0,.65fr) minmax(0,.3fr) minmax(0,.9fr)!important;min-width:0!important;width:100%!important;padding:16px 18px!important;gap:12px!important;align-items:start}
+.t3-carrier-table .t3-carrier-row>span{min-width:0!important;width:auto!important;max-width:100%;white-space:normal!important;overflow-wrap:anywhere!important;word-break:normal;position:static!important;padding:0!important;font-size:12px;line-height:1.55}
+.t3-carrier-table .t3-carrier-row .carrier-name{background:transparent!important;box-shadow:none!important}
+.t3-carrier-table .t3-carrier-row.header>span{font-size:9px;line-height:1.6}
+.t3-carrier-table .t3-carrier-row .evidence-links{display:flex!important;flex-wrap:wrap;gap:4px}
+.t3-carrier-table .t3-exposure-flags{max-width:100%;white-space:normal}
+.t3-carrier-table .t3-exposure-flags small{overflow-wrap:anywhere;white-space:normal}
+.t3-table-panel,.t3-sms-directory-controls{min-width:0;max-width:100%}
+@media(max-width:1200px){
+ .t3-carrier-table .t3-carrier-row.header{display:none!important}
+ .t3-carrier-table .t3-carrier-row:not(.header){grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:16px 20px!important;border:1px solid #d5e1e7;border-radius:12px;margin:12px 0;background:#fff!important;padding:20px!important}
+ .t3-carrier-table .t3-carrier-row>span[data-label]::before{content:attr(data-label);display:block;text-transform:uppercase;letter-spacing:.07em;font-weight:700;font-size:9px;color:#6b8191;margin-bottom:5px}
+ .t3-carrier-table .carrier-name{grid-column:1/-1;font-size:15px!important;padding-bottom:10px!important;border-bottom:1px solid #e1e9ed}
+ .t3-carrier-table [data-testid=directory-sms]{grid-column:span 2}
+ .t3-carrier-table .evidence-links{grid-column:1/-1}
+ .t3-carrier-table .evidence-links::before{flex-basis:100%}
+ .t3-carrier-table-wrap{padding:0 14px 14px;box-sizing:border-box}
+}
+@media(max-width:640px){
+ .t3-open-map{height:330px}.t3-map-heading h2{font-size:20px}.t3-map-panel{padding:18px!important}
+ .t3-map-controls{align-items:start;gap:12px}.t3-map-controls label{flex-wrap:wrap;max-width:100%}
+ .t3-map-controls label:has(input[type=date]){flex:1 1 130px;flex-direction:column;align-items:start}
+ .t3-carrier-table .t3-carrier-row:not(.header){grid-template-columns:repeat(2,minmax(0,1fr))!important;padding:16px!important;gap:14px!important}
+ .t3-carrier-table [data-testid=directory-sms]{grid-column:1/-1}.t3-map-marker{font-size:10px;padding:4px 6px}
+ .t3-map-summary{align-items:start;flex-direction:column}.t3-map-credit{font-size:10px}
+}
+
+.t3-vin-defects{margin-top:24px;overflow-wrap:anywhere}.t3-vin-finding{padding:16px 0;border-top:1px solid #dce6ed}.t3-vin-finding h4{margin:0 0 8px}.t3-vin-finding p{margin:8px 0}.t3-vin-finding pre{white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%}

@@ -1,3 +1,4 @@
+import {CarrierSafetyMap} from './CarrierMaps';
 import {CompleteLoadStatus,AllSourceRecords,mergeComplete} from './CompleteData';
 import {CarrierInsight} from './CarrierInsight';
 import {InsuranceLineReview} from './InsuranceLineReview';
@@ -230,6 +231,7 @@ export function Summary({ carrier, evidence }: { carrier: Carrier; evidence: Car
       <article><span>Coverage continuity</span><strong>{rowCountLabel(evidence.slices.motusInsurance)} active/pending filing rows</strong><p>{rowCountLabel(evidence.slices.motusInsuranceDelta)} insurance changes in the loaded 24-hour difference feed.</p></article>
     </div>
     <div className={`c360-review ${concerns.length ? 'warning' : 'clear'}`}><strong>{concerns.length ? 'Evidence requiring review' : 'No hard-review flags derived from the loaded summary checks'}</strong>{concerns.length ? <ul>{concerns.map((item) => <li key={item}>{item}</li>)}</ul> : <p>This is not a clearance decision. Missing or unavailable evidence is never treated as a clean value.</p>}</div>
+    <CarrierSafetyMap evidence={evidence}/>
     <OfficialSmsPanel evidence={evidence}/>
     <div className="c360-note" data-testid="risk-availability"><strong>Risk score unavailable</strong><p>No numeric Transport3r risk model has been released for any carrier. Missing inspections do not produce a zero or low-risk score. Official SMS evidence and replay results are available separately when the sources return applicable records.</p><a href={`#/carrier/${carrier.dotNumber}/sms`}>Review SMS evidence →</a></div>
     <div className="c360-next-tabs"><a href={`#/carrier/${carrier.dotNumber}/safety`}><strong>Safety</strong><span>Inspect events and violations →</span></a><a href={`#/carrier/${carrier.dotNumber}/authority`}><strong>Authority</strong><span>Verify legal operating state →</span></a><a href={`#/carrier/${carrier.dotNumber}/insurance`}><strong>Insurance</strong><span>Trace filing continuity →</span></a><a href={`#/carrier/${carrier.dotNumber}/sms`}><strong>SMS</strong><span>Compare official vs replay →</span></a></div>

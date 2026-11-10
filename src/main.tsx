@@ -15,6 +15,15 @@ import './visualPolishExtras.css';
 import './atlas.css';
 import './insuranceLineReview.css';
 import './mobileReview.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import './carrierMaps.css';
+import {configureMapLoader} from './mapRuntime';
+import mapWorkerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+configureMapLoader(async () => {
+  const renderer = await import('maplibre-gl');
+  renderer.setWorkerUrl(mapWorkerUrl);
+  return renderer;
+});
 
 type ErrorBoundaryState = { error: Error | null };
 

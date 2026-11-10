@@ -1,6 +1,7 @@
 param(
     [string]$PythonExecutable = 'python',
     [string]$Warehouse = '',
+    [string]$DataDirectory = '',
     [int]$Port = 4789
 )
 $ErrorActionPreference = 'Stop'
@@ -8,9 +9,13 @@ if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyCon
     throw "Port $Port is already in use. Open the existing service or choose another port."
 }
 $projectRoot = Split-Path -Parent $PSScriptRoot
-$privateRoot = Join-Path $projectRoot 'warehouse\private\workspace'
+$storageHelper = Join-Path $PSScriptRoot 'private_storage.py'
+if ($DataDirectory) { $privateRoot = & $PythonExecutable $storageHelper $DataDirectory }
+else { $privateRoot = & $PythonExecutable $storageHelper }
+if ($LASTEXITCODE -ne 0) { throw 'Private storage validation failed; no service was started.' }
+$privateRoot = $privateRoot.Trim()
 New-Item -ItemType Directory -Path $privateRoot -Force | Out-Null
-if (-not $Warehouse) {
+if (-not $Warehouse -and (Test-Path -LiteralPath (Join-Path $projectRoot 'warehouse\nationwide\curated'))) {
     $latest = Get-ChildItem -LiteralPath (Join-Path $projectRoot 'warehouse\nationwide\curated') -Filter '*.acceptance.json' |
         Sort-Object LastWriteTime -Descending | Where-Object { (Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json).status -eq 'VERIFIED' } | Select-Object -First 1
     if ($latest) { $Warehouse = $latest.FullName.Replace('.acceptance.json', '.duckdb') }

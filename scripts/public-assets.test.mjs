@@ -35,7 +35,7 @@ async function publicFixture(t) {
 
 test('only reviewed metadata and current generated hashed application paths are eligible',()=>{
   for(const path of ['index.html','data/source-health.json','data/source-schemas.json','assets/index-ABC123xy.js',
-                    'assets/index-ABC123xy.js.map','assets/index-ABC123xy.css']) assert.doesNotThrow(()=>assertPublicAsset(path));
+                    'assets/index-ABC123xy.js.map','assets/index-ABC123xy.css', 'assets/maplibre-gl-ABC123xy.js', 'assets/maplibre-gl-ABC123xy.js.map']) assert.doesNotThrow(()=>assertPublicAsset(path));
   for(const path of ['assets','data']) assert.doesNotThrow(()=>assertPublicDirectory(path));
 });
 
@@ -122,4 +122,19 @@ test('compiler inventory rejects duplicate, incomplete or out-of-policy output',
   assert.throws(()=>generatedInventory({output:[]}),/Incomplete/);
   assert.throws(()=>generatedInventory({output:[{type:'asset',fileName:'assets/debug.svg',source:'SYNTHETIC'}]}),/Unexpected/);
   assert.throws(()=>generatedInventory({output:[{type:'asset',fileName:'index.html',source:'a'},{type:'asset',fileName:'index.html',source:'b'}]}),/Duplicate/);
+});
+
+test('map chunk names still require the exact compiler inventory',async t=>{
+  const {root,inventory}=await buildFixture(t);
+  await writeFile(join(root,'assets/maplibre-gl-ABC123xy.js'),'not emitted by compiler');
+  await assert.rejects(createManifest(root,commit,inventory),/not the exact generated bundle output/);
+});
+
+
+test('map worker must be bundled and belong to the exact compiler inventory',async t=>{
+  assert.doesNotThrow(()=>assertPublicAsset('assets/maplibre-gl-worker-ABC123xy.js'));
+  assert.throws(()=>assertReviewedStaticAsset('assets/maplibre-gl-worker-ABC123xy.js'));
+  const {root,inventory}=await buildFixture(t);
+  await writeFile(join(root,'assets/maplibre-gl-worker-ABC123xy.js'),'unreviewed worker');
+  await assert.rejects(createManifest(root,commit,inventory),/not the exact generated/);
 });

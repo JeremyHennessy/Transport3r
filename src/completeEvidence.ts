@@ -1,6 +1,8 @@
 import {loadSchemaRegistry,readValue,type DataRow,type DataSlice,type SchemaRegistry} from './datahub';
 import {SOURCE_IDS,type CarrierEvidence,type CompletenessReceipt,type EvidenceKey} from './carrierEvidence';
 import sourceContract from '../data/fmcsa_source_contract.json';
+import {evidenceApiBase} from './integrityModel';
+import {reconcileWarehouseAudit} from './warehouseAcceptance';
 
 export type CompleteProgress={finished:number;total:number;rows:number;source:string;status:'loading'|'complete'|'errors';errors:number;backend?:CompletenessReceipt['backend'];cutId?:string|null;smsReleaseBinding?:CompletenessReceipt['smsReleaseBinding']};
 type SourceContract={identity:{strategy:string;field:string}};
@@ -88,7 +90,7 @@ export async function acquireCompleteCarrier(dot:string,signal:AbortSignal,notif
 type WarehouseSource={source_id:string;carrier_rows:number;status:string;scope:string;source_available_at:string;source_rows_updated_at:number;source_sha256:string;rows:DataRow[]};
 type WarehousePayload={dot_number:string;cut_id:string;cut_available_at:string;identity_contract:string;source_count:number;carrier_rows:number;warehouse_sha256:string;sources:WarehouseSource[];completeness_receipt:{status:string;sources_expected:number;sources_returned:number;unresolved_rows_excluded_from_carrier_assignment:boolean;mapping_totals:{resolved:number;identified_only:number;unresolved:number};sms_release_binding:string;historical_feature_validity:string}};
 export async function acquireWarehouseCarrier(dot:string,signal:AbortSignal,notify:(p:CompleteProgress)=>void=()=>{},baseOverride?:string):Promise<CarrierEvidence>{
- const serviceBase=(baseOverride??warehouseBase).replace(/\/$/,'');if(!serviceBase)throw Error('Verified evidence API is not configured');
+ const serviceBase=evidenceApiBase(baseOverride??warehouseBase);if(!serviceBase)throw Error('Verified evidence API is not configured');
  if(!/^[1-9][0-9]*$/.test(dot))throw Error('Positive USDOT required');
  notify({finished:0,total:36,rows:0,source:'warehouse',status:'loading',errors:0,backend:'verified_nationwide_warehouse'});
  const response=await fetch(`${serviceBase}/v1/carriers/${dot}/evidence`,{signal:AbortSignal.any([signal,AbortSignal.timeout(120000)]),headers:{Accept:'application/json'},credentials:'omit',cache:'no-store'});
@@ -106,6 +108,7 @@ export async function acquireWarehouseCarrier(dot:string,signal:AbortSignal,noti
  if(Object.keys(slices).length!==36||payload.completeness_receipt.sources_returned!==36||carrierRows!==payload.carrier_rows)throw Error('Verified evidence source coverage or carrier total is inconsistent');
  const census=slices.census?.rows;if(census?.length!==1||positive(readValue(census[0],['DOT_NUMBER','USDOT_NUMBER']))!==dot)throw Error('Verified Census identity is not unique or belongs to another carrier');
  const totals=payload.completeness_receipt.mapping_totals;if(!totals||![totals.resolved,totals.identified_only,totals.unresolved].every(value=>Number.isSafeInteger(value)&&value>=0))throw Error('Verified mapping totals are invalid');
+ await reconcileWarehouseAudit(serviceBase,payload,signal);
  const receipt:CompletenessReceipt={backend:'verified_nationwide_warehouse',status:'VERIFIED',cutId:payload.cut_id,cutAvailableAt:payload.cut_available_at,warehouseSha256:payload.warehouse_sha256,identityContract:payload.identity_contract,sourcesExpected:payload.completeness_receipt.sources_expected,sourcesReturned:payload.completeness_receipt.sources_returned,carrierRows:payload.carrier_rows,unresolvedRowsExcluded:payload.completeness_receipt.unresolved_rows_excluded_from_carrier_assignment,mappingTotals:{resolved:totals.resolved,identifiedOnly:totals.identified_only,unresolved:totals.unresolved},smsReleaseBinding:payload.completeness_receipt.sms_release_binding==='VERIFIED'?'VERIFIED':'UNVERIFIED',historicalFeatureValidity:payload.completeness_receipt.historical_feature_validity==='CERTIFIED'?'CERTIFIED':'NOT_CERTIFIED'};
  notify({finished:36,total:36,rows:payload.carrier_rows,source:'warehouse',status:'complete',errors:0,backend:receipt.backend,cutId:receipt.cutId,smsReleaseBinding:receipt.smsReleaseBinding});
  return {dotNumber:dot,mode:'evidence',loadedAt:new Date().toISOString(),registry,slices,errors,census:census[0],completeAll:true,completenessReceipt:receipt};

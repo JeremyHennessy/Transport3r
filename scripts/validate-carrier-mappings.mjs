@@ -1,3 +1,4 @@
+import {sourceRetryDelay} from './live-source-retry.mjs';
 // All production evidence keys are exercised for an inactive/sparse and an active carrier.
 import {build} from 'esbuild';
 import {readFile,writeFile} from 'node:fs/promises';
@@ -7,14 +8,18 @@ const registry=JSON.parse(await readFile('public/data/source-schemas.json','utf8
 const original=globalThis.fetch;
 globalThis.fetch=(url,options)=>String(url).endsWith('/data/source-schemas.json')?Promise.resolve(new Response(JSON.stringify(registry))):original(url,options);
 const carriers=[];
+let currentAttempt=null;
 try {
  for(const dot of ['2855794','3938496']) {
-  const attempts=[];let evidence;
+  const attempts=[];let evidence;currentAttempt={dot,attempts};
   for(let attempt=1;attempt<=3;attempt++) {
    evidence=await app.loadCarrierEvidence(dot,'evidence');
-   attempts.push({attempt,errors:evidence.errors});
-   if(!Object.keys(evidence.errors).length)break;
-   if(attempt<3)await new Promise(resolve=>setTimeout(resolve,1000*attempt));
+   const messages=Object.values(evidence.errors);
+   const delay=messages.length?sourceRetryDelay(messages,attempt):null;
+   attempts.push({attempt,errors:evidence.errors,retry_after_ms:attempt<3?delay:null});
+   if(!messages.length)break;
+   if(attempt>=3||delay===null)break;
+   await new Promise(resolve=>setTimeout(resolve,delay));
   }
   const checks=[];
   for(const [key,sourceId] of Object.entries(app.SOURCE_IDS)) {
@@ -40,7 +45,7 @@ try {
  console.log(JSON.stringify({status:result.status,carriers:carriers.map(c=>({dot:c.dot,mappings:c.checks.length,inspections:c.checks.find(s=>s.key==='inspections')}))},null,2));
  if(process.argv[2])await writeFile(process.argv[2],JSON.stringify(result,null,2));
 }catch(error){
- const result={status:'FAIL',checked_at:new Date().toISOString(),error:error.message,carriers};
+ const result={status:'FAIL',checked_at:new Date().toISOString(),error:error.message,carriers,failed_carrier:currentAttempt};
  if(process.argv[2])await writeFile(process.argv[2],JSON.stringify(result,null,2));
  throw error;
 }finally{globalThis.fetch=original;}

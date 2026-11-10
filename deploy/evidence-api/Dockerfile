@@ -9,5 +9,5 @@ RUN useradd --create-home --uid 10001 transport3r
 ENV PYTHONPATH=/app/scripts EVIDENCE_HOST=0.0.0.0 PORT=8787
 EXPOSE 8787
 USER transport3r
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["python", "-c", "import json,os,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8787')+'/healthz',timeout=3))['status']=='ok'"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 CMD ["python", "-c", "import json,os,urllib.request; assert json.load(urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','8787')+'/readyz',timeout=3))['release_ready'] is True"]
 CMD ["python", "/app/scripts/evidence_api.py"]

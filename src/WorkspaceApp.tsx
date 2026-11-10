@@ -1,3 +1,4 @@
+import {DirectoryMap} from './CarrierMaps';
 import { exposureQualityFlags } from './exposureQuality';
 import {SmsDirectoryCell} from './OfficialSmsPanel';
 import {loadOfficialSmsBatch,officialSmsView,type OfficialSmsView} from './officialSms';
@@ -516,6 +517,8 @@ function CarriersPage() {
     return () => { current = false; controller.abort(); };
   }, [appliedKey, reloadVersion]);
 
+  const appliedMapError = carrierFilterError(applied) || (applied.risk === 'available' ? 'No released risk scores are available; this filter has no matching carriers.' : '');
+  const mapQuery = useMemo(() => { if (appliedMapError) return ''; const query = buildCarrierQuery(applied); for (const key of ['$limit', '$offset', '$order']) query.delete(key); return query.toString(); }, [appliedKey, appliedMapError]);
   const loadedStates = useMemo(() => new Set(rows.map((row) => row.state).filter(Boolean)).size, [rows]);
   const loadedUnits = useMemo(() => exposureTotal(rows, 'powerUnits'), [rows]);
   const loadedDrivers = useMemo(() => exposureTotal(rows, 'drivers'), [rows]);
@@ -576,6 +579,8 @@ function CarriersPage() {
       <div className="t3-query-note">Risk scores are unavailable: no scoring model has been released. Driver limits use reported counts; unknown counts do not match a numeric range.</div>
     </section>
 
+    <DirectoryMap query={mapQuery} unavailable={appliedMapError} refresh={reloadVersion} selectState={state => { window.location.hash = carrierHash({...applied, country: 'US', state, page: 1}); }}/>
+
     <section className="t3-mini-stats t3-directory-stats" aria-live="polite">
       <div><span>Rows loaded</span><strong>{loading || error ? '—' : rows.length.toLocaleString()}</strong><small>Current page</small></div>
       <div><span>Regions represented</span><strong>{loading || error ? '—' : loadedStates.toLocaleString()}</strong><small>Within current page</small></div>
@@ -590,23 +595,23 @@ function CarriersPage() {
       <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
       <nav className="t3-directory-paging t3-actions" aria-label="Directory pages"><button className="t3-button secondary" disabled={loading || applied.page <= 1} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page - 1 }); }}>Previous page</button><span role="status">Page {Number.isSafeInteger(applied.page) ? applied.page : 'invalid'}</span><button className="t3-button secondary" disabled={loading || Boolean(error) || !hasNext} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page + 1 }); }}>Next page</button></nav>
       <p className="t3-table-scroll-note">Pages use a stable USDOT tie-breaker. The live source can change between requests; page totals describe only the displayed records.</p>
-      <p className="t3-table-scroll-note" id="carrier-scroll-help">Scroll horizontally for all columns and evidence links. Counts may come from different MCS-150 report dates.</p>
+      <p className="t3-table-scroll-note" id="carrier-scroll-help">All fields fit the page; smaller screens use labelled carrier cards. Counts may come from different MCS-150 report dates.</p>
       <div className="t3-sms-directory-controls"><button className="t3-button secondary" type="button" disabled={loading||!rows.length} onClick={()=>setSmsRefresh(value=>value+1)}>Refresh table SMS</button><span role="status">{rows.length ? !currentSms ? 'Loading official SMS measures...' : currentSms.error ? 'SMS request failed. Refresh to retry.' : `${Object.values(currentSms.views).filter(view=>view.status==='available').length}/${rows.length} rows have public SMS outputs; ${Object.values(currentSms.views).filter(view=>view.status==='unavailable').length} unavailable` : ''}</span><small>Separate BASIC measures; no combined SMS score. Passenger percentiles are shown in each carrier's SMS tab.</small></div>
       <div className="t3-carrier-table-wrap" role="region" aria-label="Carrier summary table" aria-describedby="carrier-scroll-help" tabIndex={0}>
         <div className="t3-carrier-table">
           <div className="t3-carrier-row header"><span>Carrier</span><span>USDOT</span><span>Location</span><span>Operation</span><span>Fleet</span><span><button className="t3-column-sort" type="button" onClick={sortDrivers} aria-label={`Sort drivers ${applied.sort === 'drivers_desc' ? 'fewest' : 'most'} first`}>Drivers {applied.sort === 'drivers_desc' ? '↓' : applied.sort === 'drivers_asc' ? '↑' : '↕'}</button></span><span>Risk score</span><span>Official SMS measures</span><span>VMT</span><span>HM</span><span>Evidence</span></div>
           {!loading && !error && rows.map((carrier) => <div className="t3-carrier-row" key={carrier.dotNumber}>
-            <span className="carrier-name"><a href={`#/carrier/${carrier.dotNumber}/summary`}>{carrier.legalName}</a>{carrier.dbaName && <small>DBA {carrier.dbaName}</small>}</span>
-            <span className="mono">{carrier.dotNumber}</span>
-            <span>{[carrier.city, carrier.state, carrier.country].filter(Boolean).join(', ') || '—'}</span>
-            <span>{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
-            <span><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small><details className="t3-exposure-flags"><summary>{exposureQualityFlags(carrier).length ? `${exposureQualityFlags(carrier).length} exposure review flags` : 'Exposure checks'}</summary>{exposureQualityFlags(carrier).map(flag => <small key={flag}>{flag}</small>)}<small>Source-reported values retained. Review flags are not safety or fraud findings.</small></details></span>
-            <span title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
-            <span title="No released scoring model is available for this carrier.">Unavailable</span>
+            <span className="carrier-name" data-label="Carrier"><a href={`#/carrier/${carrier.dotNumber}/summary`}>{carrier.legalName}</a>{carrier.dbaName && <small>DBA {carrier.dbaName}</small>}</span>
+            <span className="mono" data-label="USDOT">{carrier.dotNumber}</span>
+            <span data-label="Location">{[carrier.city, carrier.state, carrier.country].filter(Boolean).join(', ') || '—'}</span>
+            <span data-label="Operation">{OPERATION_LABELS[(carrier.operation ?? '').toUpperCase()] ?? carrier.operation ?? '—'}</span>
+            <span data-label="Fleet"><strong>{formatNumber(carrier.powerUnits)}</strong><small>PU · band {carrier.fleetSizeCode ?? '—'}</small><details className="t3-exposure-flags"><summary>{exposureQualityFlags(carrier).length ? `${exposureQualityFlags(carrier).length} exposure review flags` : 'Exposure checks'}</summary>{exposureQualityFlags(carrier).map(flag => <small key={flag}>{flag}</small>)}<small>Source-reported values retained. Review flags are not safety or fraud findings.</small></details></span>
+            <span data-label="Drivers" title={driverReportDetail(carrier.mcs150Date,carrier.statusCode)}>{formatNumber(carrier.drivers)}<small>{censusStatusLabel(carrier.statusCode)} registration</small><small>MCS-150 {formatDateValue(carrier.mcs150Date)}</small></span>
+            <span data-label="Risk score" title="No released scoring model is available for this carrier.">Unavailable</span>
             <SmsDirectoryCell dot={carrier.dotNumber} view={currentSms?.views[carrier.dotNumber]} failed={Boolean(currentSms?.error)}/>
-            <span>{formatNumber(carrier.mileage)}<small>{mileageYearLabel(carrier.mileageYear)}</small></span>
-            <span>{carrier.hazmat || '—'}</span>
-            <span className="evidence-links"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>
+            <span data-label="Reported VMT">{formatNumber(carrier.mileage)}<small>{mileageYearLabel(carrier.mileageYear)}</small></span>
+            <span data-label="Hazmat">{carrier.hazmat || '—'}</span>
+            <span className="evidence-links" data-label="Evidence"><a href={`#/carrier/${carrier.dotNumber}/summary`}>360</a><a href={`#/carrier/${carrier.dotNumber}/safety`}>Safety</a><a href={`#/carrier/${carrier.dotNumber}/fleet`}>Fleet</a><a href={`#/carrier/${carrier.dotNumber}/authority`}>Authority</a><a href={`#/carrier/${carrier.dotNumber}/insurance`}>Insurance</a><a href={`#/carrier/${carrier.dotNumber}/sms`}>SMS</a></span>
           </div>)}
           {!loading && !error && rows.length === 0 && <div className="t3-table-empty"><strong>{applied.risk === 'available' ? 'No released risk scores are available.' : 'No carriers returned for this screen.'}</strong><span>{applied.risk === 'available' ? 'Choose Any availability or Unavailable to browse carriers.' : 'Broaden the filters or search by USDOT for exact entity resolution.'}</span></div>}
           {loading && <div className="t3-table-empty"><span className="t3-spinner"/><strong>Loading current Company Census rows</strong></div>}

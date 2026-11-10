@@ -60,6 +60,22 @@ class IntegrityApiTests(unittest.TestCase):
         self.assertEqual(value['raw_rows'], 8)
         self.assertEqual(len(value['sources']), 36)
 
+    def test_readiness_and_carrier_serving_require_matching_deep_audit(self):
+        base = self.start()
+        with urllib.request.urlopen(base + '/readyz') as response:
+            value = json.load(response)
+        self.assertTrue(value['release_ready'])
+        self.assertFalse(value['private_insurer_hosting'])
+        self.assertEqual(value['warehouse_sha256'], self.report['warehouse_sha256'])
+        with urllib.request.urlopen(base + '/v1/carriers/3706/evidence') as response:
+            carrier = json.load(response)
+        self.assertEqual(carrier['warehouse_sha256'], value['warehouse_sha256'])
+        self.assertEqual(carrier['cut_id'], value['cut_id'])
+        self.assertEqual(carrier['carrier_rows'], 5)
+        with self.assertRaises(urllib.error.HTTPError) as missing:
+            urllib.request.urlopen(base + '/v1/carriers/999/evidence')
+        self.assertEqual(missing.exception.code, 404)
+
     def test_head_has_no_response_body(self):
         base = self.start()
         with urllib.request.urlopen(urllib.request.Request(base + '/v1/integrity', method='HEAD')) as response:
@@ -68,12 +84,16 @@ class IntegrityApiTests(unittest.TestCase):
 
     def test_no_audit_is_not_zero_or_verified(self):
         base = self.start(False)
-        with self.assertRaises(urllib.error.HTTPError) as caught:
-            urllib.request.urlopen(base + '/v1/integrity')
-        self.assertEqual(caught.exception.code, 503)
-        value = json.load(caught.exception)
-        self.assertEqual(value['status'], 'NOT_AUDITED')
-        self.assertNotIn('raw_rows', value)
+        with urllib.request.urlopen(base + '/healthz') as response:
+            self.assertFalse(json.load(response)['release_ready'])
+        for route in ('/readyz', '/v1/integrity', '/v1/carriers/3706/evidence'):
+            with self.subTest(route=route), self.assertRaises(urllib.error.HTTPError) as caught:
+                urllib.request.urlopen(base + route)
+            self.assertEqual(caught.exception.code, 503)
+            value = json.load(caught.exception)
+            self.assertEqual(value['status'], 'NOT_AUDITED')
+            self.assertNotIn('raw_rows', value)
+            self.assertNotIn('carrier_rows', value)
 
     def test_shallow_or_old_schema_is_rejected(self):
         self.reject(lambda r: r.update(deep_exact_duplicates_checked=False))
@@ -115,7 +135,7 @@ class IntegrityApiTests(unittest.TestCase):
     def test_changed_warehouse_fails_closed_on_every_data_route(self):
         base = self.start()
         self.fixture.sql("UPDATE raw_fx4q_ay7w SET payload='changed'")
-        for route in ('/healthz', '/v1/integrity', '/v1/carriers/3706/evidence'):
+        for route in ('/healthz', '/readyz', '/v1/integrity', '/v1/carriers/3706/evidence'):
             with self.subTest(route=route), self.assertRaises(urllib.error.HTTPError) as caught:
                 urllib.request.urlopen(base + route)
             self.assertEqual(caught.exception.code, 503)

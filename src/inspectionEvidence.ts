@@ -43,17 +43,17 @@ export function observedVinRows(evidence: CarrierEvidence, vin: string) {
   const ambiguous = new Set<string>();
   for (const row of evidence.errors.inspections ? [] : evidence.slices.inspections?.rows ?? []) {
     const id = inspectionId(row);
-    if (!id || readValue(row,['DOT_NUMBER']) !== evidence.dotNumber) continue;
+    if (!id) continue;
     if (parents.has(id)) ambiguous.add(id);
     parents.set(id,row);
   }
   const requested = vin.trim().toUpperCase();
   const candidates = (evidence.errors.units ? [] : evidence.slices.units?.rows ?? []).filter(row =>
-    readValue(row,[...UNIT_FIELD_ALIASES.vin])?.trim().toUpperCase() === requested);
+    requested.length > 0 && readValue(row,[...UNIT_FIELD_ALIASES.vin])?.trim().toUpperCase() === requested);
   const rows = candidates.flatMap(unit => {
     const id = inspectionId(unit), parent = id && !ambiguous.has(id) ? parents.get(id) : undefined;
     const childDot = readValue(unit,['DOT_NUMBER']);
-    return parent && (childDot === undefined || childDot === evidence.dotNumber) ? [{ unit, parent, inspectionId: id! }] : [];
+    return parent && readValue(parent,['DOT_NUMBER']) === evidence.dotNumber && (childDot === undefined || childDot === evidence.dotNumber) ? [{ unit, parent, inspectionId: id! }] : [];
   });
   return { rows, rejected: candidates.length - rows.length,
     incomplete: (['units','inspections'] as EvidenceKey[]).some(key => evidence.errors[key] || !evidence.slices[key] || evidence.slices[key]?.truncated) };

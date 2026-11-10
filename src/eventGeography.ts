@@ -1,3 +1,4 @@
+import {dailyCarrierMatches} from './snapshotSafety';
 import {readValue, type DataRow} from './datahub';
 import type {SafetyWindowResult} from './safetyWindow';
 import boundaries from './stateBoundaries.json';
@@ -5,7 +6,7 @@ export function eventGeography(result:SafetyWindowResult) {
   const known=new Set(boundaries.states.map(state=>state.code));
   let unlocated=0,rejected=0;
   const events=result.sources.flatMap(source=>source.error?[]:(source.slice?.rows??[]).flatMap((row:DataRow,index)=>{
-    if(readValue(row,['DOT_NUMBER'])!==result.dot){rejected++;return [];}
+    if(!dailyCarrierMatches(row,result.dot)){rejected++;return [];}
     const kind=source.id==='fx4q-ay7w'?'inspection':'crash';
     const locationState=readValue(row,[kind==='inspection'?'COUNTY_CODE_STATE':'STATE'])?.trim().toUpperCase();
     const reportingState=kind==='inspection'?readValue(row,['REPORT_STATE'])?.trim().toUpperCase():undefined;

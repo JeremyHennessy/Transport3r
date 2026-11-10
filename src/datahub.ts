@@ -1,3 +1,4 @@
+import {sourceJson} from './sourceHttp';
 import { DAILY_DATE_FIELDS, validateEventWindow, type EventWindow } from './eventWindow';
 import sourceContract from '../data/fmcsa_source_contract.json';
 export type DataRow = Record<string, unknown>;
@@ -135,20 +136,7 @@ export function censusReviewNotes(reportDate?: string, status?: string, now = ne
 }
 
 export async function fetchSourceJson(url: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<unknown> {
-  const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { ...init, signal: controller.signal });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.json();
-  } catch (cause) {
-    if (cause instanceof DOMException && cause.name === 'AbortError') {
-      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
-    }
-    throw cause;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
+  return sourceJson(url, init, timeoutMs);
 }
 
 export async function loadSchemaRegistry(): Promise<SchemaRegistry> {

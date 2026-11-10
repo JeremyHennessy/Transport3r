@@ -17,12 +17,13 @@ from private_workspace_store import connect, dot, save_portfolio, portfolio, rel
 from snapshot_store import now, digest
 from insurance_reviews import save_review, list_reviews, history as insurance_review_history, guard_policy_identity_changes
 from coverage_requirements import checklist, save_requirement, history as requirement_history
+from private_storage import workspace_directory
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
 class Workspace:
     def __init__(self,folder,warehouse=None):
-        self.folder=pathlib.Path(folder).resolve();self.path=self.folder/'workspace.sqlite'
+        self.folder=workspace_directory(folder);self.folder.mkdir(parents=True,exist_ok=True,mode=0o700);self.path=self.folder/'workspace.sqlite'
         self.warehouse=warehouse;self.lock=threading.Lock();self.stop=threading.Event()
         with closing(connect(self.path)) as db:pass
 
@@ -103,15 +104,20 @@ class Handler(BaseHTTPRequestHandler):
         if self.command=='GET' and route in ('/','/app.js','/style.css'):
             name={'/':'index.html','/app.js':'app.js','/style.css':'style.css'}[route]
             content=(ROOT/'local_workspace'/name).read_bytes()
-            if route=='/app.js':content+=b'\n'+(ROOT/'local_workspace/coverage-documents.js').read_bytes()
+            if route=='/app.js':
+                content+=b'\n'+(ROOT/'local_workspace/coverage-documents.js').read_bytes()
+                content+=b'\n'+(ROOT/'local_workspace/loss-history.js').read_bytes()
             return self.send(200,content,{'/':'text/html','/app.js':'text/javascript','/style.css':'text/css'}[route])
         if self.command=='GET' and route=='/favicon.ico':return self.send(204,b'','image/x-icon')
         body={}
         if self.command=='POST':
             if self.headers.get('Origin')!=self.origin or self.headers.get('Content-Type')!='application/json':return self.send(403,{'error':'Same-origin JSON request required'})
             length=int(self.headers.get('Content-Length','0'))
-            if not 0<length<=2_000_000:return self.send(413,{'error':'Invalid request size'})
-            body=json.loads(self.rfile.read(length))
+            maximum=2_700_000 if route in ('/api/loss-history/preview','/api/loss-history/import') else 2_000_000
+            if not 0<length<=maximum:return self.send(413,{'error':'Invalid request size'})
+            from private_loss_history import _pairs
+            body=json.loads(self.rfile.read(length),object_pairs_hook=_pairs,
+                            parse_constant=lambda _: (_ for _ in ()).throw(ValueError('NONFINITE_JSON')))
             if not isinstance(body,dict):raise ValueError('JSON object required')
         with closing(connect(self.app.path)) as db:
             if route=='/api/session' and self.command=='GET':
@@ -143,6 +149,22 @@ class Handler(BaseHTTPRequestHandler):
             if route=='/api/logout' and self.command=='POST':
                 cookie=SimpleCookie(self.headers.get('Cookie',''));db.execute('DELETE FROM sessions WHERE token_hash=?',(digest(cookie['t3session'].value),));db.commit()
                 return self.send(200,{},cookie='t3session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0')
+            if route.startswith('/api/loss-history/'):
+                from private_loss_service import preview_request, import_request, list_batches, batch_summary
+                session_hash=digest(SimpleCookie(self.headers.get('Cookie',''))['t3session'].value)
+                if route in ('/api/loss-history/preview','/api/loss-history/import') and self.command=='POST':
+                    action=preview_request if route.endswith('/preview') else import_request
+                    with self.server.policy_lock:
+                        if self.owner(db)!=owner:return self.send(401,{'error':'Sign in again before importing'})
+                        return self.send(200,action(self.app.folder,body,owner,session_hash,self.server.loss_secret))
+                params=urllib.parse.parse_qs(request.query,keep_blank_values=True,strict_parsing=True)
+                if route=='/api/loss-history/batches' and self.command=='GET':
+                    if set(params)-{'limit','offset'} or any(len(v)!=1 for v in params.values()):raise ValueError('INVALID_HISTORY_QUERY')
+                    return self.send(200,list_batches(self.app.folder,int(params.get('limit',['50'])[0]),int(params.get('offset',['0'])[0])))
+                if route=='/api/loss-history/summary' and self.command=='GET':
+                    if set(params)!={'batch_id'} or len(params['batch_id'])!=1:raise ValueError('BATCH_ID_REQUIRED')
+                    return self.send(200,batch_summary(self.app.folder,params['batch_id'][0]))
+                return self.send(405,{'error':'Unsupported loss-history operation'})
             if route=='/api/state' and self.command=='GET':
                 return self.send(200,{'portfolio':portfolio(self.app.folder),'subscriptions':[dict(r) for r in db.execute('SELECT * FROM subscriptions')],
                     'inbox':[dict(r) for r in db.execute('SELECT * FROM inbox ORDER BY delivered_at DESC')],
@@ -283,14 +305,18 @@ class Handler(BaseHTTPRequestHandler):
 
 def make_server(app,port=4789):
     server=ThreadingHTTPServer(('127.0.0.1',port),Handler)
+    server.loss_secret=secrets.token_bytes(32)
     server.workspace=app;server.auth_lock=threading.Lock();server.policy_lock=threading.Lock()
     return server
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--data',default=str(ROOT/'warehouse/private/workspace'))
+    parser.add_argument('--data',help='Private workspace outside the repository; defaults to the OS user-data directory')
     parser.add_argument('--warehouse');parser.add_argument('--port',type=int,default=4789)
-    args=parser.parse_args();app=Workspace(args.data,args.warehouse)
+    args=parser.parse_args()
+    try:folder=workspace_directory(args.data)
+    except ValueError as error:parser.error(str(error))
+    app=Workspace(folder,args.warehouse)
     with closing(connect(app.path)) as db:
         db.execute("UPDATE jobs SET status='INTERRUPTED',finished_at=?,detail='Service stopped during the previous run; retry will acquire a new verified cut.' WHERE status='RUNNING'",(now(),));db.commit()
     server=make_server(app,args.port)

@@ -70,9 +70,13 @@ class NationwideEvidence(unittest.TestCase):
                 base=f'http://127.0.0.1:{server.server_port}'
                 with urllib.request.urlopen(base+'/healthz') as response:
                     health=json.load(response);self.assertEqual(health['status'],'ok');self.assertEqual(response.headers['Access-Control-Allow-Origin'],'https://example.test')
-                with urllib.request.urlopen(base+'/v1/carriers/3706/evidence') as response:self.assertEqual(json.load(response)['carrier_rows'],2)
-                with self.assertRaises(urllib.error.HTTPError) as missing:urllib.request.urlopen(base+'/v1/carriers/999/evidence')
-                self.assertEqual(missing.exception.code,404)
+                # This legacy fixture has no independent audit. Serving it as
+                # complete HTTP evidence is intentionally no longer permitted.
+                for route in ('/readyz','/v1/carriers/3706/evidence','/v1/carriers/999/evidence'):
+                    with self.subTest(route=route),self.assertRaises(urllib.error.HTTPError) as missing:
+                        urllib.request.urlopen(base+route)
+                    self.assertEqual(missing.exception.code,503)
+                    self.assertEqual(json.load(missing.exception)['status'],'NOT_AUDITED')
             finally:server.shutdown();server.server_close();thread.join()
 
 

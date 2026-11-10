@@ -1,3 +1,4 @@
+import {assertReportSnapshot} from './snapshotSafety';
 import {SOURCE_IDS,type CarrierEvidence,type EvidenceKey} from './carrierEvidence';
 import {coverageRows} from './evidenceCoverage';
 import {insight,oosLoaded,value,sourceCount} from './insightModel';
@@ -6,7 +7,7 @@ import {parseDateValue,readValue,type DataRow} from './datahub';
 import type {SafetyWindowResult} from './safetyWindow';
 
 export function reportModel(e:CarrierEvidence,window:SafetyWindowResult) {
-  if(e.dotNumber!==window.dot)throw Error('Report window and carrier identity differ.');
+  assertReportSnapshot(e,window);
   const c=e.census??e.slices.census?.rows[0];
   if(!c||readValue(c,['DOT_NUMBER'])!==e.dotNumber)throw Error('Report requires matching Census identity.');
   const view=insight(e,'summary'),oos=oosLoaded(e),coverage=coverageRows(e);
@@ -36,4 +37,4 @@ export function appendixColumns(key:EvidenceKey,rows:DataRow[]) {
   const preferred=COLUMNS[key]??['docket_number','usdot_number','dot_number','effective_date','status_change_date','op_auth_status','insurance_company_name','inspection_id'];
   return [...preferred.filter(field=>fields.includes(field)),...fields.filter(field=>!preferred.includes(field))].slice(0,5);
 }
-export function reportArchive(e:CarrierEvidence,window:SafetyWindowResult){return {version:'carrier-report-v1',evidenceClass:['OFFICIAL_FMCSA','TRANSPORT_CALCULATED'],dot:e.dotNumber,generatedAt:e.loadedAt,window,evidence:e,sourceIds:SOURCE_IDS,modelScore:null};}
+export function reportArchive(e:CarrierEvidence,window:SafetyWindowResult){reportModel(e,window);return {version:'carrier-report-v1',evidenceClass:['OFFICIAL_FMCSA','TRANSPORT_CALCULATED'],dot:e.dotNumber,generatedAt:e.loadedAt,window,evidence:e,sourceIds:SOURCE_IDS,modelScore:null};}

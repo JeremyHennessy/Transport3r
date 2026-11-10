@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+# Superseded PR revisions must not keep acquiring the same live sources.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -39,6 +44,10 @@ jobs:
         run: python scripts/validate_integrity_browser.py /tmp/transport3r-review/browser
       - name: Verify authenticated local coverage review (synthetic data only)
         run: python scripts/validate_private_browser.py /tmp/transport3r-review/private-browser
+      - name: Verify filtered open maps and responsive carrier table (synthetic data only)
+        run: python scripts/validate_open_maps_browser.py /tmp/transport3r-review/open-maps-browser
+      - name: Verify same-snapshot reports and VIN-specific findings (synthetic data only)
+        run: python scripts/validate_snapshot_vin_browser.py /tmp/transport3r-review/snapshot-vin-browser
       - name: Retain reproducible public-code review package
         if: always()
         run: |
@@ -50,7 +59,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: app-review-${{ github.sha }}
+          name: app-review-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: /tmp/transport3r-review/
           retention-days: 7
           if-no-files-found: error

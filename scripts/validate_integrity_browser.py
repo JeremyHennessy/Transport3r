@@ -20,6 +20,7 @@ from audit_warehouse_integrity import audit
 from evidence_api import EvidenceServer, Handler
 from test_audit_warehouse_integrity import make_fixture
 from verify_live_ui import capture_route, chrome, ROUTES
+from atlas_browser_scenarios import NETWORK_OBSERVER, exercise as exercise_atlas
 
 ROOT=pathlib.Path(__file__).resolve().parents[1]
 
@@ -138,7 +139,7 @@ def run(output):
                     receipt['checks'].append('Unavailable or mismatched audit clears previously displayed totals and disables export')
                     # Test public insurance and Atlas UI with explicitly synthetic browser data.
                     web.root=(ROOT/'dist').resolve()
-                    fixture=(ROOT/'scripts/report-fixture-browser.js').read_text()+"\n(()=>{window.__atlasRequests=[];const fetcher=window.fetch;window.fetch=(input,options)=>{if(String(input).includes('data.transportation.gov/resource/'))window.__atlasRequests.push(String(input));return fetcher(input,options);};})();"
+                    fixture=(ROOT/'scripts/report-fixture-browser.js').read_text()+'\n'+NETWORK_OBSERVER
                     for label in ('insurance','atlas-carrier','evidence','authority'):
                         route=next(r for r in ROUTES if r[0]==label)
                         for width in (1440,390):
@@ -148,23 +149,9 @@ def run(output):
                             assert record['status']=='PASS',record
                             receipt['screenshots'].append(record['screenshot'])
                             if label=='atlas-carrier':
-                                page=context.pages[0]
-                                before=page.evaluate('window.__atlasRequests.length')
-                                page.get_by_role('button',name='Load carrier map',exact=True).click()
-                                page.wait_for_function('(n)=>window.__atlasRequests.length>n',arg=before)
-                                # Source requests can arrive after the first refresh request. Wait until
-                                # the real load completes before counting requests from invalid input.
-                                page.get_by_role('button',name='Load carrier map',exact=True).wait_for(state='visible',timeout=45000)
-                                page.locator('.t3-atlas-map-panel').wait_for()
-                                assert '#/atlas?dot=3938496' in page.url
-                                before=page.evaluate('window.__atlasRequests.length')
-                                page.get_by_role('textbox',name='USDOT number',exact=True).fill('-1')
-                                page.get_by_role('button',name='Load carrier map',exact=True).click()
-                                page.get_by_text('Enter a valid positive USDOT number (up to ten digits).',exact=True).wait_for()
-                                assert page.locator('.t3-atlas-map-panel').count()==0
-                                assert page.evaluate('window.__atlasRequests.length')==before
+                                exercise_atlas(context.pages[0],output,width)
                             context.close()
-                    receipt['checks'].append('Insurance, Atlas, actual Evidence/Authority desktop/mobile capture, unchanged-USDOT refresh and invalid-identity no-request/no-stale-map gates pass with synthetic data')
+                    receipt['checks'].append('Insurance, Atlas, actual Evidence/Authority desktop/mobile capture, exact-generation refresh, invalid-identity no-request and delayed-response no-stale-map gates pass with synthetic data')
                     assert not errors,errors
                     receipt['status']='PASS'
                 finally:browser.close()
