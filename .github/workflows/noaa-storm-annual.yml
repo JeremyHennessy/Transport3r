@@ -1,0 +1,74 @@
+name: NOAA NCEI Storm Events verified annual acquisition
+
+on:
+  pull_request:
+    paths:
+      - "scripts/noaa_storm_events_ingest.py"
+      - "scripts/test_noaa_storm_events.py"
+      - "scripts/noaa_storm_index.py"
+      - "scripts/test_noaa_storm_index.py"
+      - "scripts/evidence_api.py"
+      - "deploy/evidence-api/compose.public-sources.example.yml"
+      - ".github/workflows/noaa-storm-annual.yml"
+      - "docs/noaa-storm-source.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-noaa-storm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install DuckDB for combined FMCSA and NOAA source API tests
+        run: python -m pip install -r scripts/requirements-nationwide.txt
+      - name: Validate loopback read-only public-source Docker Compose spec
+        env:
+          TRANSPORT3R_WAREHOUSE_PATH: /tmp/warehouse.duckdb
+          TRANSPORT3R_NRI_INDEX_PATH: /tmp/fema-nri.sqlite
+          TRANSPORT3R_AUDIT_PATH: /tmp/warehouse.integrity.json
+          TRANSPORT3R_NOAA_INDEX_PATH: /tmp/noaa-storm.sqlite
+        run: |
+          docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --quiet
+          docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);s=d['services']['transport3r-public-evidence'];assert s['read_only'] and s['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in s['volumes']);assert s['environment']['NOAA_STORM_INDEX'];assert s['environment']['EVIDENCE_AUDIT_FILE']"
+      - name: Test NOAA source catalog, row quality, API bounds and offline replay
+        run: python -m unittest discover -s scripts -p "test_noaa_storm_*.py" -v
+      - name: Acquire official 2025 NOAA details, locations and fatalities
+        run: python scripts/noaa_storm_events_ingest.py --year 2025 --output /tmp/transport3r-noaa-storm-2025
+      - name: Verify full annual source and SQLite index accounting
+        run: |
+          python - <<'PY'
+          import json,pathlib,re,sqlite3
+          root=pathlib.Path('/tmp/transport3r-noaa-storm-2025')
+          receipt=json.loads((root/'manifest.json').read_text())
+          assert receipt['status']=='SOURCE_ACCEPTED_YEAR_GRAIN',receipt.get('error')
+          assert receipt['source_revision_stable'] is True
+          assert receipt['carrier_route_attributed'] is False
+          assert receipt['storm_footprint_intersection_verified'] is False
+          assert receipt['tables']['details']['raw_rows']>=5000
+          assert all(receipt['files'][k]['origin_verified'] and
+              re.fullmatch('[a-f0-9]{64}',receipt['files'][k]['sha256'])
+              for k in ('details','locations','fatalities'))
+          assert all(t['raw_rows']==t['indexed_rows']==t['accepted_rows']
+              and t['rejected_rows']==0 for t in receipt['tables'].values())
+          assert re.fullmatch('[a-f0-9]{64}',receipt['index_sha256'])
+          db=sqlite3.connect(root/'events.sqlite')
+          assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+          for table,kind in [('event_detail','details'),('event_location','locations'),('event_fatality','fatalities')]:
+              assert db.execute('SELECT count(*) FROM '+table).fetchone()[0]==receipt['tables'][kind]['indexed_rows']
+          print('NOAA 2025 source VERIFIED at event/location/fatality grain:',{k:v['indexed_rows'] for k,v in receipt['tables'].items()})
+          print('Unmatched location/fatality source event IDs:',receipt['unmatched_location_event_ids'],receipt['unmatched_fatality_event_ids'])
+          PY
+      - name: Preserve NOAA original files, SQLite index and receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: noaa-storm-events-source-${{ github.sha }}-attempt-${{ github.run_attempt }}
+          path: /tmp/transport3r-noaa-storm-2025/
+          if-no-files-found: warn
+          retention-days: 30

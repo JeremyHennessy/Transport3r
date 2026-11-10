@@ -167,7 +167,7 @@ jobs:
           path: /tmp/transport3r-large-carriers.json
           if-no-files-found: warn
       - name: Validate Python entrypoints compile
-        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/snapshot_store.py scripts/verify_snapshot.py scripts/cohort_snapshot.py scripts/build_asof_panel.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py scripts/nationwide_acquisition.py scripts/nationwide_warehouse.py scripts/nationwide_evidence.py scripts/evidence_api.py scripts/validate_golden_warehouse.py scripts/temporal_policy.py scripts/temporal_readiness.py
+        run: python -m py_compile scripts/refresh_fmcsa.py scripts/download_fmcsa.py scripts/snapshot_store.py scripts/verify_snapshot.py scripts/cohort_snapshot.py scripts/build_asof_panel.py scripts/smoke_carrier_queries.py scripts/validate_sms_v321_replay.py scripts/validate_source_contract.py scripts/validate_fmcsa_data_contract.py scripts/nationwide_acquisition.py scripts/nationwide_warehouse.py scripts/nationwide_evidence.py scripts/evidence_api.py scripts/noaa_storm_events_ingest.py scripts/noaa_storm_index.py scripts/validate_golden_warehouse.py scripts/temporal_policy.py scripts/temporal_readiness.py
       - name: Build the read-only evidence API container
         run: docker build -f deploy/evidence-api/Dockerfile -t transport3r-evidence-api:${{ github.sha }} .
       - name: Smoke live FMCSA Carrier 360 query joins
