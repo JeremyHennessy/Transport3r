@@ -24,6 +24,11 @@ test('biennial schedule respects the verified 2026 FMCSA suspension window',()=>
  assert.match(value.summary,/verified 2026-11-10/);
  assert.doesNotMatch(value.summary,/overdue/i);
 });
+test('temporary guidance remains valid through the full December 10 UTC calendar day',()=>{
+ const value=app.biennialReview('1209','20240101',new Date('2026-12-10T23:59:59.999Z'));
+ assert.equal(value.state,'TEMPORARY_SUSPENSION');
+ assert.doesNotMatch(value.summary,/requires re-verification/);
+});
 test('temporary guidance becomes a data gap after its review boundary instead of persisting indefinitely',()=>{
  const value=app.biennialReview('1209','20240101',new Date('2026-12-11T12:00:00Z'));
  assert.equal(value.state,'DATA_GAP');

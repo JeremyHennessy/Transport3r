@@ -6,7 +6,7 @@ const DATAHUB='https://data.transportation.gov/resource';
 const META='https://data.transportation.gov/api/views/az4n-8mr2.json';
 const SUSPENSION_START=new Date(Date.UTC(2026,5,1));
 const SUSPENSION_GUIDANCE_OBSERVED=new Date(Date.UTC(2026,10,10));
-const SUSPENSION_GUIDANCE_REVIEW_AFTER=new Date(Date.UTC(2026,11,10));
+const SUSPENSION_GUIDANCE_EXPIRES=new Date(Date.UTC(2026,11,11));
 
 export type ReviewState='INFORMATION'|'REVIEW'|'DATA_GAP'|'TEMPORARY_SUSPENSION';
 export type ComplianceCheck={id:string;title:string;state:ReviewState;sourceId:string;summary:string;action:string};
@@ -42,12 +42,12 @@ export function biennialReview(dot:string,mcs150Date:string|undefined,asOf=new D
       action:'Verify the source date/cut and current FMCSA record before applying a filing conclusion.'};
   }
   const transitionCycle=due>=SUSPENSION_START&&due<=asOf;
-  const guidanceFresh=asOf>=SUSPENSION_GUIDANCE_OBSERVED&&asOf<=SUSPENSION_GUIDANCE_REVIEW_AFTER;
+  const guidanceFresh=asOf>=SUSPENSION_GUIDANCE_OBSERVED&&asOf<SUSPENSION_GUIDANCE_EXPIRES;
   const windowStart=new Date(due.getTime()-366*86400000);
   const recentEnough=!!report&&report>=windowStart;
   if(transitionCycle&&!guidanceFresh){
     return{id:'BIENNIAL',title:'Biennial registration update',state:'DATA_GAP',sourceId:CENSUS,
-      summary:`Scheduled cycle ${iso(due)}. The temporary FMCSA transition guidance snapshot was verified ${iso(SUSPENSION_GUIDANCE_OBSERVED)} and requires re-verification after ${iso(SUSPENSION_GUIDANCE_REVIEW_AFTER)}. Latest Census report: ${report?iso(report):'unavailable'}.`,
+      summary:`Scheduled cycle ${iso(due)}. The temporary FMCSA transition guidance snapshot was verified ${iso(SUSPENSION_GUIDANCE_OBSERVED)} and requires re-verification after ${'2026-12-10'}. Latest Census report: ${report?iso(report):'unavailable'}.`,
       action:'Recheck the current FMCSA Motus transition notice before applying a due/overdue or suspension conclusion.'};
   }
   const suspended=transitionCycle&&guidanceFresh;
