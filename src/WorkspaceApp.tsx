@@ -90,6 +90,15 @@ export function sourceHealthSummary(health: SourceHealthPayload | null) {
     failed: available ? failed : null, unknown: available ? sourceCatalog.length - healthy - degraded - failed : sourceCatalog.length };
 }
 
+/** A saved successful source probe is not live health and expires after 48 hours. */
+export function sourceSnapshotFreshness(timestamp: string | null | undefined, nowMs = Date.now()) {
+  const observedMs = timestamp ? Date.parse(timestamp) : NaN;
+  if (!Number.isFinite(observedMs) || !Number.isFinite(nowMs)) return { fresh: false, ageDays: null };
+  const ageMs = nowMs - observedMs;
+  if (ageMs < -5 * 60_000) return { fresh: false, ageDays: null };
+  return { fresh: ageMs <= 48 * 60 * 60_000, ageDays: Math.floor(Math.max(ageMs, 0) / (24 * 60 * 60_000)) };
+}
+
 // Missing, invalid and negative exposure never contribute an invented zero.
 export function exposureTotal(rows: Array<{powerUnits?: string; drivers?: string}>, field: 'powerUnits' | 'drivers') {
   const known = rows.map(row => row[field]?.trim()).filter((raw): raw is string => Boolean(raw))
@@ -360,6 +369,42 @@ export async function loadCarriers(filters: CarrierFilters, signal?: AbortSignal
   return (payload as DataRow[]).map(carrierFromRow);
 }
 
+/**
+ * Give an explicitly timed-out Census request exactly one additional attempt.
+ * Abort/HTTP/schema errors are never retried, and a route change cancels the backoff.
+ * The caller controls the actual request; no cached or synthetic Census rows appear.
+ */
+export async function retryTransientCensusTimeout<T>(
+  load: () => Promise<T>,
+  signal: AbortSignal,
+  delayMs = 350,
+  onRetry?: () => void,
+): Promise<T> {
+  try {
+    return await load();
+  } catch (cause) {
+    if (signal.aborted || !(cause instanceof Error) || cause.message !== 'FMCSA request timed out') throw cause;
+    onRetry?.();
+    await new Promise<void>((resolve, reject) => {
+      const cancelled = () => new DOMException('Request cancelled', 'AbortError');
+      if (signal.aborted) { reject(cancelled()); return; }
+      const onAbort = () => {
+        clearTimeout(timer);
+        signal.removeEventListener('abort', onAbort);
+        reject(cancelled());
+      };
+      const timer = setTimeout(() => {
+        signal.removeEventListener('abort', onAbort);
+        resolve();
+      }, delayMs);
+      signal.addEventListener('abort', onAbort, { once: true });
+      if (signal.aborted) onAbort();
+    });
+    if (signal.aborted) throw new DOMException('Request cancelled', 'AbortError');
+    return load();
+  }
+}
+
 export async function loadCarrierPage(filters: CarrierFilters, signal?: AbortSignal) {
   const params = buildCarrierQuery(filters);
   if (filters.risk === 'available') return { rows: [], hasNext: false };
@@ -381,10 +426,29 @@ function Brand() {
 }
 
 function HealthPill({ health }: { health: SourceHealthPayload | null }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const refresh = () => setNowMs(Date.now());
+    // Keep a long-lived tab honest: 36 healthy probes can become stale
+    // without navigation, new data, or any other React rerender.
+    const timer = window.setInterval(refresh, 60_000);
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, []);
   if (!health) return <span className="t3-health neutral"><i/>Source snapshot loading</span>;
   const summary = sourceHealthSummary(health);
   if (!summary.available) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
-  return <a href="#/sources" title={`Saved probe snapshot: ${formatDateTime(health.generated_at)}. This is not a live carrier-data check.`} className={`t3-health ${summary.healthy === sourceCatalog.length ? 'good' : 'warn'}`}><i/>Snapshot: {summary.healthy}/{sourceCatalog.length} probes passed</a>;
+  const freshness = sourceSnapshotFreshness(health.generated_at, nowMs);
+  const freshAndHealthy = freshness.fresh && summary.healthy === sourceCatalog.length;
+  const label = freshness.fresh
+    ? `Snapshot: ${summary.healthy}/${sourceCatalog.length} probes passed`
+    : `Snapshot stale${freshness.ageDays === null ? '' : ` (${freshness.ageDays}d)`} · ${summary.healthy}/${sourceCatalog.length} probes`;
+  return <a href="#/sources" title={`Saved probe snapshot: ${formatDateTime(health.generated_at)}. This is not a live carrier-data check. Snapshot freshness threshold: 48 hours.`} className={`t3-health ${freshAndHealthy ? 'good' : 'warn'}`}><i/>{label}</a>;
 }
 
 function Shell({ page, health, children }: { page: Page; health: SourceHealthPayload | null; children: React.ReactNode }) {
@@ -474,6 +538,7 @@ function CarriersPage() {
   const [draft, setDraft] = useState<CarrierFilters>(() => parseCarrierFilters());
   const [rows, setRows] = useState<Carrier[]>([]);
   const [loading, setLoading] = useState(true);
+  const [retrying, setRetrying] = useState(false);
   const [hasNext, setHasNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'manual'>('idle');
@@ -507,13 +572,19 @@ function CarriersPage() {
     let current = true;
     const controller = new AbortController();
     setLoading(true);
+    setRetrying(false);
     setError(null);
     setRows([]);
     setHasNext(false);
-    loadCarrierPage(applied, controller.signal)
+    retryTransientCensusTimeout(
+      () => loadCarrierPage(applied, controller.signal),
+      controller.signal,
+      350,
+      () => { if (current) setRetrying(true); },
+    )
       .then((loaded) => { if (current) { setRows(loaded.rows); setHasNext(loaded.hasNext); } })
       .catch((cause) => { if (current) { setRows([]); setError(cause instanceof Error ? cause.message : String(cause)); } })
-      .finally(() => { if (current) setLoading(false); });
+      .finally(() => { if (current) { setLoading(false); setRetrying(false); } });
     return () => { current = false; controller.abort(); };
   }, [appliedKey, reloadVersion]);
 
@@ -592,7 +663,7 @@ function CarriersPage() {
     {error && <div className="t3-error"><strong>FMCSA carrier table unavailable.</strong><span>{error}</span><button onClick={() => setReloadVersion(version => version + 1)}>Retry</button></div>}
 
     <section className="t3-panel t3-table-panel">
-      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
+      <div className="t3-table-headline"><div><div className="t3-eyebrow">Company Census</div><h2>Carrier summary</h2></div><span>{loading ? retrying ? 'FMCSA timed out; retrying once…' : 'Loading matching rows…' : error ? 'Source unavailable' : `Page ${applied.page} · ${rows.length} rows loaded`}</span></div>
       <nav className="t3-directory-paging t3-actions" aria-label="Directory pages"><button className="t3-button secondary" disabled={loading || applied.page <= 1} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page - 1 }); }}>Previous page</button><span role="status">Page {Number.isSafeInteger(applied.page) ? applied.page : 'invalid'}</span><button className="t3-button secondary" disabled={loading || Boolean(error) || !hasNext} onClick={() => { window.location.hash = carrierHash({ ...applied, page: applied.page + 1 }); }}>Next page</button></nav>
       <p className="t3-table-scroll-note">Pages use a stable USDOT tie-breaker. The live source can change between requests; page totals describe only the displayed records.</p>
       <p className="t3-table-scroll-note" id="carrier-scroll-help">All fields fit the page; smaller screens use labelled carrier cards. Counts may come from different MCS-150 report dates.</p>

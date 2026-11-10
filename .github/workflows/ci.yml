@@ -58,6 +58,17 @@ jobs:
           name: carrier-recovery-${{ github.sha }}-attempt-${{ github.run_attempt }}
           path: /tmp/transport3r-carrier-recovery.json
           if-no-files-found: warn
+      - name: Verify saved probe badge expires in long-lived browser sessions
+        env:
+          BROWSER_SCENARIO: source-freshness
+        run: node scripts/validate-carrier-recovery.mjs /tmp/transport3r-source-freshness.json
+      - name: Retain source freshness lifecycle browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-freshness-${{ github.sha }}
+          path: /tmp/transport3r-source-freshness.json
+          if-no-files-found: warn
       - name: Verify source review and exposure UI in the production browser bundle
         env:
           BROWSER_SCENARIO: data-ui
