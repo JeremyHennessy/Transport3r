@@ -164,3 +164,64 @@ test('registration filtering round trips and applies before the row limit', () =
   assert.match(app.buildCarrierQuery(filters).get('$where'), /status_code='I' AND total_drivers::number>=100/);
   assert.throws(()=>app.buildCarrierQuery(app.parseCarrierFilters('#/carriers?registration=garbage')),/registration/);
 });
+
+
+test('Census retry makes exactly one fresh attempt on a first timeout, preserving the response', async () => {
+  const signal = new AbortController().signal;
+  const calls = [], retries = [];
+  const result = await app.retryTransientCensusTimeout(async () => {
+    calls.push('request');
+    if (calls.length === 1) throw new Error('FMCSA request timed out');
+    return { rows: [{dotNumber: '3706'}], hasNext: false };
+  }, signal, 0, () => retries.push('retry'));
+  assert.deepEqual(result, { rows: [{dotNumber:'3706'}], hasNext: false });
+  assert.equal(calls.length, 2);
+  assert.deepEqual(retries, ['retry']);
+});
+
+
+test('Census retry fails closed after second timeout and never loops', async () => {
+  let calls=0, retries=0;
+  await assert.rejects(app.retryTransientCensusTimeout(async () => {
+    calls++; throw new Error('FMCSA request timed out');
+  }, new AbortController().signal, 0, () => retries++), /FMCSA request timed out/);
+  assert.equal(calls,2);
+  assert.equal(retries,1);
+});
+
+
+test('Census retry does not repeat HTTP, invalid payload or caller cancellation', async () => {
+  for (const error of [new Error('Company Census returned HTTP 503'), new Error('Company Census returned an unexpected payload'),new DOMException('Request cancelled', 'AbortError')]) {
+    let calls=0;
+    await assert.rejects(app.retryTransientCensusTimeout(async()=>{calls++;throw error;},new AbortController().signal,0),{message:error.message});
+    assert.equal(calls,1);
+  }
+});
+
+
+test('Census route cancellation during retry backoff prevents a second request', async () => {
+  let calls=0;
+  const controller=new AbortController();
+  await assert.rejects(app.retryTransientCensusTimeout(async()=>{calls++;throw new Error('FMCSA request timed out');},controller.signal,100,()=>controller.abort()),{name:'AbortError'});
+  assert.equal(calls,1);
+});
+
+
+test('Census already-aborted signal cannot issue a retry even if first operation times out', async () => {
+  const controller=new AbortController();
+  let calls=0;
+  await assert.rejects(app.retryTransientCensusTimeout(async()=>{calls++;controller.abort();throw new Error('FMCSA request timed out');},controller.signal,0),/FMCSA request timed out/);
+  assert.equal(calls,1);
+});
+
+
+test('source health badge freshness expires after 48 hours despite 36 healthy probes', () => {
+  const observed = '2026-11-08T00:00:00Z';
+  const at = Date.parse(observed);
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+24*3600000), {fresh:true,ageDays:1});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+48*3600000), {fresh:true,ageDays:2});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at+48*3600000+1), {fresh:false,ageDays:2});
+  assert.deepEqual(app.sourceSnapshotFreshness('2026-10-23T00:00:00Z',Date.parse('2026-11-09T00:00:00Z')), {fresh:false,ageDays:17});
+  assert.deepEqual(app.sourceSnapshotFreshness(null,at), {fresh:false,ageDays:null});
+  assert.deepEqual(app.sourceSnapshotFreshness(observed,at-6*60000), {fresh:false,ageDays:null});
+});
