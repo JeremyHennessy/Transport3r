@@ -48,6 +48,10 @@
   check(panel.textContent.includes('phone')&&panel.textContent.includes('physical address'),'Relationship screening exposes exact-match categories without a fraud score');
   check(panel.textContent.includes('does not prove fraud')||panel.textContent.includes('do not prove fraud'),'Relationship limitations remain visible');
   check(document.documentElement.scrollWidth<=innerWidth+2,'Intelligence page has no document-level horizontal overflow');
+  panel.querySelector('a[href="#/carrier/90909/intelligence"]').click();
+  await wait(()=>location.hash.includes('/carrier/90909/intelligence'));
+  await sleep(100);
+  check(!document.querySelector('[data-testid="public-intelligence"]'),'Carrier route change clears the previous Intelligence identity instead of mixing two USDOTs');
   result.status='PASS';
  }catch(error){result.status='FAIL';result.error=error.message;}
  finally{window.fetch=original;const pre=document.createElement('pre');pre.id='carrier-recovery-result';pre.textContent=JSON.stringify(result);document.body.append(pre);}

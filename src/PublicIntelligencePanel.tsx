@@ -37,7 +37,7 @@ export function PublicIntelligencePanel({carrier,evidence}:{carrier:DataRow;evid
     <div className="t3-intel-block">
       <div className="t3-intel-head"><div><div className="t3-eyebrow">W09 · regulatory compliance tracking</div><h3>Evidence-backed review checks</h3></div><span className={`t3-intel-status ${review.status.toLowerCase()}`}>{stateLabel(review.status)}</span></div>
       <div className="t3-intel-checks">{review.checks.map(check=><article key={check.id} className={`state-${check.state.toLowerCase()}`}><div><strong>{check.title}</strong><span>{stateLabel(check.state)}</span></div><p>{check.summary}</p><small>{check.action}</small><a href={`https://data.transportation.gov/d/${check.sourceId}`} target="_blank" rel="noreferrer">{check.sourceId} ↗</a></article>)}</div>
-      <p className="t3-insight-limit">{review.limitation} FMCSA's current Motus transition notice temporarily suspends enforcement/inactivation for biennial updates due on or after June 1, 2026; this screen therefore does not label those carriers overdue.</p>
+      <p className="t3-insight-limit">{review.limitation} FMCSA transition guidance was verified November 10, 2026. For affected cycles, this ruleset suppresses an overdue label only through December 10, 2026; after that date it becomes a data gap until the guidance is re-verified.</p>
       <p><a href="https://www.fmcsa.dot.gov/registration/temporary-suspension-biennial-update-requirement" target="_blank" rel="noreferrer">FMCSA temporary biennial-update suspension ↗</a> · <a href="https://www.fmcsa.dot.gov/registration/updating-your-registration" target="_blank" rel="noreferrer">FMCSA filing schedule ↗</a></p>
     </div>
 
