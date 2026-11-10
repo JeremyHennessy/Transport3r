@@ -439,7 +439,8 @@ function HealthPill({ health }: { health: SourceHealthPayload | null }) {
   const freshness = useSourceSnapshotFreshness(health);
   if (!health) return <span className="t3-health neutral"><i/>Source snapshot loading</span>;
   const summary = sourceHealthSummary(health);
-  if (!summary.available) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
+  const unavailable = !summary.available || (!freshness.fresh && freshness.ageDays === null);
+  if (unavailable) return <a className="t3-health warn" href="#/sources"><i/>Source snapshot unavailable</a>;
   const freshAndHealthy = freshness.fresh && summary.healthy === sourceCatalog.length;
   const label = freshness.fresh
     ? `Snapshot: ${summary.healthy}/${sourceCatalog.length} probes passed`
@@ -469,7 +470,8 @@ function PageHeading({ eyebrow, title, copy, action }: { eyebrow: string; title:
 function OverviewPage({ health, schema }: { health: SourceHealthPayload | null; schema: SchemaRegistry | null }) {
   const summary = sourceHealthSummary(health);
   const freshness = useSourceSnapshotFreshness(health);
-  const healthy = freshness.fresh ? summary.healthy : null;
+  const unavailable = !summary.available || (!freshness.fresh && freshness.ageDays === null);
+  const healthy = freshness.fresh && !unavailable ? summary.healthy : null;
   const latestDaily = useMemo(() => {
     const values = (health?.sources ?? []).map((source) => source.rows_updated_at).filter((value): value is string => Boolean(value));
     if (!values.length) return null;
@@ -485,12 +487,12 @@ function OverviewPage({ health, schema }: { health: SourceHealthPayload | null; 
         <div className="t3-actions"><a className="t3-button primary" href="#/carriers">Browse carriers</a><a className="t3-button ghost" href="#/sources">Review the data</a></div>
       </div>
       <aside className="t3-hero-status">
-        <div className="t3-status-head"><span>Saved source probes</span><strong>{freshness.fresh ? `${healthy ?? '—'} / ${sourceCatalog.length}` : 'Stale snapshot'}</strong></div>
+        <div className="t3-status-head"><span>Saved source probes</span><strong>{unavailable ? 'Unavailable' : freshness.fresh ? `${healthy ?? '—'} / ${sourceCatalog.length}` : 'Stale snapshot'}</strong></div>
         <div className="t3-status-row"><span>Official source registry</span><strong>{schema?.source_count ?? sourceCatalog.length} datasets</strong></div>
         <div className="t3-status-row"><span>Registered fields</span><strong>{schema?.field_count?.toLocaleString() ?? '—'}</strong></div>
         <div className="t3-status-row"><span>Latest source metadata update</span><strong>{latestDaily ? formatDateTime(latestDaily) : 'Unavailable'}</strong></div>
         <div className="t3-status-row"><span>Snapshot checked</span><strong>{formatDateTime(health?.generated_at)}</strong></div>
-        <div className="t3-status-note">{freshness.fresh ? 'Overview uses repository snapshots only.' : `Saved source probes are older than 48 hours${freshness.ageDays === null ? '' : ` (${freshness.ageDays}d)`}; saved pass counts are not current health.`} Live FMCSA requests begin when you open Carriers or a Carrier 360 tab.</div>
+        <div className="t3-status-note">{unavailable ? 'Saved source probe timing is unavailable or invalid; no current health state is established.' : freshness.fresh ? 'Overview uses repository snapshots only.' : `Saved source probes are older than 48 hours (${freshness.ageDays}d); saved pass counts are not current health.`} Live FMCSA requests begin when you open Carriers or a Carrier 360 tab.</div>
       </aside>
     </section>
 
@@ -704,6 +706,8 @@ function PortfolioPage() {
 
 function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
   const freshness = useSourceSnapshotFreshness(health);
+  const summary = sourceHealthSummary(health);
+  const unavailable = !summary.available || (!freshness.fresh && freshness.ageDays === null);
   const healthById = useMemo(() => new Map((health?.sources ?? []).map((source) => [source.id, source])), [health]);
   const events = [
     ['Review', 'New Entrant OOS history', 'p2mt-9ige', 'Available in carrier evidence; not a dedicated local alert rule. Current order effect requires review.'],
@@ -717,8 +721,8 @@ function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
     ['Gated', 'Monthly SMS movement', '4y6x-dmck', 'Not evaluated by the inbox until exact comparable releases are bound.'],
   ];
   return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Material change detection" title="Alerts" copy="Subscribe to USDOTs in the local workspace for daily complete-source checks and delivered inbox entries. This page explains the rules and saved source health; private alerts are shown only after signing in locally." />
-    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); const displayStatus = freshness.fresh ? source?.status ?? 'pending' : 'stale'; return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${displayStatus}`}/>{freshness.fresh ? displayStatus : `stale snapshot (saved ${source?.status ?? 'unknown'})`}</span></div>; })}</div></section>
-    <section className="t3-note-panel"><strong>Current constraint</strong><p>{freshness.fresh ? 'Source statuses here describe the saved probe snapshot.' : 'The saved probe snapshot is older than 48 hours; per-source pass/fail labels are shown as stale until a new snapshot is published.'} The local service persists verified observations and compares matching cohorts; the first observation is a baseline. Checks require the service to remain running and the computer awake. Failed checks and newly observed records are kept distinct from no change and newly occurring events.</p></section>
+    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); const displayStatus = unavailable ? 'unavailable' : freshness.fresh ? source?.status ?? 'pending' : 'stale'; return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${displayStatus}`}/>{unavailable ? 'source snapshot unavailable' : freshness.fresh ? displayStatus : `stale snapshot (saved ${source?.status ?? 'unknown'})`}</span></div>; })}</div></section>
+    <section className="t3-note-panel"><strong>Current constraint</strong><p>{unavailable ? 'The saved probe snapshot has no valid observation time; per-source health is unavailable.' : freshness.fresh ? 'Source statuses here describe the saved probe snapshot.' : 'The saved probe snapshot is older than 48 hours; per-source pass/fail labels are shown as stale until a new snapshot is published.'} The local service persists verified observations and compares matching cohorts; the first observation is a baseline. Checks require the service to remain running and the computer awake. Failed checks and newly observed records are kept distinct from no change and newly occurring events.</p></section>
   </main>;
 }
 
@@ -735,8 +739,9 @@ function SourcesPage({ health, schema }: { health: SourceHealthPayload | null; s
   const [filter, setFilter] = useState('');
   const summary = sourceHealthSummary(health);
   const freshness = useSourceSnapshotFreshness(health);
+  const unavailable = !summary.available || (!freshness.fresh && freshness.ageDays === null);
   const healthById = useMemo(() => new Map((health?.sources ?? []).map(source => [source.id, source])), [health]);
-  const statusOf = (id: string) => !summary.available ? 'unavailable' : !freshness.fresh ? 'stale' : healthById.get(id)?.status ?? 'unavailable';
+  const statusOf = (id: string) => unavailable ? 'unavailable' : !freshness.fresh ? 'stale' : healthById.get(id)?.status ?? 'unavailable';
   const filtered = sourceCatalog.filter(source => (!filter || statusOf(source.id) === filter) &&
     `${source.id} ${source.name} ${source.family} ${source.role}`.toLowerCase().includes(search.trim().toLowerCase()));
   const groups = new Map<string, SourceCatalogEntry[]>();
@@ -746,10 +751,10 @@ function SourcesPage({ health, schema }: { health: SourceHealthPayload | null; s
     <section className="t3-mini-stats">
       <div><span>Configured datasets</span><strong>{sourceCatalog.length}</strong><small>{schema?.source_count ?? '—'} schemas loaded</small></div>
       <div><span>Registered fields</span><strong>{schema?.field_count?.toLocaleString() ?? '—'}</strong><small>Persisted schema snapshot</small></div>
-      <div><span>{freshness.fresh ? 'Healthy probes' : 'Saved probe snapshot'}</span><strong>{freshness.fresh ? summary.healthy ?? '—' : 'Stale'}</strong><small>{freshness.fresh ? `${summary.degraded ?? '—'} degraded · ${summary.unknown} unavailable` : `${summary.healthy ?? '—'} saved passes · older than 48h`}</small></div>
-      <div><span>Failed probes</span><strong>{summary.failed ?? '—'}</strong><small>At the saved check time</small></div>
+      <div><span>{unavailable ? 'Source probe snapshot' : freshness.fresh ? 'Healthy probes' : 'Saved probe snapshot'}</span><strong>{unavailable ? 'Unavailable' : freshness.fresh ? summary.healthy ?? '—' : 'Stale'}</strong><small>{unavailable ? 'No valid saved observation time' : freshness.fresh ? `${summary.degraded ?? '—'} degraded · ${summary.unknown} unavailable` : `${summary.healthy ?? '—'} saved passes · older than 48h`}</small></div>
+      <div><span>{unavailable || !freshness.fresh ? 'Saved failed probes' : 'Failed probes'}</span><strong>{unavailable ? '—' : summary.failed ?? '—'}</strong><small>{unavailable ? 'Unavailable with invalid/missing snapshot time' : freshness.fresh ? 'At the saved check time' : `${summary.failed ?? '—'} saved failures · snapshot stale`}</small></div>
     </section>
-    <section className="t3-note-panel"><strong>Snapshot checks are not live carrier results</strong><p>{freshness.fresh ? 'Probe status describes metadata and a sample request at the saved check time.' : 'This saved probe snapshot is older than 48 hours, so its per-source statuses are labelled stale rather than healthy/degraded/failed.'} Source row-update times are dataset metadata; they are not MCS-150 report dates, event dates or proof of a shared SMS month. A healthy source can still return missing or partial carrier evidence.</p></section>
+    <section className="t3-note-panel"><strong>Snapshot checks are not live carrier results</strong><p>{unavailable ? 'This source-health snapshot has no valid observation time, so per-source probe status is unavailable.' : freshness.fresh ? 'Probe status describes metadata and a sample request at the saved check time.' : 'This saved probe snapshot is older than 48 hours, so its per-source statuses are labelled stale rather than healthy/degraded/failed.'} Source row-update times are dataset metadata; they are not MCS-150 report dates, event dates or proof of a shared SMS month. A healthy source can still return missing or partial carrier evidence.</p></section>
     <section className="t3-panel t3-source-controls">
       <label><span>Find a source</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Name, source ID or purpose" /></label>
       <label><span>Probe status</span><select value={filter} onChange={event => setFilter(event.target.value)}><option value="">All statuses</option><option value="healthy">Healthy</option><option value="degraded">Degraded</option><option value="failed">Failed</option><option value="stale">Stale snapshot</option><option value="unavailable">Unavailable</option></select></label>
