@@ -33,6 +33,7 @@ jobs:
           TRANSPORT3R_NRI_INDEX_PATH: /tmp/fema-nri.sqlite
           TRANSPORT3R_AUDIT_PATH: /tmp/warehouse.integrity.json
           TRANSPORT3R_NOAA_INDEX_PATH: /tmp/noaa-storm.sqlite
+          TRANSPORT3R_NOAA_MANIFEST_PATH: /tmp/noaa-storm.manifest.json
         run: |
           docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --quiet
           docker compose -f deploy/evidence-api/compose.public-sources.example.yml config --format json | python -c "import json,sys;d=json.load(sys.stdin);s=d['services']['transport3r-public-evidence'];assert s['read_only'] and s['ports'][0]['host_ip']=='127.0.0.1';assert all(v['read_only'] for v in s['volumes']);assert s['environment']['NOAA_STORM_INDEX'];assert s['environment']['NOAA_STORM_MANIFEST'];assert s['environment']['EVIDENCE_AUDIT_FILE']"
