@@ -26,7 +26,15 @@
   check(panel.open&&panel.querySelectorAll('tbody tr').length===36,'Evidence includes all 36 requests including unavailable sources');
   check(panel.textContent.includes('500 rows loaded')&&panel.textContent.includes('2026-08-01 → 2026-09-01'),'Capped counts and loaded event range render together');
   const select=panel.querySelector('select');
-  const choose=async value=>{Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,value);select.dispatchEvent(new Event('change',{bubbles:true}));await sleep(50);};
+  const labels={unavailable:'Unavailable',partial:'Partial window',empty:'No rows returned'};
+  const choose=async value=>{
+   Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype,'value').set.call(select,value);
+   select.dispatchEvent(new Event('change',{bubbles:true}));
+   await wait(()=>{
+    const visible=[...panel.querySelectorAll('tbody tr')];
+    return select.value===value&&visible.length>0&&visible.every(row=>row.textContent.includes(labels[value]));
+   });
+  };
   await choose('unavailable');check(panel.querySelectorAll('tbody tr').length===1&&panel.textContent.includes('HTTP 503'),'Unavailable filter retains acquisition errors');
   await choose('partial');check([...panel.querySelectorAll('tbody tr')].some(r=>r.textContent.includes('inspections')),'Partial filter includes the capped parent inspection window');
   await choose('empty');check(panel.querySelectorAll('tbody tr').length>0&&!panel.querySelector('tbody').textContent.includes('HTTP 503'),'Empty and failed requests stay separate');
