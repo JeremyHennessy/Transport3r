@@ -12,6 +12,7 @@ import hashlib
 from html.parser import HTMLParser
 import io
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -137,7 +138,7 @@ def coordinate(lat,lon):
         x,y=float(a),float(b)
     except ValueError:
         return None,None,"INVALID"
-    if not (-90<=x<=90 and -180<=y<=180) or (x==0 and y==0):
+    if not (math.isfinite(x) and math.isfinite(y)) or not (-90<=x<=90 and -180<=y<=180) or (x==0 and y==0):
         return None,None,"INVALID"
     # NOAA may report points outside CONUS (AK, HI, marine); keep valid worldwide coordinates.
     return x,y,"PUBLISHED_POINT"
@@ -206,8 +207,8 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
         counts={kind:0 for kind in KINDS}
         invalid_coords=0
         missing_coords=0
-        orphan_locations=0
-        orphan_fatalities=0
+        orphan_location_ids=set()
+        orphan_fatality_ids=set()
         # Events establish the exact key universe; no association by approximate company name.
         for n,row in source_rows(raw/names["details"],"details"):
             event_id=number(row["EVENT_ID"],"EVENT_ID")
@@ -234,7 +235,7 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
             if state=="INVALID":invalid_coords+=1
             if state=="NOT_REPORTED":missing_coords+=1
             orphan=int(event_id not in loaded_ids)
-            orphan_locations+=orphan
+            if orphan: orphan_location_ids.add(event_id)
             db.execute("INSERT INTO event_location VALUES (?,?,?,?,?,?,?)",
                 (event_id,loc_id,row.get("LOCATION"),a,b,state,int(not orphan)))
             counts["locations"]+=1
@@ -242,14 +243,14 @@ def build(year:int,output:Path,archives:dict|None=None,min_details:int=MIN_DETAI
             event_id=number(row["EVENT_ID"],"EVENT_ID")
             fatality_id=number(row["FATALITY_ID"],"FATALITY_ID")
             orphan=int(event_id not in loaded_ids)
-            orphan_fatalities+=orphan
+            if orphan: orphan_fatality_ids.add(event_id)
             db.execute("INSERT INTO event_fatality VALUES (?,?,?)",
                        (event_id,fatality_id,int(not orphan)))
             counts["fatalities"]+=1
         manifest["tables"]={kind:{"raw_rows":cnt,"accepted_rows":cnt,"rejected_rows":0,"indexed_rows":cnt}
                             for kind,cnt in counts.items()}
         manifest.update(invalid_coordinates=invalid_coords,missing_coordinates=missing_coords,
-                        unmatched_location_event_ids=orphan_locations,unmatched_fatality_event_ids=orphan_fatalities)
+                        unmatched_location_event_ids=len(orphan_location_ids),unmatched_fatality_event_ids=len(orphan_fatality_ids))
         manifest["source_revision_stable"]=False
         if not archives:
             # Fail closed if any revision advanced while the three source files were downloading.

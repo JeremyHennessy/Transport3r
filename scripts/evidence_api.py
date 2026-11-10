@@ -85,11 +85,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.payload(503,{'status':'NOT_AUDITED','detail':'No independent deep audit is installed; counts are withheld'},head)
             return self.payload(200,self.server.integrity,head)
         if path=='/healthz':
-            return self.payload(200,{'status':'ok','identity_contract':self.server.receipt['identity_contract'],'sources':self.server.receipt['sources'],'warehouse_sha256':self.server.warehouse_sha256,'cut_id':self.server.receipt['cut_id'],'cut_available_at':self.server.receipt['cut_available_at'],
-                                     'release_ready':self.server.integrity is not None,
+            noaa_changed=bool(self.server.noaa_status) and not self.server.noaa_unchanged()
+            return self.payload(503 if noaa_changed else 200,{'status':'degraded' if noaa_changed else 'ok','identity_contract':self.server.receipt['identity_contract'],'sources':self.server.receipt['sources'],'warehouse_sha256':self.server.warehouse_sha256,'cut_id':self.server.receipt['cut_id'],'cut_available_at':self.server.receipt['cut_available_at'],
+                                     'release_ready':self.server.integrity is not None and not noaa_changed,
                                      'independent_audit':'PASS' if self.server.integrity else 'NOT_INSTALLED',
                                      'nri_county_source':self.server.nri_status['status'] if self.server.nri_status else 'NOT_INSTALLED',
-                                     'noaa_storm_source':self.server.noaa_status['status'] if self.server.noaa_status else 'NOT_INSTALLED'},head)
+                                     'noaa_storm_source':'SOURCE_CHANGED' if noaa_changed else self.server.noaa_status['status'] if self.server.noaa_status else 'NOT_INSTALLED'},head)
         if path.startswith('/v1/geography/nri/') and not self.server.nri_unchanged():
             return self.payload(503,{'status':'SOURCE_CHANGED','carrier_route_attribution':'NOT_ESTABLISHED'},head)
         if path=='/v1/geography/nri/status':

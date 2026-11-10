@@ -184,6 +184,13 @@ class NOAAHTTPTests(unittest.TestCase):
         value=json.load(raised.exception)
         self.assertEqual(value["status"],"SOURCE_CHANGED")
         self.assertEqual(value["carrier_route_attribution"],"NOT_ESTABLISHED")
+        with self.assertRaises(urllib.error.HTTPError) as health_error:
+            urllib.request.urlopen(base+"/healthz",timeout=7)
+        self.assertEqual(health_error.exception.code,503)
+        health=json.load(health_error.exception)
+        self.assertEqual(health["status"],"degraded")
+        self.assertEqual(health["noaa_storm_source"],"SOURCE_CHANGED")
+        self.assertFalse(health["release_ready"])
 
     def test_trusted_manifest_mutation_after_startup_fails_closed(self):
         base=self.launch()
@@ -197,6 +204,10 @@ class NOAAHTTPTests(unittest.TestCase):
             urllib.request.urlopen(base+"/v1/geography/noaa/status",timeout=7)
         self.assertEqual(raised.exception.code,503)
         self.assertEqual(json.load(raised.exception)["status"],"SOURCE_CHANGED")
+        with self.assertRaises(urllib.error.HTTPError) as health_error:
+            urllib.request.urlopen(base+"/healthz",timeout=7)
+        self.assertEqual(health_error.exception.code,503)
+        self.assertEqual(json.load(health_error.exception)["noaa_storm_source"],"SOURCE_CHANGED")
 
     def test_noaa_not_installed_stays_unavailable(self):
         base=self.launch(with_index=False)

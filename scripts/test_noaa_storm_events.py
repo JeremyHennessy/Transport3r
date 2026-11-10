@@ -123,6 +123,17 @@ class NOAAEventsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"Unrecognized NOAA locations"):
             build(2025,self.root/"bad-header",self.files,min_details=3)
 
+    def test_orphan_metrics_count_distinct_event_ids_not_child_rows(self):
+        rows={key:list(value) for key,value in ROWS.items()}
+        rows["locations"]=[*rows["locations"],["9999","2","29.7","-95.2","SECOND UNMATCHED ROW"]]
+        rows["fatalities"]=[*rows["fatalities"],["9999","150000"]]
+        files=make_sources(self.root,records=rows)
+        manifest=build(2025,self.root/"distinct-orphans",files,min_details=3)
+        self.assertEqual(manifest["tables"]["locations"]["raw_rows"],5)
+        self.assertEqual(manifest["tables"]["fatalities"]["raw_rows"],3)
+        self.assertEqual(manifest["unmatched_location_event_ids"],1)
+        self.assertEqual(manifest["unmatched_fatality_event_ids"],1)
+
     def test_same_host_redirect_to_different_noaa_file_is_rejected(self):
         class Response(io.BytesIO):
             def __enter__(self): return self
@@ -137,6 +148,9 @@ class NOAAEventsTests(unittest.TestCase):
         self.assertEqual(coordinate("","-95.5"),(None,None,"NOT_REPORTED"))
         self.assertEqual(coordinate("0","0"),(None,None,"INVALID"))
         self.assertEqual(coordinate("99","-95"),(None,None,"INVALID"))
+        self.assertEqual(coordinate("NaN","-95.5"),(None,None,"INVALID"))
+        self.assertEqual(coordinate("29.8","Infinity"),(None,None,"INVALID"))
+        self.assertEqual(coordinate("-Infinity","-95.5"),(None,None,"INVALID"))
         self.assertEqual(coordinate("29.8","-95.5"),(29.8,-95.5,"PUBLISHED_POINT"))
 
 if __name__=="__main__":unittest.main()
