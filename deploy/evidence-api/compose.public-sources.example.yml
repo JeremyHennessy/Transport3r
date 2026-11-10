@@ -1,0 +1,55 @@
+# Local-only: public-source FMCSA + FEMA NRI + NOAA Storm Events read-only API.
+# Never expose the HTTP port directly to the Internet.
+services:
+  transport3r-public-evidence:
+    build:
+      context: ../..
+      dockerfile: deploy/evidence-api/Dockerfile
+    restart: unless-stopped
+    read_only: true
+    user: "10001:10001"
+    ports:
+      - "127.0.0.1:8787:8787"
+    environment:
+      EVIDENCE_WAREHOUSE: /app/source/warehouse.duckdb
+      NRI_COUNTY_INDEX: /app/source/nri-counties-dec2025.sqlite
+      EVIDENCE_AUDIT_FILE: /app/source/warehouse.integrity.json
+      NOAA_STORM_INDEX: /app/source/noaa-storm-2025.sqlite
+      NOAA_STORM_MANIFEST: /app/source/noaa-storm-2025.manifest.json
+      EVIDENCE_HOST: 0.0.0.0
+      EVIDENCE_ALLOW_ORIGIN: https://jeremyhennessy.github.io
+      PORT: "8787"
+    volumes:
+      - type: bind
+        source: ${TRANSPORT3R_WAREHOUSE_PATH:?Set verified nationwide FMCSA DuckDB absolute file path}
+        target: /app/source/warehouse.duckdb
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_AUDIT_PATH:?Set matching independent deep-audit JSON absolute file path}
+        target: /app/source/warehouse.integrity.json
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_NRI_INDEX_PATH:?Set accepted FEMA county SQLite absolute file path}
+        target: /app/source/nri-counties-dec2025.sqlite
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_NOAA_INDEX_PATH:?Set accepted NOAA Storm Events SQLite absolute file path}
+        target: /app/source/noaa-storm-2025.sqlite
+        read_only: true
+      - type: bind
+        source: ${TRANSPORT3R_NOAA_MANIFEST_PATH:?Set trusted NOAA Storm Events acquisition manifest absolute file path}
+        target: /app/source/noaa-storm-2025.manifest.json
+        read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    pids_limit: 256
+    mem_limit: 4g
+    cpus: "2.0"
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
