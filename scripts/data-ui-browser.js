@@ -6,9 +6,10 @@
   const waitFor=async (predicate,label)=>{for(let i=0;i<300;i++){if(predicate())return;await sleep(20);}throw new Error(`Timeout: ${label}`);};
   const check=(condition,label)=>{if(!condition)throw new Error(label);result.checks.push(label);};
   let fail=true;
+  const probeTime=new Date(Date.now()-60*60_000).toISOString();
   const census=[window.__carrierFixtures.find(r=>r.dot_number==='80806'),{...window.__carrierFixtures.find(r=>r.dot_number==='54283'),total_drivers:undefined,power_units:'0',status_code:'I'}];
   window.fetch=(url,options)=>{
-    if(String(url).includes('source-health.json'))return Promise.resolve(new Response(JSON.stringify({generated_at:'2026-09-09T00:00:00Z',healthy_count:36,sources:[{id:'az4n-8mr2',status:'healthy',checked_at:'2026-09-09T00:00:00Z'},{id:'aayw-vxb3',status:'failed',error:'Simulated upstream HTTP 503',checked_at:'2026-09-09T00:00:00Z'}]})));
+    if(String(url).includes('source-health.json'))return Promise.resolve(new Response(JSON.stringify({generated_at:probeTime,healthy_count:36,sources:[{id:'az4n-8mr2',status:'healthy',checked_at:probeTime},{id:'aayw-vxb3',status:'failed',error:'Simulated upstream HTTP 503',checked_at:probeTime}]})));
     if(!String(url).includes('/resource/az4n-8mr2.json'))return original(url,options);
     const where=new URL(url).searchParams.get('$where')??'';result.requests.push(where);
     return Promise.resolve(new Response(fail?'{}':JSON.stringify(where.includes("status_code='I'")?census.slice(1):census),{status:fail?503:200}));

@@ -98,6 +98,14 @@ export function sourceSnapshotFreshness(timestamp: string | null | undefined, no
   return { fresh: ageMs <= 48 * 60 * 60_000, ageDays: Math.floor(Math.max(ageMs, 0) / (24 * 60 * 60_000)) };
 }
 
+export function sourceProbeDisplayStatus(health: SourceHealthPayload | null, sourceId: string, nowMs = Date.now()) {
+  const summary = sourceHealthSummary(health);
+  const freshness = sourceSnapshotFreshness(health?.generated_at, nowMs);
+  const probe = health?.sources?.find(source => source.id === sourceId);
+  if (!summary.available || (!freshness.fresh && freshness.ageDays === null) || !probe) return 'unavailable';
+  return freshness.fresh ? probe.status ?? 'unavailable' : 'stale';
+}
+
 function useSourceSnapshotFreshness(health: SourceHealthPayload | null) {
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
@@ -111,7 +119,7 @@ function useSourceSnapshotFreshness(health: SourceHealthPayload | null) {
       document.removeEventListener('visibilitychange', refresh);
     };
   }, []);
-  return sourceSnapshotFreshness(health?.generated_at, nowMs);
+  return { ...sourceSnapshotFreshness(health?.generated_at, nowMs), nowMs };
 }
 
 // Missing, invalid and negative exposure never contribute an invented zero.
@@ -721,7 +729,7 @@ function AlertsPage({ health }: { health: SourceHealthPayload | null }) {
     ['Gated', 'Monthly SMS movement', '4y6x-dmck', 'Not evaluated by the inbox until exact comparable releases are bound.'],
   ];
   return <main className="t3-main"><LocalWorkspaceLink/><PageHeading eyebrow="Material change detection" title="Alerts" copy="Subscribe to USDOTs in the local workspace for daily complete-source checks and delivered inbox entries. This page explains the rules and saved source health; private alerts are shown only after signing in locally." />
-    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); const displayStatus = unavailable ? 'unavailable' : freshness.fresh ? source?.status ?? 'pending' : 'stale'; return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${displayStatus}`}/>{unavailable ? 'source snapshot unavailable' : freshness.fresh ? displayStatus : `stale snapshot (saved ${source?.status ?? 'unknown'})`}</span></div>; })}</div></section>
+    <section className="t3-panel"><div className="t3-alert-table"><div className="t3-alert-row header"><span>Status</span><span>Event</span><span>Source</span><span>Underwriting treatment</span><span>Health</span></div>{events.map(([level, event, sourceId, treatment]) => { const source = healthById.get(sourceId); const displayStatus = sourceProbeDisplayStatus(health, sourceId, freshness.nowMs); return <div className="t3-alert-row" key={event}><span><b className={`t3-priority ${level.toLowerCase()}`}>{level}</b></span><span><strong>{event}</strong></span><span className="mono">{sourceId}</span><span>{treatment}</span><span><i className={`t3-source-dot ${displayStatus}`}/>{displayStatus === 'unavailable' ? 'source snapshot unavailable' : displayStatus === 'stale' ? `stale snapshot (saved ${source?.status ?? 'unknown'})` : displayStatus}</span></div>; })}</div></section>
     <section className="t3-note-panel"><strong>Current constraint</strong><p>{unavailable ? 'The saved probe snapshot has no valid observation time; per-source health is unavailable.' : freshness.fresh ? 'Source statuses here describe the saved probe snapshot.' : 'The saved probe snapshot is older than 48 hours; per-source pass/fail labels are shown as stale until a new snapshot is published.'} The local service persists verified observations and compares matching cohorts; the first observation is a baseline. Checks require the service to remain running and the computer awake. Failed checks and newly observed records are kept distinct from no change and newly occurring events.</p></section>
   </main>;
 }
@@ -741,7 +749,7 @@ function SourcesPage({ health, schema }: { health: SourceHealthPayload | null; s
   const freshness = useSourceSnapshotFreshness(health);
   const unavailable = !summary.available || (!freshness.fresh && freshness.ageDays === null);
   const healthById = useMemo(() => new Map((health?.sources ?? []).map(source => [source.id, source])), [health]);
-  const statusOf = (id: string) => unavailable ? 'unavailable' : !freshness.fresh ? 'stale' : healthById.get(id)?.status ?? 'unavailable';
+  const statusOf = (id: string) => sourceProbeDisplayStatus(health, id, freshness.nowMs);
   const filtered = sourceCatalog.filter(source => (!filter || statusOf(source.id) === filter) &&
     `${source.id} ${source.name} ${source.family} ${source.role}`.toLowerCase().includes(search.trim().toLowerCase()));
   const groups = new Map<string, SourceCatalogEntry[]>();
