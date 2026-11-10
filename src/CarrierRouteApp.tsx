@@ -346,7 +346,7 @@ export default function CarrierRouteApp() {
     if (route.section === 'authority') return wrap(<Authority evidence={displayEvidence}/>);
     if (route.section === 'insurance') return wrap(<><InsuranceLineReview evidence={displayEvidence}/><Insurance evidence={displayEvidence}/></>);
     if (route.section === 'sms') return wrap(<Sms evidence={displayEvidence}/>);
-    if (route.section === 'intelligence') return <PublicIntelligencePanel carrier={carrier.raw} evidence={displayEvidence}/>;
+    if (route.section === 'intelligence') return <PublicIntelligencePanel carrier={carrier.raw} evidence={evidence}/>;
     return wrap(<><Evidence carrier={carrier} evidence={displayEvidence}/><AllSourceRecords key={route.dotNumber} evidence={displayEvidence}/></>);
   }, [route, carrier, evidence, mode, selectedInspection]);
 
