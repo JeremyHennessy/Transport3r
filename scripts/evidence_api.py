@@ -17,7 +17,7 @@ def file_sha256(path):
 
 
 class EvidenceServer(ThreadingHTTPServer):
-    def __init__(self,address,handler,warehouse,allow_origin,nri_index=None,audit_report=None,noaa_index=None):
+    def __init__(self,address,handler,warehouse,allow_origin,nri_index=None,audit_report=None,noaa_index=None,noaa_manifest=None):
         self.warehouse=pathlib.Path(warehouse).resolve();self.allow_origin=allow_origin
         self.warehouse_stamp=fingerprint(self.warehouse)
         self.nri_index=pathlib.Path(nri_index).resolve() if nri_index else None
@@ -25,9 +25,14 @@ class EvidenceServer(ThreadingHTTPServer):
         self.nri_index_sha256=file_sha256(self.nri_index) if self.nri_index else None
         self.nri_stamp=fingerprint(self.nri_index) if self.nri_index else None
         self.noaa_index=pathlib.Path(noaa_index).resolve() if noaa_index else None
-        self.noaa_status=noaa_acceptance(self.noaa_index) if self.noaa_index else None
+        self.noaa_manifest=pathlib.Path(noaa_manifest).resolve() if noaa_manifest else None
+        if bool(self.noaa_index)!=bool(self.noaa_manifest):
+            raise ValueError('NOAA index and trusted acquisition manifest must be installed together')
+        self.noaa_status=noaa_acceptance(self.noaa_index,self.noaa_manifest) if self.noaa_index else None
         self.noaa_index_sha256=file_sha256(self.noaa_index) if self.noaa_index else None
+        self.noaa_manifest_sha256=file_sha256(self.noaa_manifest) if self.noaa_manifest else None
         self.noaa_stamp=fingerprint(self.noaa_index) if self.noaa_index else None
+        self.noaa_manifest_stamp=fingerprint(self.noaa_manifest) if self.noaa_manifest else None
         db=connect(self.warehouse)
         try:self.receipt=acceptance(db)
         finally:db.close()
@@ -46,7 +51,11 @@ class EvidenceServer(ThreadingHTTPServer):
         except OSError:return False
 
     def noaa_unchanged(self):
-        try:return self.noaa_index is None or self.noaa_stamp==fingerprint(self.noaa_index)
+        try:
+            if self.noaa_index is None:return True
+            if pathlib.Path(str(self.noaa_index)+'.wal').exists() or pathlib.Path(str(self.noaa_index)+'.shm').exists():return False
+            return (self.noaa_stamp==fingerprint(self.noaa_index)
+                    and self.noaa_manifest_stamp==fingerprint(self.noaa_manifest))
         except OSError:return False
 
 
@@ -103,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
         if path=='/v1/geography/noaa/status':
             if not self.server.noaa_status:
                 return self.payload(503,{'status':'NOT_INSTALLED','source':'NOAA_NCEI_STORM_EVENTS_V1','carrier_route_attribution':'NOT_ESTABLISHED'},head)
-            return self.payload(200,{**self.server.noaa_status,'index_sha256':self.server.noaa_index_sha256},head)
+            return self.payload(200,{**self.server.noaa_status,'index_sha256':self.server.noaa_index_sha256,'manifest_sha256':self.server.noaa_manifest_sha256},head)
         if path.startswith('/v1/geography/noaa/events/'):
             if not self.server.noaa_index:
                 return self.payload(503,{'status':'NOT_INSTALLED','source':'NOAA_NCEI_STORM_EVENTS_V1','carrier_route_attribution':'NOT_ESTABLISHED'},head)
@@ -148,11 +157,11 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,format,*args):return
 
 
-def serve(warehouse,host='127.0.0.1',port=8787,allow_origin='*',nri_index=None,audit_report=None,noaa_index=None):
-    server=EvidenceServer((host,port),Handler,warehouse,allow_origin,nri_index=nri_index,audit_report=audit_report,noaa_index=noaa_index);server.serve_forever()
+def serve(warehouse,host='127.0.0.1',port=8787,allow_origin='*',nri_index=None,audit_report=None,noaa_index=None,noaa_manifest=None):
+    server=EvidenceServer((host,port),Handler,warehouse,allow_origin,nri_index=nri_index,audit_report=audit_report,noaa_index=noaa_index,noaa_manifest=noaa_manifest);server.serve_forever()
 
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('warehouse',nargs='?',default=os.environ.get('EVIDENCE_WAREHOUSE'));parser.add_argument('--host',default=os.environ.get('EVIDENCE_HOST','127.0.0.1'));parser.add_argument('--port',type=int,default=int(os.environ.get('PORT','8787')));parser.add_argument('--allow-origin',default=os.environ.get('EVIDENCE_ALLOW_ORIGIN','*'));parser.add_argument('--nri-index',default=os.environ.get('NRI_COUNTY_INDEX'));parser.add_argument('--audit-report',default=os.environ.get('EVIDENCE_AUDIT_FILE'));parser.add_argument('--noaa-index',default=os.environ.get('NOAA_STORM_INDEX'));args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('warehouse',nargs='?',default=os.environ.get('EVIDENCE_WAREHOUSE'));parser.add_argument('--host',default=os.environ.get('EVIDENCE_HOST','127.0.0.1'));parser.add_argument('--port',type=int,default=int(os.environ.get('PORT','8787')));parser.add_argument('--allow-origin',default=os.environ.get('EVIDENCE_ALLOW_ORIGIN','*'));parser.add_argument('--nri-index',default=os.environ.get('NRI_COUNTY_INDEX'));parser.add_argument('--audit-report',default=os.environ.get('EVIDENCE_AUDIT_FILE'));parser.add_argument('--noaa-index',default=os.environ.get('NOAA_STORM_INDEX'));parser.add_argument('--noaa-manifest',default=os.environ.get('NOAA_STORM_MANIFEST'));args=parser.parse_args()
     if not args.warehouse:parser.error('warehouse path or EVIDENCE_WAREHOUSE is required')
-    serve(args.warehouse,args.host,args.port,args.allow_origin,args.nri_index,args.audit_report,args.noaa_index)
+    serve(args.warehouse,args.host,args.port,args.allow_origin,args.nri_index,args.audit_report,args.noaa_index,args.noaa_manifest)

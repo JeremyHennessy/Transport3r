@@ -3,6 +3,7 @@
 No carrier-route, facility, insurer, H3, historical frequency, risk or loss
 attribution is performed. Reported points are not complete storm footprints.
 """
+import hashlib
 import json
 import pathlib
 import re
@@ -12,16 +13,52 @@ SOURCE_ID="NOAA_NCEI_STORM_EVENTS_V1"
 SOURCE_VERSION=2025
 STATUS="ACCEPTED_EVENT_SOURCE_INDEX"
 
+def _sha(path):
+    digest=hashlib.sha256()
+    with pathlib.Path(path).open("rb") as stream:
+        for chunk in iter(lambda:stream.read(1048576),b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+def _sidecars(path):
+    source=pathlib.Path(path).resolve()
+    return [pathlib.Path(str(source)+suffix) for suffix in ("-wal","-shm") if pathlib.Path(str(source)+suffix).exists()]
+
 def _open(path):
     source=pathlib.Path(path).resolve()
     if not source.is_file():
         raise ValueError("NOAA source index is not installed")
+    if _sidecars(source):
+        raise ValueError("NOAA source index has mutable SQLite sidecar state")
     db=sqlite3.connect(f"{source.as_uri()}?mode=ro",uri=True,timeout=5)
+    db.execute("PRAGMA query_only=ON")
     db.row_factory=sqlite3.Row
     return db
 
-def acceptance(path):
-    with _open(path) as db:
+def _trusted_manifest(path,index_path):
+    receipt=pathlib.Path(path).resolve()
+    if not receipt.is_file():
+        raise ValueError("Trusted NOAA acquisition manifest is not installed")
+    try:
+        external=json.loads(receipt.read_text(encoding="utf-8"))
+    except (OSError,UnicodeDecodeError,json.JSONDecodeError) as error:
+        raise ValueError("Trusted NOAA acquisition manifest is invalid") from error
+    expected=external.get("index_sha256")
+    if (external.get("source_id")!=SOURCE_ID or external.get("year")!=SOURCE_VERSION
+            or external.get("status")!="SOURCE_ACCEPTED_YEAR_GRAIN"
+            or external.get("source_revision_stable") is not True
+            or not re.fullmatch(r"[a-f0-9]{64}",str(expected or ""))
+            or expected!=_sha(index_path)):
+        raise ValueError("Trusted NOAA acquisition digest does not match installed index")
+    return external,receipt
+
+def acceptance(path,trusted_manifest=None):
+    source=pathlib.Path(path).resolve()
+    external=None
+    manifest_path=None
+    if trusted_manifest is not None:
+        external,manifest_path=_trusted_manifest(trusted_manifest,source)
+    with _open(source) as db:
         receipt=db.execute("SELECT value_json FROM source_receipt WHERE key='manifest'").fetchone()
         if receipt is None:
             raise ValueError("No embedded official-source manifest")
@@ -56,6 +93,11 @@ def acceptance(path):
         orphan_locs=db.execute("SELECT count(*) FROM event_location WHERE linked_detail=0").fetchone()[0]
         if orphan_locs!=m.get("unmatched_location_event_ids"):
             raise ValueError("Unmatched location source evidence was changed")
+        if external is not None:
+            for key in ("tables","files","unmatched_location_event_ids","unmatched_fatality_event_ids",
+                        "missing_coordinates","invalid_coordinates","source_revision_stable"):
+                if external.get(key)!=m.get(key):
+                    raise ValueError("Trusted NOAA acquisition manifest differs from embedded receipt: "+key)
         check=db.execute("PRAGMA quick_check").fetchone()[0]
         if check!="ok":
             raise ValueError("NOAA source SQLite integrity check failed")
@@ -72,6 +114,8 @@ def acceptance(path):
             "carrier_route_attribution":"NOT_ESTABLISHED",
             "reported_point_not_storm_footprint":True,
             "insurer_loss_attribution":"NOT_ESTABLISHED",
+            "trusted_index_sha256":external.get("index_sha256") if external else None,
+            "trusted_manifest_sha256":_sha(manifest_path) if manifest_path else None,
         }
 
 def event(path,event_id):

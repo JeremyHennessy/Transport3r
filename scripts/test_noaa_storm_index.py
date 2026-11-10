@@ -39,7 +39,8 @@ class NOAAIndexTests(unittest.TestCase):
         self.temp.cleanup()
 
     def simulated_official_receipt(self):
-        """Only for tests; patches provenance flags in a local fake index."""
+        """Only for tests; patches provenance flags in a local fake index and external receipt."""
+        from noaa_storm_events_ingest import sha
         with sqlite3.connect(self.path) as db:
             data=json.loads(db.execute("SELECT value_json FROM source_receipt WHERE key='manifest'").fetchone()[0])
             data["status"]="SOURCE_ACCEPTED_YEAR_GRAIN"
@@ -48,6 +49,8 @@ class NOAAIndexTests(unittest.TestCase):
                 data["files"][kind]["origin_verified"]=True
                 data["files"][kind]["url"]=BASE+data["files"][kind]["filename"]
             db.execute("UPDATE source_receipt SET value_json=? WHERE key='manifest'",(json.dumps(data),))
+        external={**data,"index_sha256":sha(self.path)}
+        (self.release/"manifest.json").write_text(json.dumps(external,indent=2)+"\n",encoding="utf-8")
 
     def test_unsigned_fixture_cannot_be_used_as_accepted_official_release(self):
         with self.assertRaisesRegex(ValueError,"publication"):
@@ -76,6 +79,29 @@ class NOAAIndexTests(unittest.TestCase):
         self.assertNotIn("carrier_risk",event(self.path,"10001"))
         self.assertEqual(event(self.path,"99999999")["status"],"NOT_FOUND")
 
+    def test_trusted_external_digest_is_required_for_public_installation(self):
+        self.simulated_official_receipt()
+        manifest=self.release/"manifest.json"
+        report=acceptance(self.path,manifest)
+        self.assertRegex(report["trusted_index_sha256"],r"^[a-f0-9]{64}$")
+        altered=json.loads(manifest.read_text())
+        altered["index_sha256"]="0"*64
+        bad=self.release/"bad-manifest.json"
+        bad.write_text(json.dumps(altered))
+        with self.assertRaisesRegex(ValueError,"digest"):
+            acceptance(self.path,bad)
+
+    def test_wal_or_shm_sidecars_are_rejected_before_queries(self):
+        self.simulated_official_receipt()
+        manifest=self.release/"manifest.json"
+        wal=pathlib.Path(str(self.path)+"-wal")
+        wal.write_bytes(b"synthetic mutable sidecar")
+        try:
+            with self.assertRaisesRegex(ValueError,"sidecar"):
+                acceptance(self.path,manifest)
+        finally:
+            wal.unlink(missing_ok=True)
+
     def test_invalid_identifiers_and_query_budgets(self):
         for raw in ["","0","1 OR 1=1","-2","101.0","1"*14]:
             with self.subTest(raw=raw), self.assertRaisesRegex(ValueError,"EVENT_ID"):
@@ -102,7 +128,9 @@ class NOAAHTTPTests(unittest.TestCase):
 
     def launch(self,with_index=True):
         server=self.EvidenceServer(("127.0.0.1",0),self.Handler,self.warehouse,
-                                   "https://insurer.example",noaa_index=self.path if with_index else None)
+                                   "https://insurer.example",
+                                   noaa_index=self.path if with_index else None,
+                                   noaa_manifest=(self.release/"manifest.json") if with_index else None)
         thread=threading.Thread(target=server.serve_forever,daemon=True)
         thread.start()
         self.addCleanup(lambda:(server.shutdown(),server.server_close(),thread.join()))
@@ -156,6 +184,19 @@ class NOAAHTTPTests(unittest.TestCase):
         value=json.load(raised.exception)
         self.assertEqual(value["status"],"SOURCE_CHANGED")
         self.assertEqual(value["carrier_route_attribution"],"NOT_ESTABLISHED")
+
+    def test_trusted_manifest_mutation_after_startup_fails_closed(self):
+        base=self.launch()
+        _,status,_=self.get(base+"/v1/geography/noaa/status")
+        self.assertEqual(status["status"],"ACCEPTED_EVENT_SOURCE_INDEX")
+        manifest=self.release/"manifest.json"
+        data=json.loads(manifest.read_text())
+        data["test_mutation"]=True
+        manifest.write_text(json.dumps(data))
+        with self.assertRaises(urllib.error.HTTPError) as raised:
+            urllib.request.urlopen(base+"/v1/geography/noaa/status",timeout=7)
+        self.assertEqual(raised.exception.code,503)
+        self.assertEqual(json.load(raised.exception)["status"],"SOURCE_CHANGED")
 
     def test_noaa_not_installed_stays_unavailable(self):
         base=self.launch(with_index=False)

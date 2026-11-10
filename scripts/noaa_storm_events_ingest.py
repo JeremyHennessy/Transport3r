@@ -110,8 +110,9 @@ def fetch(url:str,dest:Path,max_bytes:int):
     size=0
     with urllib.request.urlopen(request,timeout=100) as response, pending.open("xb") as out:
         final=urllib.parse.urlsplit(response.geturl())
-        if final.scheme!="https" or final.hostname!="www.ncei.noaa.gov":
-            raise ValueError("NOAA redirect left approved source host")
+        if (final.scheme!="https" or final.hostname!="www.ncei.noaa.gov"
+                or final.path!=parsed.path or final.query!=parsed.query):
+            raise ValueError("NOAA redirect changed approved source path")
         while block:=response.read(1048576):
             size+=len(block)
             if size>max_bytes:

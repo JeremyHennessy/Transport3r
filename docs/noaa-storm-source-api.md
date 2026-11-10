@@ -6,7 +6,7 @@ This module serves published source information only. It is **not** a carrier's 
 
 An optional `NOAA_STORM_INDEX` absolute path mounts the immutable `events.sqlite` created from official NOAA NCEI 2025 details, locations and fatalities. On startup the read-only API verifies its embedded source receipt, NOAA identity, year, official original file URLs and SHA-256 provenance, stable source revision, accepted raw/indexed row counts, orphan accounting and SQLite integrity. Unverified explicit archives cannot be served.
 
-If the index is missing, NOAA endpoints return HTTP 503 and `NOT_INSTALLED`; if an index is invalid, startup rejects it. The server fingerprints an installed NOAA SQLite file at startup and returns `SOURCE_CHANGED` if it mutates afterward. Existing FMCSA Carrier 360 and FEMA county APIs continue independently when NOAA is not configured. Installing NOAA never bypasses the independent FMCSA warehouse audit required for carrier evidence.
+If the index is missing, NOAA endpoints return HTTP 503 and `NOT_INSTALLED`; if an index is invalid, startup rejects it. The server verifies the installed SQLite SHA-256 against the separately mounted acquisition manifest, rejects SQLite WAL/SHM sidecars, fingerprints both index and manifest at startup, and returns `SOURCE_CHANGED` if either changes afterward. Existing FMCSA Carrier 360 and FEMA county APIs continue independently when NOAA is not configured. Installing NOAA never bypasses the independent FMCSA warehouse audit required for carrier evidence.
 
 ## Endpoints (all public-source-only GET / HEAD)
 

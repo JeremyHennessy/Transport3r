@@ -7,8 +7,9 @@ import pathlib
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 
-from noaa_storm_events_ingest import build, catalog, sha, coordinate, KINDS
+from noaa_storm_events_ingest import build, catalog, sha, coordinate, fetch, KINDS
 
 DETAIL_HEADER = ["EVENT_ID","EPISODE_ID","YEAR","STATE","EVENT_TYPE",
                  "BEGIN_DATE_TIME","END_DATE_TIME","CZ_NAME","STATE_FIPS","CZ_FIPS",
@@ -121,6 +122,16 @@ class NOAAEventsTests(unittest.TestCase):
             output.write("EVENT_ID,LATITUDE,LONGITUDE\n101,29.8,-95.5\n")
         with self.assertRaisesRegex(ValueError,"Unrecognized NOAA locations"):
             build(2025,self.root/"bad-header",self.files,min_details=3)
+
+    def test_same_host_redirect_to_different_noaa_file_is_rejected(self):
+        class Response(io.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self,*args): self.close()
+            def geturl(self): return "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2024_c20260819.csv.gz"
+        expected="https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_locations-ftp_v1.0_d2025_c20260819.csv.gz"
+        with mock.patch("urllib.request.urlopen",return_value=Response(b"not-used")):
+            with self.assertRaisesRegex(ValueError,"changed approved source path"):
+                fetch(expected,self.root/"redirect.gz",1000)
 
     def test_coordinates_do_not_invent_position(self):
         self.assertEqual(coordinate("","-95.5"),(None,None,"NOT_REPORTED"))
