@@ -17,7 +17,7 @@ export function PublicIntelligencePanel({carrier,evidence}:{carrier:DataRow;evid
   const [peer,setPeer]=useState<PeerBenchmark|null>(null),[peerError,setPeerError]=useState(''),[peerBusy,setPeerBusy]=useState(false);
   const [related,setRelated]=useState<RelatedLeadResult|null>(null),[relatedError,setRelatedError]=useState(''),[relatedBusy,setRelatedBusy]=useState(false);
   const peerGeneration=useRef(0),relatedGeneration=useRef(0),dot=readValue(carrier,['DOT_NUMBER'])??evidence.dotNumber;
-  useEffect(()=>{peerGeneration.current++;relatedGeneration.current++;setPeer(null);setPeerError('');setRelated(null);setRelatedError('');},[dot]);
+  useEffect(()=>{peerGeneration.current++;relatedGeneration.current++;setPeer(null);setPeerError('');setPeerBusy(false);setRelated(null);setRelatedError('');setRelatedBusy(false);},[dot]);
   async function peers(){
     const request=++peerGeneration.current;setPeer(null);setPeerError('');setPeerBusy(true);
     try{const value=await loadPeerBenchmark(carrier);if(request===peerGeneration.current)setPeer(value);}
@@ -32,7 +32,7 @@ export function PublicIntelligencePanel({carrier,evidence}:{carrier:DataRow;evid
   }
   return <section className="c360-card t3-intelligence" data-testid="public-intelligence">
     <div className="c360-section-head"><div><div className="t3-eyebrow">Open-data underwriting intelligence</div><h2>Compliance, peers, relationships and incidents</h2></div><div className="c360-badge-stack"><span className="c360-badge official">Official-source evidence</span><span className="c360-badge calculated">Transport calculated</span></div></div>
-    <p className="c360-disclaimer">This view turns public evidence into review queues and descriptive comparisons. It does not certify legal compliance, prove fraud/ownership, predict claims or change an insurance decision.</p>
+    <p className="c360-disclaimer">This view turns public evidence into review queues and descriptive comparisons. It does not certify legal compliance, prove fraud/ownership, predict claims or change an insurance decision. Compliance review clock: {review.asOf?new Date(review.asOf).toLocaleString():'unavailable'}.</p>
 
     <div className="t3-intel-block">
       <div className="t3-intel-head"><div><div className="t3-eyebrow">W09 · regulatory compliance tracking</div><h3>Evidence-backed review checks</h3></div><span className={`t3-intel-status ${review.status.toLowerCase()}`}>{stateLabel(review.status)}</span></div>

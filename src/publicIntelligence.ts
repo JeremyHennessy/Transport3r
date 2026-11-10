@@ -10,7 +10,7 @@ const SUSPENSION_GUIDANCE_REVIEW_AFTER=new Date(Date.UTC(2026,11,10));
 
 export type ReviewState='INFORMATION'|'REVIEW'|'DATA_GAP'|'TEMPORARY_SUSPENSION';
 export type ComplianceCheck={id:string;title:string;state:ReviewState;sourceId:string;summary:string;action:string};
-export type ComplianceReview={status:'REVIEW_NEEDED'|'INCOMPLETE_EVIDENCE'|'NO_RULE_TRIGGER';reviewCount:number;gapCount:number;checks:ComplianceCheck[];limitation:string};
+export type ComplianceReview={status:'REVIEW_NEEDED'|'INCOMPLETE_EVIDENCE'|'NO_RULE_TRIGGER';reviewCount:number;gapCount:number;asOf:string|null;checks:ComplianceCheck[];limitation:string};
 
 function validDot(dot:string){return /^[1-9]\d{0,9}$/.test(dot);}
 function iso(date:Date){return date.toISOString().slice(0,10);}
@@ -66,14 +66,26 @@ function datedWindow(rows:DataRow[],fields:string[],asOf:Date,days=30){
   }
   return{recent,unresolved};
 }
-export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf=new Date()):ComplianceReview {
+export function evidenceReviewDate(evidence:CarrierEvidence):Date|null {
+  const raw=evidence.completenessReceipt?.backend==='verified_nationwide_warehouse'
+    ? evidence.completenessReceipt.cutAvailableAt
+    : evidence.loadedAt;
+  if(!raw)return null;
+  const value=new Date(raw);
+  return Number.isFinite(value.getTime())?value:null;
+}
+export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf:Date|null=evidenceReviewDate(evidence)):ComplianceReview {
   const dot=readValue(carrier,['DOT_NUMBER','USDOT_NUMBER'])??evidence.dotNumber;
   const checks:ComplianceCheck[]=[];
   const add=(id:string,title:string,key:EvidenceKey,state:ReviewState,summary:string,action:string)=>checks.push({id,title,state,sourceId:SOURCE_IDS[key],summary,action});
   const status=readValue(carrier,['STATUS_CODE']);
   add('REGISTRATION','Registration status','census',status==='A'?'INFORMATION':status==='I'||status==='P'?'REVIEW':'DATA_GAP',
     `Published Census status: ${status??'unknown'}.`,'Confirm the registration record and whether the planned operation requires operating authority.');
-  checks.push(biennialReview(dot,readValue(carrier,['MCS150_DATE']),asOf));
+  checks.push(asOf?biennialReview(dot,readValue(carrier,['MCS150_DATE']),asOf):{
+    id:'BIENNIAL',title:'Biennial registration update',state:'DATA_GAP',sourceId:CENSUS,
+    summary:'Evidence acquisition/cut time is unavailable; the filing schedule cannot be evaluated against a defensible review clock.',
+    action:'Restore a valid evidence acquisition/cut timestamp and re-run the review.'
+  });
   const authority=sourceRows(evidence,'motusCarrier');
   if(authority===null)add('AUTHORITY','Operating authority','motusCarrier','DATA_GAP','Current authority evidence is unavailable or partial.','Refresh/complete the source; do not infer active authority from missing or truncated evidence.');
   else {
@@ -87,6 +99,7 @@ export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf=n
     'Confirm filing type, dates, policy documents and required authority. No returned filing does not by itself establish uninsured operation.');
   const history=sourceRows(evidence,'motusInsuranceHistory');
   if(history===null)add('FILING_CHANGES','Recent filing-history changes','motusInsuranceHistory','DATA_GAP','Insurance history evidence is unavailable or partial.','Refresh/complete the source before drawing a continuity conclusion.');
+  else if(!asOf)add('FILING_CHANGES','Recent filing-history changes','motusInsuranceHistory','DATA_GAP','Evidence review time is unavailable; recent-change windows cannot be evaluated.','Restore a valid evidence acquisition/cut timestamp before drawing a continuity conclusion.');
   else {
     const window=datedWindow(history,['CANCL_EFFECTIVE_DATE','CANCEL_EFFECTIVE_DATE','EFFECTIVE_DATE','TRANS_DATE'],asOf);
     add('FILING_CHANGES','Recent filing-history changes','motusInsuranceHistory',window.unresolved?'DATA_GAP':window.recent?'REVIEW':'INFORMATION',
@@ -103,6 +116,7 @@ export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf=n
     'Review issue and rescission dates. A source row is not by itself proof of current order effect.');
   const authHistory=sourceRows(evidence,'motusAuthHistory');
   if(authHistory===null)add('AUTHORITY_CHANGES','Recent authority-history changes','motusAuthHistory','DATA_GAP','Authority history is unavailable or partial.','Refresh/complete the source before drawing a lifecycle conclusion.');
+  else if(!asOf)add('AUTHORITY_CHANGES','Recent authority-history changes','motusAuthHistory','DATA_GAP','Evidence review time is unavailable; recent-change windows cannot be evaluated.','Restore a valid evidence acquisition/cut timestamp before drawing a lifecycle conclusion.');
   else {
     const window=datedWindow(authHistory,['STATUS_CHANGE_DATE'],asOf);
     add('AUTHORITY_CHANGES','Recent authority-history changes','motusAuthHistory',window.unresolved?'DATA_GAP':window.recent?'REVIEW':'INFORMATION',
@@ -111,7 +125,7 @@ export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf=n
   }
   const reviewCount=checks.filter(c=>c.state==='REVIEW').length;
   const gapCount=checks.filter(c=>c.state==='DATA_GAP').length;
-  return{status:reviewCount?'REVIEW_NEEDED':gapCount?'INCOMPLETE_EVIDENCE':'NO_RULE_TRIGGER',reviewCount,gapCount,checks,
+  return{status:reviewCount?'REVIEW_NEEDED':gapCount?'INCOMPLETE_EVIDENCE':'NO_RULE_TRIGGER',reviewCount,gapCount,asOf:asOf?.toISOString()??null,checks,
     limitation:'Public evidence review at the recorded request time, not legal-compliance certification, operating permission or insurance coverage. Partial, truncated or undated evidence remains a data gap. No rule trigger is not a clean-carrier conclusion.'};
 }
 

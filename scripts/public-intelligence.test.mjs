@@ -59,6 +59,26 @@ test('unparseable lifecycle dates cannot become a no-change information state',(
  assert.ok(value.checks.some(row=>row.id==='AUTHORITY_CHANGES'&&row.state==='DATA_GAP'&&/1 rows lack/.test(row.summary)));
 });
 
+test('default compliance clock stays anchored to an accepted warehouse cut instead of wall-clock time',()=>{
+ const e=evidence({slices:{
+  motusInsuranceHistory:slice('3uet-3z4i',[{cancl_effective_date:'20260820'}]),
+  motusAuthHistory:slice('yu5v-wbh6',[])
+ }});
+ e.loadedAt='2026-11-10T12:00:00Z';
+ e.completenessReceipt={backend:'verified_nationwide_warehouse',status:'VERIFIED',cutId:'cut-1',cutAvailableAt:'2026-09-01T00:00:00Z',warehouseSha256:'a'.repeat(64),identityContract:'FMCSA_CARRIER_IDENTITY_1',sourcesExpected:36,sourcesReturned:36,carrierRows:1,unresolvedRowsExcluded:true,mappingTotals:null,smsReleaseBinding:'UNVERIFIED',historicalFeatureValidity:'NOT_CERTIFIED'};
+ const value=app.complianceReview(carrier,e);
+ assert.equal(value.asOf,'2026-09-01T00:00:00.000Z');
+ assert.ok(value.checks.some(row=>row.id==='FILING_CHANGES'&&row.state==='REVIEW'&&row.summary.startsWith('1 filing-history rows')));
+});
+test('missing evidence clock makes time-window checks data gaps instead of using Date.now',()=>{
+ const e=evidence();e.loadedAt='not-a-date';
+ const value=app.complianceReview(carrier,e);
+ assert.equal(value.asOf,null);
+ assert.ok(value.checks.some(row=>row.id==='BIENNIAL'&&row.state==='DATA_GAP'));
+ assert.ok(value.checks.some(row=>row.id==='FILING_CHANGES'&&row.state==='DATA_GAP'&&/review time is unavailable/i.test(row.summary)));
+ assert.ok(value.checks.some(row=>row.id==='AUTHORITY_CHANGES'&&row.state==='DATA_GAP'&&/review time is unavailable/i.test(row.summary)));
+});
+
 test('peer benchmark refetches target and peers inside one stable Company Census publication bracket',async t=>{
  const urls=[];
  t.mock.method(globalThis,'fetch',async input=>{
