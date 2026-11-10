@@ -75,13 +75,19 @@ export function evidenceReviewDate(evidence:CarrierEvidence):Date|null {
   return Number.isFinite(value.getTime())?value:null;
 }
 export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf:Date|null=evidenceReviewDate(evidence)):ComplianceReview {
-  const dot=readValue(carrier,['DOT_NUMBER','USDOT_NUMBER'])??evidence.dotNumber;
+  const retainedCensus=evidence.completenessReceipt?.backend==='verified_nationwide_warehouse'
+    ? evidence.census??evidence.slices.census?.rows[0]??null
+    : null;
+  const reviewCarrier=evidence.completenessReceipt?.backend==='verified_nationwide_warehouse'
+    ? retainedCensus??{}
+    : carrier;
+  const dot=readValue(reviewCarrier,['DOT_NUMBER','USDOT_NUMBER'])??evidence.dotNumber;
   const checks:ComplianceCheck[]=[];
   const add=(id:string,title:string,key:EvidenceKey,state:ReviewState,summary:string,action:string)=>checks.push({id,title,state,sourceId:SOURCE_IDS[key],summary,action});
-  const status=readValue(carrier,['STATUS_CODE']);
+  const status=readValue(reviewCarrier,['STATUS_CODE']);
   add('REGISTRATION','Registration status','census',status==='A'?'INFORMATION':status==='I'||status==='P'?'REVIEW':'DATA_GAP',
     `Published Census status: ${status??'unknown'}.`,'Confirm the registration record and whether the planned operation requires operating authority.');
-  checks.push(asOf?biennialReview(dot,readValue(carrier,['MCS150_DATE']),asOf):{
+  checks.push(asOf?biennialReview(dot,readValue(reviewCarrier,['MCS150_DATE']),asOf):{
     id:'BIENNIAL',title:'Biennial registration update',state:'DATA_GAP',sourceId:CENSUS,
     summary:'Evidence acquisition/cut time is unavailable; the filing schedule cannot be evaluated against a defensible review clock.',
     action:'Restore a valid evidence acquisition/cut timestamp and re-run the review.'
@@ -126,7 +132,7 @@ export function complianceReview(carrier:DataRow,evidence:CarrierEvidence,asOf:D
   const reviewCount=checks.filter(c=>c.state==='REVIEW').length;
   const gapCount=checks.filter(c=>c.state==='DATA_GAP').length;
   return{status:reviewCount?'REVIEW_NEEDED':gapCount?'INCOMPLETE_EVIDENCE':'NO_RULE_TRIGGER',reviewCount,gapCount,asOf:asOf?.toISOString()??null,checks,
-    limitation:'Public evidence review at the recorded request time, not legal-compliance certification, operating permission or insurance coverage. Partial, truncated or undated evidence remains a data gap. No rule trigger is not a clean-carrier conclusion.'};
+    limitation:'Public evidence review at the recorded request time; accepted warehouse reviews bind Census status/report dates and all other evidence to the retained cut. Not legal-compliance certification, operating permission or insurance coverage. Partial, truncated or undated evidence remains a data gap. No rule trigger is not a clean-carrier conclusion.'};
 }
 
 type Publication={token:string;observedAt:string};

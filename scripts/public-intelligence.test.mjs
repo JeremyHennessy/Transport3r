@@ -70,6 +70,22 @@ test('default compliance clock stays anchored to an accepted warehouse cut inste
  assert.equal(value.asOf,'2026-09-01T00:00:00.000Z');
  assert.ok(value.checks.some(row=>row.id==='FILING_CHANGES'&&row.state==='REVIEW'&&row.summary.startsWith('1 filing-history rows')));
 });
+test('warehouse compliance binds registration and MCS-150 fields to retained Census instead of newer live route data',()=>{
+ const live={...carrier,status_code:'A',mcs150_date:'20260830'};
+ const e=evidence();
+ e.loadedAt='2026-11-10T12:00:00Z';
+ e.census={...carrier,status_code:'I',mcs150_date:'20240101'};
+ e.slices.census=slice('az4n-8mr2',[e.census]);
+ e.completenessReceipt={backend:'verified_nationwide_warehouse',status:'VERIFIED',cutId:'cut-1',cutAvailableAt:'2026-09-01T00:00:00Z',warehouseSha256:'a'.repeat(64),identityContract:'FMCSA_CARRIER_IDENTITY_1',sourcesExpected:36,sourcesReturned:36,carrierRows:1,unresolvedRowsExcluded:true,mappingTotals:null,smsReleaseBinding:'UNVERIFIED',historicalFeatureValidity:'NOT_CERTIFIED'};
+ const value=app.complianceReview(live,e);
+ const registration=value.checks.find(row=>row.id==='REGISTRATION');
+ const biennial=value.checks.find(row=>row.id==='BIENNIAL');
+ assert.equal(registration.state,'REVIEW');
+ assert.match(registration.summary,/status: I/);
+ assert.match(biennial.summary,/Latest Census report: 2024-01-01/);
+ assert.doesNotMatch(biennial.summary,/2026-08-30/);
+});
+
 test('missing evidence clock makes time-window checks data gaps instead of using Date.now',()=>{
  const e=evidence();e.loadedAt='not-a-date';
  const value=app.complianceReview(carrier,e);
