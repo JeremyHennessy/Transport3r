@@ -3,6 +3,7 @@
 No carrier-route, facility, insurer, H3, historical frequency, risk or loss
 attribution is performed. Reported points are not complete storm footprints.
 """
+from contextlib import closing
 import hashlib
 import json
 import pathlib
@@ -58,7 +59,7 @@ def acceptance(path,trusted_manifest=None):
     manifest_path=None
     if trusted_manifest is not None:
         external,manifest_path=_trusted_manifest(trusted_manifest,source)
-    with _open(source) as db:
+    with closing(_open(source)) as db:
         receipt=db.execute("SELECT value_json FROM source_receipt WHERE key='manifest'").fetchone()
         if receipt is None:
             raise ValueError("No embedded official-source manifest")
@@ -87,10 +88,10 @@ def acceptance(path,trusted_manifest=None):
             counts[kind]=size
         if counts["details"]<5000:
             raise ValueError("NOAA 2025 source index has incomplete event universe")
-        orphans=db.execute("SELECT count(*) FROM event_fatality WHERE linked_detail=0").fetchone()[0]
+        orphans=db.execute("SELECT count(DISTINCT event_id) FROM event_fatality WHERE linked_detail=0").fetchone()[0]
         if orphans!=m.get("unmatched_fatality_event_ids"):
             raise ValueError("Unmatched fatality source evidence was changed")
-        orphan_locs=db.execute("SELECT count(*) FROM event_location WHERE linked_detail=0").fetchone()[0]
+        orphan_locs=db.execute("SELECT count(DISTINCT event_id) FROM event_location WHERE linked_detail=0").fetchone()[0]
         if orphan_locs!=m.get("unmatched_location_event_ids"):
             raise ValueError("Unmatched location source evidence was changed")
         if external is not None:
@@ -121,7 +122,7 @@ def acceptance(path,trusted_manifest=None):
 def event(path,event_id):
     if not isinstance(event_id,str) or not re.fullmatch(r"[1-9][0-9]{0,12}",event_id):
         raise ValueError("Positive numeric NCEI EVENT_ID required")
-    with _open(path) as db:
+    with closing(_open(path)) as db:
         row=db.execute(
             "SELECT event_id,episode_id,source_year,state,event_type,begin_time,end_time,"
             "cz_name,state_fips,cz_fips,damage_property_raw,damage_crops_raw,"
@@ -149,7 +150,7 @@ def locations(path,state,limit=200,offset=0):
         raise ValueError("limit must be 1..500")
     if not isinstance(offset,int) or not 0<=offset<=100000:
         raise ValueError("offset must be 0..100000")
-    with _open(path) as db:
+    with closing(_open(path)) as db:
         count=db.execute(
             "SELECT count(*) FROM event_location l JOIN event_detail d ON d.event_id=l.event_id "
             "WHERE d.state=? AND l.geo_status='PUBLISHED_POINT'",(state,)).fetchone()[0]
