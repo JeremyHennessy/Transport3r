@@ -3,6 +3,7 @@ import {CompleteLoadStatus,AllSourceRecords,mergeComplete} from './CompleteData'
 import {CarrierInsight} from './CarrierInsight';
 import {InsuranceLineReview} from './InsuranceLineReview';
 import {OfficialSmsPanel} from './OfficialSmsPanel';
+import {PublicIntelligencePanel} from './PublicIntelligencePanel';
 import { InspectionDetail, ObservedVinDetail } from './InspectionDrilldowns';
 import { loadInspectionEvidence } from './inspectionEvidence';
 import { SafetyWindowPanel } from './SafetyWindowPanel';
@@ -37,7 +38,7 @@ import { EvidenceStatus, ExposureContext } from './EvidenceStatus';
 import { orderSummary, filingChangeSummary, motusMaximumCoverageLabel, MOTUS_COVERAGE_UNIT_NOTE } from './evidenceLifecycle';
 import { replayCarrierInspectionMeasures, replaySummary, smsReplayMessages } from './smsReplay';
 
-type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'evidence';
+type CarrierSection = 'summary' | 'safety' | 'fleet' | 'authority' | 'insurance' | 'sms' | 'intelligence' | 'evidence';
 
 type ParsedRoute =
   | { kind: 'section'; dotNumber: string; section: CarrierSection }
@@ -69,6 +70,7 @@ const SECTIONS: Array<{ id: CarrierSection; label: string; description: string }
   { id: 'authority', label: 'Authority', description: 'MOTUS & OOS' },
   { id: 'insurance', label: 'Insurance', description: 'Filings & history' },
   { id: 'sms', label: 'SMS', description: 'Official + replay' },
+  { id: 'intelligence', label: 'Intelligence', description: 'Compliance, peers & links' },
   { id: 'evidence', label: 'Evidence', description: 'All source lineage' },
 ];
 
@@ -314,6 +316,7 @@ export default function CarrierRouteApp() {
   useEffect(() => {
     if (!route) return;
     let current = true;
+    setCarrier(null);
     setCarrierError(null);
     loadCarrier(route.dotNumber).then((loaded) => { if (current) { setCarrier(loaded); document.title = `${loaded.legalName} · Transport3r`; } }).catch((cause) => { if (current) setCarrierError(cause instanceof Error ? cause.message : String(cause)); });
     return () => { current = false; };
@@ -332,7 +335,7 @@ export default function CarrierRouteApp() {
   }, [route?.dotNumber, mode, selectedInspection, refresh]);
 
   const content = useMemo(() => {
-    if (!route || !carrier || !evidence || evidence.dotNumber !== route.dotNumber || evidence.mode !== mode || evidence.inspectionId !== selectedInspection) return null;
+    if (!route || !carrier || !evidence || carrier.dotNumber !== route.dotNumber || evidence.dotNumber !== route.dotNumber || evidence.mode !== mode || evidence.inspectionId !== selectedInspection) return null;
     const displayEvidence = { ...evidence, census: carrier.raw };
     const wrap=(body:ReactNode)=><><CarrierInsight evidence={displayEvidence} section={route.kind==='section'?route.section:route.kind}/>{body}</>;
     if (route.kind === 'inspection') return wrap(<InspectionDetail evidence={displayEvidence} onRetry={() => setRefresh(value => value+1)}/>);
@@ -343,10 +346,13 @@ export default function CarrierRouteApp() {
     if (route.section === 'authority') return wrap(<Authority evidence={displayEvidence}/>);
     if (route.section === 'insurance') return wrap(<><InsuranceLineReview evidence={displayEvidence}/><Insurance evidence={displayEvidence}/></>);
     if (route.section === 'sms') return wrap(<Sms evidence={displayEvidence}/>);
+    if (route.section === 'intelligence') return <PublicIntelligencePanel carrier={carrier.raw} evidence={evidence}/>;
     return wrap(<><Evidence carrier={carrier} evidence={displayEvidence}/><AllSourceRecords key={route.dotNumber} evidence={displayEvidence}/></>);
   }, [route, carrier, evidence, mode, selectedInspection]);
 
   if (!route) return <div className="t3-fatal"><strong>Invalid carrier route.</strong><a href="#/carriers">Return to Carriers</a></div>;
 
-  return <div className="t3-app c360-app"><header className="t3-topbar"><Brand/><nav className="t3-primary-nav" aria-label="Primary navigation"><a href="#/overview">Overview</a><a href="#/carriers" className="active">Carriers</a><a href="#/atlas">Atlas</a><a href="#/portfolio">Portfolio</a><a href="#/alerts">Alerts</a><a href="#/methodology">Methodology</a><a href="#/sources">Data Sources</a></nav><span className="t3-health neutral"><i/>USDOT {route.dotNumber}</span></header><main className="c360-main">{carrierError && <div className="t3-error"><strong>Carrier identity could not load.</strong><span>{carrierError}</span><a href="#/carriers">Return to carrier table</a></div>}{carrier && <CarrierHeader carrier={carrier} route={route}/>} {evidenceError && <div className="t3-error"><strong>This evidence tab could not load.</strong><span>{evidenceError}</span></div>}{carrier && !evidence && !evidenceError && <div className="c360-loading"><span className="t3-spinner"/><div><strong>Loading {mode} evidence</strong><span>Preparing a preview while complete source records load.</span></div></div>}{!selectedInspection&&<CompleteLoadStatus dot={route.dotNumber} mode={mode} onLoaded={full=>setEvidence(preview=>mergeComplete(preview,full,mode))}/>}<p><a href={`#/carrier/${route.dotNumber}/evidence`}>Browse every source record and field</a></p>{content}</main><footer className="t3-footer"><span>Transport3r</span><span>Shareable FMCSA carrier intelligence</span><span>Evidence before score</span></footer></div>;
+  const matchedCarrier=carrier?.dotNumber===route.dotNumber?carrier:null;
+
+  return <div className="t3-app c360-app"><header className="t3-topbar"><Brand/><nav className="t3-primary-nav" aria-label="Primary navigation"><a href="#/overview">Overview</a><a href="#/carriers" className="active">Carriers</a><a href="#/atlas">Atlas</a><a href="#/portfolio">Portfolio</a><a href="#/alerts">Alerts</a><a href="#/methodology">Methodology</a><a href="#/sources">Data Sources</a></nav><span className="t3-health neutral"><i/>USDOT {route.dotNumber}</span></header><main className="c360-main">{carrierError && <div className="t3-error"><strong>Carrier identity could not load.</strong><span>{carrierError}</span><a href="#/carriers">Return to carrier table</a></div>}{matchedCarrier && <CarrierHeader carrier={matchedCarrier} route={route}/>} {evidenceError && <div className="t3-error"><strong>This evidence tab could not load.</strong><span>{evidenceError}</span></div>}{matchedCarrier && !evidence && !evidenceError && <div className="c360-loading"><span className="t3-spinner"/><div><strong>Loading {mode} evidence</strong><span>Preparing a preview while complete source records load.</span></div></div>}{!selectedInspection&&<CompleteLoadStatus dot={route.dotNumber} mode={mode} onLoaded={full=>setEvidence(preview=>mergeComplete(preview,full,mode))}/>}<p><a href={`#/carrier/${route.dotNumber}/evidence`}>Browse every source record and field</a></p>{content}</main><footer className="t3-footer"><span>Transport3r</span><span>Shareable FMCSA carrier intelligence</span><span>Evidence before score</span></footer></div>;
 }

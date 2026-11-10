@@ -32,6 +32,7 @@ ROUTES = [
     ('fleet', '#/carrier/3938496/fleet', ['Reported fleet exposure', '3C63RRGLXNG286232']),
     ('insurance', '#/carrier/3938496/insurance', ['Coverage continuity', 'Review by coverage line']),
     ('sms', '#/carrier/3938496/sms', ['Official output and Transport replay']),
+    ('intelligence', '#/carrier/3938496/intelligence', ['Compliance, peers, relationships and incidents']),
     ('sources', '#/sources', ['All 36 configured FMCSA/DOT datasets']),
     ('inspection', '#/carrier/3938496/inspection/82574029', ['Retrieved directly by inspection ID']),
     ('vin', '#/carrier/3938496/vin/3C63RRGLXPG628183?inspection=82574029', ['Observed vehicle evidence']),
@@ -56,6 +57,7 @@ READINESS_JS = r'''({expected, errors, label}) => {
     if (label === 'integrity' && !text.includes(normal('not a live check'))) return false;
     if (label === 'carriers' && !document.querySelector('.t3-carrier-row:not(.header) .carrier-name a')) return false;
     if (label === 'vin' && !document.querySelector('[data-testid="vin-detail"]')) return false;
+    if (label === 'intelligence' && !document.querySelector('[data-testid="public-intelligence"]')) return false;
     if (label === 'evidence' && !document.querySelector('.c360-card .c360-raw-census')) return false;
     if (label === 'authority' && !document.querySelector('.c360-table.authority')) return false;
     return {ready:true};
@@ -133,6 +135,7 @@ SECTION_SELECTORS = {
     'evidence': '.c360-card:has(.c360-raw-census)',
     'insurance': '[data-testid="insurance-line-review"]',
     'sms': '.c360-card:not([data-testid="carrier-insight"]):not([data-testid="complete-data-status"])',
+    'intelligence': '[data-testid="public-intelligence"]',
     'inspection': '[data-testid="inspection-detail"]',
     'vin': '[data-testid="vin-detail"]',
     'integrity': '.t3-integrity-pipeline, .t3-integrity-table-wrap',
